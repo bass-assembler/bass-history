@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v00\n");
+    print("bass v00.01\n");
     print("author: byuu\n");
     print("usage: bass -arch=snes-cpu -o output input [input ...]\n");
     return 0;

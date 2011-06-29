@@ -10,7 +10,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   lstring part;
-  part.split<2>(" ", block);
+  part.split<1>(" ", block);
   string name   = part[0];
   string arg    = part[1];
   unsigned size = 0;
@@ -31,7 +31,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     else if(name.endswith(".l")) { size = 3; name.rtrim<1>(".l"); }
   };
 
-  if(arg == "" || arg.wildcard("#*")) {
+  if(arg == "" || arg.wildcard("#?*")) {
     arg.ltrim<1>("#");
     unsigned n = arg == "" ? 1 : eval(arg);
     if(name == "asl") { for(unsigned r = 0; r < n; r++) write(0x0a); return true; }
@@ -107,7 +107,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("*,s")) {
+  if(arg.wildcard("?*,s")) {
     arg.rtrim<1>(",s");
     unsigned n = eval(arg);
     if(name == "adc") { write(0x63); write(n); return true; }
@@ -121,7 +121,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("(*,s),y")) {
+  if(arg.wildcard("(?*,s),y")) {
     arg.ltrim<1>("(");
     arg.rtrim<1>(",s),y");
     unsigned n = eval(arg);
@@ -136,7 +136,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("(*,x)")) {
+  if(arg.wildcard("(?*,x)")) {
     arg.ltrim<1>("(");
     arg.rtrim<2>(",x)");
     unsigned n = eval(arg);
@@ -153,7 +153,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("(*),y")) {
+  if(arg.wildcard("(?*),y")) {
     arg.ltrim<1>("(");
     arg.rtrim<1>("),y");
     unsigned n = eval(arg);
@@ -168,7 +168,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("(*)")) {
+  if(arg.wildcard("(?*)")) {
     arg.ltrim<1>("(");
     arg.rtrim<1>(")");
     unsigned n = eval(arg);
@@ -185,7 +185,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("[*],y")) {
+  if(arg.wildcard("[?*],y")) {
     arg.ltrim<1>("[");
     arg.rtrim<1>("],y");
     unsigned n = eval(arg);
@@ -200,7 +200,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("[*]")) {
+  if(arg.wildcard("[?*]")) {
     arg.ltrim<1>("[");
     arg.rtrim<1>("]");
     unsigned n = eval(arg);
@@ -216,7 +216,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("*,x")) {
+  if(arg.wildcard("?*,x")) {
     arg.rtrim<1>(",x");
     unsigned n = eval(arg);
     detectSize();
@@ -272,7 +272,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("*,y")) {
+  if(arg.wildcard("?*,y")) {
     arg.rtrim<1>(",y");
     unsigned n = eval(arg);
     detectSize();
@@ -294,7 +294,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     return false;
   }
 
-  if(arg.wildcard("*,*")) {
+  if(arg.wildcard("?*,?*")) {
     lstring bank;
     bank.split(",", arg);
     if(name == "mvn") { write(0x54); write(eval(bank[1])); write(eval(bank[0])); return true; }

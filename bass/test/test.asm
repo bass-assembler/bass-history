@@ -1,25 +1,21 @@
 mapper lorom
-org $008000; fill $8000
+org $8000; fill $8000
 
-define pushall php; rep #$30; pha; phb; phd; phx; phy
-define pullall rep #$30; ply; plx; pld; plb; pla; plp
+define base = $80
+define add x = clc; adc.w #{base}+{x}
+define sum x = {add {x}+0}; {add {x}+1}; {add {x}+2}; {add {x}+3}
+define all x
+  {sum {x}+0}; {sum {x}+4}
+  {sum {x}+8}; {sum {x}+12}
+enddef
 
-macro square(n)
-  {n}*{n}
-endmacro
+define 'A' = 0x61
+define 'B' = 0x62
 
-macro fill(addr, length, byte)
-  lda.b #{byte}
-  ldx.w {addr}
-  -; sta $0000,x; dey; bne -
-  rts
-endmacro
-
-org $008000
-  dw {square(8)}
-  {fill($4000, $2000, $ff)}
-  incsrc "test/include.asm"
+org $8000
+  {all $20}; {all $30}
+  db "ABCD"
+  dw $8000 + $2000
   incbin "test/include.bin"
-  {pushall}
-  {pullall}
+  incsrc "test/include.asm"
 

@@ -52,25 +52,25 @@ int64_t Bass::eval(const string &s) {
   }
 }
 
-void Bass::evalMacros(string &line) {
+void Bass::evalDefines(string &line) {
   unsigned length = line.length();
   for(unsigned x = 0; x < length; x++) {
     if(line[x] == '{') {
       for(unsigned y = x + 1; y < length; y++) {
         if(line[y] == '}') {
           string name = substr(line, x + 1, y - x - 1);
-          lstring part, args;
-          part.split<1>("(", name);
-          part[1].rtrim<1>(")");
-          if(part[1] != "") args.qsplit(",", part[1]);
-          if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
-          foreach(macro, macros) {
-            if(part[0] == macro.name && args.size() == macro.args.size()) {
-              foreach(argument, macro.args, n) {
-                setDefine(argument, args[n]);
-              }
-              line = string(substr(line, 0, x), macro.value, substr(line, y + 1));
-              return evalMacros(line);
+          if(!name.position("::")) name = { activeNamespace, "::", name };
+
+          lstring header, args;
+          header.split<1>(" ", name);
+          if(header[1] != "") args.split(",", header[1]);
+
+          foreach(define, defines) {
+            if(header[0] == define.name && args.size() == define.args.size()) {
+              string result;
+              evalParams(result, define, args);
+              line = string(substr(line, 0, x), result, substr(line, y + 1));
+              return evalDefines(line);
             }
           }
           break;
@@ -80,24 +80,9 @@ void Bass::evalMacros(string &line) {
   }
 }
 
-void Bass::evalDefines(string &line) {
-  unsigned length = line.length();
-  for(unsigned x = 0; x < length; x++) {
-    if(line[x] == '{') {
-      for(unsigned y = x + 1; y < length; y++) {
-        if(line[y] == '}') {
-          string name = substr(line, x + 1, y - x - 1);
-          name.rtrim<1>(")");
-          if(!name.position("::")) name = { activeNamespace, "::", name };
-          foreach(define, defines) {
-            if(name == define.name) {
-              line = string(substr(line, 0, x), define.value, substr(line, y + 1));
-              return evalDefines(line);
-            }
-          }
-          break;
-        }
-      }
-    }
+void Bass::evalParams(string &line, Bass::Define &define, lstring &args) {
+  line = define.value;
+  foreach(arg, define.args, n) {
+    line.replace(string("{", arg, "}"), args[n]);
   }
 }

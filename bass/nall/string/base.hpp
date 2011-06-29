@@ -53,8 +53,7 @@ namespace nall {
     inline optional<unsigned> position(const char *key) const;
     inline optional<unsigned> qposition(const char *key) const;
 
-    template<typename T> inline string& operator= (T value);
-    template<typename T> inline string& operator<<(T value);
+  //template<typename T> inline string& operator<<(T value);
 
     inline operator const char*() const;
     inline char* operator()();

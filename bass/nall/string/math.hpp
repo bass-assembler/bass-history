@@ -3,7 +3,7 @@
 
 namespace nall {
 
-function<int64_t (const char *&)> eval_fallback;
+static function<int64_t (const char *&)> eval_fallback;
 
 static int eval_integer(const char *&s) {
   if(!*s) throw "unrecognized_integer";

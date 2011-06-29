@@ -9,23 +9,13 @@ protected:
   void assembleFile(const string &filename);
   virtual bool assembleLine(const string &line);
   virtual bool assembleBlock(const string &block);
-  void setDefine(const string &name, const string &value);
+  void setDefine(const string &name, const lstring &args, const string &value);
   virtual void seek(unsigned offset);
   void write(uint64_t data, unsigned length = 1);
 
-  //eval.cpp
-  int64_t eval(const string &s);
-  void evalMacros(string &line);
-  void evalDefines(string &line);
-
-  struct Macro {
-    string name;
-    lstring args;
-    string value;
-  };
-
   struct Define {
     string name;
+    lstring args;
     string value;
   };
 
@@ -34,16 +24,20 @@ protected:
     unsigned offset;
   };
 
+  //eval.cpp
+  int64_t eval(const string &s);
+  void evalDefines(string &line);
+  void evalParams(string &line, Bass::Define &define, lstring &args);
+
   file output;
   enum class Endian : bool { LSB, MSB } endian;
   unsigned pass;
   unsigned offset;
   unsigned base;
   uint64_t table[256];
-  linear_vector<Macro> macros;
   linear_vector<Define> defines;
   linear_vector<Label> labels;
-  Macro *activeMacro;
+  Define *activeDefine;
   string activeNamespace;
   string activeLabel;
   unsigned negativeLabelCounter;
