@@ -1,5 +1,4 @@
 #include "eval.cpp"
-#include "../arch/snes-cpu/snes-cpu.cpp"
 
 bool Bass::open(const string &filename) {
   if(output.open(filename, file::mode::readwrite) == false) {
@@ -18,6 +17,7 @@ bool Bass::assemble(const string &filename) {
     activeDefine = 0;
     activeNamespace = "global";
     activeLabel = "global";
+    defineExpandCounter = 1;
     negativeLabelCounter = 1;
     positiveLabelCounter = 1;
     try {
@@ -101,6 +101,7 @@ bool Bass::assembleLine(const string &line) {
   //= multi-line define =
   //=====================
   if(activeDefine) {
+    if(line.beginswith("define ")) error("recursive defines are not supported");
     activeDefine->value.append(line, "; ");
     return true;
   }
@@ -108,7 +109,7 @@ bool Bass::assembleLine(const string &line) {
   //==========
   //= define =
   //==========
-  if(line.beginswith("define ") && !activeDefine) {
+  if(line.beginswith("define ")) {
     lstring part;
     part.split<1>("=", line);  //part[0] = define name [params...], part[1] = value
     part[0].trim(" ");
@@ -150,22 +151,27 @@ bool Bass::assembleBlock(const string &s) {
   if(block.wildcard("incsrc \"?*\"")) {
     block.ltrim<1>("incsrc ");
     block.trim<1>("\"");
-    assembleFile(block);
+    assembleFile({ dir(fileName()), block });
     return true;
   }
 
   //==========
   //= incbin =
   //==========
-  if(block.wildcard("incbin \"?*\"")) {
+  if(block.wildcard("incbin \"?*\"*")) {
     block.ltrim<1>("incbin ");
-    block.trim<1>("\"");
+    lstring part;
+    part.qsplit(",", block);
+    part[0].trim<1>("\"");
     file fp;
-    if(fp.open(block, file::mode::read) == false) {
-      error({ "binary file ", block, " not found" });
+    if(fp.open({ dir(fileName()), part[0] }, file::mode::read) == false) {
+      error({ "binary file ", part[0], " not found" });
     }
-    unsigned size = fp.size();
-    for(unsigned n = 0; n < size; n++) write(fp.read());
+    unsigned offset = part.size() >= 2 ? eval(part[1]) : 0u;
+    unsigned length = part.size() >= 3 ? eval(part[2]) : fp.size() - offset;
+    if(length > fp.size()) error({ "binary file ", part[0], " include length exceeds file size "});
+    fp.seek(offset);
+    for(unsigned n = 0; n < length; n++) write(fp.read());
     fp.close();
     return true;
   }
@@ -246,7 +252,7 @@ bool Bass::assembleBlock(const string &s) {
     } else {
       activeLabel = block;
     }
-    labels.append({ { activeNamespace, "::", block }, base });
+    setLabel({ activeNamespace, "::", block }, base);
     return true;
   }
 
@@ -254,7 +260,7 @@ bool Bass::assembleBlock(const string &s) {
   //= + label =
   //===========
   if(block == "+") {
-    if(pass == 1) labels.append({ { "+", positiveLabelCounter }, base });
+    if(pass == 1) setLabel({ "+", positiveLabelCounter }, base);
     positiveLabelCounter++;
     return true;
   }
@@ -263,7 +269,7 @@ bool Bass::assembleBlock(const string &s) {
   //= - label =
   //===========
   if(block == "-") {
-    if(pass == 1) labels.append({ { "-", negativeLabelCounter }, base });
+    if(pass == 1) setLabel({ "-", negativeLabelCounter }, base);
     negativeLabelCounter++;
     return true;
   }
@@ -320,6 +326,13 @@ void Bass::setDefine(const string &name_, const lstring &args, const string &val
     }
   }
   defines.append({ name, args, value });
+}
+
+void Bass::setLabel(const string &name, unsigned offset) {
+  if(pass == 1) foreach(label, labels) {
+    if(name == label.name) error({ "Label ", name, " has already been declared" });
+  }
+  labels.append({ name, offset });
 }
 
 void Bass::seek(unsigned offset) {

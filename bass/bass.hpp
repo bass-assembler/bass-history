@@ -7,3 +7,5 @@
 using namespace nall;
 
 #include "core/core.hpp"
+#include "arch/snes-cpu/snes-cpu.hpp"
+#include "arch/snes-smp/snes-smp.hpp"

@@ -9,13 +9,27 @@ define all x
   {sum {x}+8}; {sum {x}+12}
 enddef
 
+define hvbjoy = $4212
+
+define loop
+  wait{#}:
+    lda {hvbjoy}
+    bmi wait{#}
+enddef
+
 define 'A' = 0x61
 define 'B' = 0x62
 
 org $8000
+  {loop}
+  {loop}
+
+  lda.b #%11000011
+  lda.b #5 % %11
+
   {all $20}; {all $30}
   db "ABCD"
   dw $8000 + $2000
-  incbin "test/include.bin"
-  incsrc "test/include.asm"
+  incbin "include.bin", 0x0000, 0x0004
+  incsrc "include.asm"
 

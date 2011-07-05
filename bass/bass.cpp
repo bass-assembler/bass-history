@@ -1,5 +1,7 @@
 #include "bass.hpp"
 #include "core/core.cpp"
+#include "arch/snes-cpu/snes-cpu.cpp"
+#include "arch/snes-smp/snes-smp.cpp"
 
 #if defined(BASS_BINARY)
 
@@ -10,8 +12,12 @@ int main(int argc, char **argv) {
   Bass *arch = 0;
 
   for(unsigned n = 1; n < argc;) {
-    if(!arch && !strcmp(argv[n], "-arch=snes-cpu")) {
+    if(0);
+    else if(!arch && !strcmp(argv[n], "-arch=snes-cpu")) {
       arch = new BassSnesCpu;
+      n++;
+    } else if(!arch && !strcmp(argv[n], "-arch=snes-smp")) {
+      arch = new BassSnesSmp;
       n++;
     } else if(!strcmp(argv[n], "-o") && n + 1 < argc) {
       outputFilename = argv[n + 1];
@@ -26,9 +32,12 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v00.01\n");
+    print("bass v00.02\n");
     print("author: byuu\n");
-    print("usage: bass -arch=snes-cpu -o output input [input ...]\n");
+    print("usage: bass -arch=(arch) -o output input [input ...]\n\n");
+    print("supported archs:\n");
+    print("  snes-cpu\n");
+    print("  snes-smp\n");
     return 0;
   }
 

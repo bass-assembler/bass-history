@@ -25,6 +25,18 @@ string substr(const char *src, unsigned start, unsigned length) {
   return dest;
 }
 
+string sha256(const uint8_t *data, unsigned size) {
+  sha256_ctx sha;
+  uint8_t hash[32];
+  sha256_init(&sha);
+  sha256_chunk(&sha, data, size);
+  sha256_final(&sha);
+  sha256_hash(&sha, hash);
+  string result;
+  foreach(byte, hash) result.append(hex<2>(byte));
+  return result;
+}
+
 /* arithmetic <> string */
 
 string integer(intmax_t value) {

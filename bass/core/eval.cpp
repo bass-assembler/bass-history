@@ -28,6 +28,16 @@ int64_t Bass::eval(const string &s) {
       }
     }
 
+    //binary
+    if(*s == '%') {
+      s++;
+      int64_t value = 0;
+      while(true) {
+        if(*s == '0' || *s == '1') { value = value * 2 + (*s++ - '0'); continue; }
+        return value;
+      }
+    }
+
     //label
     if(*s == ':' || *s == '.' || *s == '_' || (*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z')) {
       const char *start = s;
@@ -70,6 +80,7 @@ void Bass::evalDefines(string &line) {
               string result;
               evalParams(result, define, args);
               line = string(substr(line, 0, x), result, substr(line, y + 1));
+              defineExpandCounter++;
               return evalDefines(line);
             }
           }
@@ -82,6 +93,7 @@ void Bass::evalDefines(string &line) {
 
 void Bass::evalParams(string &line, Bass::Define &define, lstring &args) {
   line = define.value;
+  line.replace("{#}", string("_", decimal(defineExpandCounter)));
   foreach(arg, define.args, n) {
     line.replace(string("{", arg, "}"), args[n]);
   }

@@ -159,7 +159,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
     xml.append("    <map address='80-bf:6000-7fff'/>\n");
     xml.append("  </icd2>\n");
   } else if(has_cx4) {
-    xml.append("  <hitachidsp model='HG51B169' frequency='20000000' data='cx4.bin' sha256='ae8d4d1961b93421ff00b3caa1d0f0ce7783e749772a3369c36b3dbf0d37ef18'>\n");
+    xml.append("  <hitachidsp model='HG51B169' frequency='20000000' firmware='cx4.bin' sha256='ae8d4d1961b93421ff00b3caa1d0f0ce7783e749772a3369c36b3dbf0d37ef18'>\n");
     xml.append("    <rom>\n");
     xml.append("      <map mode='linear' address='00-7f:8000-ffff'/>\n");
     xml.append("      <map mode='linear' address='80-ff:8000-ffff'/>\n");
@@ -411,7 +411,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_dsp1) {
-    xml.append("  <necdsp model='uPD7725' frequency='8000000' program='dsp1b.bin' sha256='4d42db0f36faef263d6b93f508e8c1c4ae8fc2605fd35e3390ecc02905cd420c'>\n");
+    xml.append("  <necdsp model='uPD7725' frequency='8000000' firmware='dsp1b.bin' sha256='4d42db0f36faef263d6b93f508e8c1c4ae8fc2605fd35e3390ecc02905cd420c'>\n");
     if(dsp1_mapper == DSP1LoROM1MB) {
       xml.append("    <dr>\n");
       xml.append("      <map address='20-3f:8000-bfff'/>\n");
@@ -444,7 +444,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_dsp2) {
-    xml.append("  <necdsp model='uPD7725' frequency='8000000' program='dsp2.bin' sha256='5efbdf96ed0652790855225964f3e90e6a4d466cfa64df25b110933c6cf94ea1'>\n");
+    xml.append("  <necdsp model='uPD7725' frequency='8000000' firmware='dsp2.bin' sha256='5efbdf96ed0652790855225964f3e90e6a4d466cfa64df25b110933c6cf94ea1'>\n");
     xml.append("    <dr>\n");
     xml.append("      <map address='20-3f:8000-bfff'/>\n");
     xml.append("      <map address='a0-bf:8000-bfff'/>\n");
@@ -457,7 +457,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_dsp3) {
-    xml.append("  <necdsp model='uPD7725' frequency='8000000' program='dsp3.bin' sha256='2e635f72e4d4681148bc35429421c9b946e4f407590e74e31b93b8987b63ba90'>\n");
+    xml.append("  <necdsp model='uPD7725' frequency='8000000' firmware='dsp3.bin' sha256='2e635f72e4d4681148bc35429421c9b946e4f407590e74e31b93b8987b63ba90'>\n");
     xml.append("    <dr>\n");
     xml.append("      <map address='20-3f:8000-bfff'/>\n");
     xml.append("      <map address='a0-bf:8000-bfff'/>\n");
@@ -470,7 +470,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_dsp4) {
-    xml.append("  <necdsp model='uPD7725' frequency='8000000' program='dsp4.bin' sha256='63ede17322541c191ed1fdf683872554a0a57306496afc43c59de7c01a6e764a'>\n");
+    xml.append("  <necdsp model='uPD7725' frequency='8000000' firmware='dsp4.bin' sha256='63ede17322541c191ed1fdf683872554a0a57306496afc43c59de7c01a6e764a'>\n");
     xml.append("    <dr>\n");
     xml.append("      <map address='30-3f:8000-bfff'/>\n");
     xml.append("      <map address='b0-bf:8000-bfff'/>\n");
@@ -490,7 +490,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_st010) {
-    xml.append("  <necdsp model='uPD96050' frequency='10000000' program='st0010.bin' sha256='55c697e864562445621cdf8a7bf6e84ae91361e393d382a3704e9aa55559041e'>\n");
+    xml.append("  <necdsp model='uPD96050' frequency='10000000' firmware='st0010.bin' sha256='55c697e864562445621cdf8a7bf6e84ae91361e393d382a3704e9aa55559041e'>\n");
     xml.append("    <dr>\n");
     xml.append("      <map address='60:0000'/>\n");
     xml.append("      <map address='e0:0000'/>\n");
@@ -507,7 +507,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_st011) {
-    xml.append("  <necdsp model='uPD96050' frequency='15000000' program='st0011.bin' sha256='651b82a1e26c4fa8dd549e91e7f923012ed2ca54c1d9fd858655ab30679c2f0e'>\n");
+    xml.append("  <necdsp model='uPD96050' frequency='15000000' firmware='st0011.bin' sha256='651b82a1e26c4fa8dd549e91e7f923012ed2ca54c1d9fd858655ab30679c2f0e'>\n");
     xml.append("    <dr>\n");
     xml.append("      <map address='60:0000'/>\n");
     xml.append("      <map address='e0:0000'/>\n");
@@ -524,7 +524,7 @@ SNESCartridge::SNESCartridge(const uint8_t *data, unsigned size) {
   }
 
   if(has_st018) {
-    xml.append("  <setarisc program='ST-0018'>\n");
+    xml.append("  <setarisc firmware='ST-0018'>\n");
     xml.append("    <map address='00-3f:3800-38ff'/>\n");
     xml.append("    <map address='80-bf:3800-38ff'/>\n");
     xml.append("  </setarisc>\n");

@@ -16,9 +16,9 @@ bool BassSnesCpu::assembleBlock(const string &block) {
   unsigned size = 0;
 
   if(name == "mapper") {
-    if(arg == "manual") { mapper = Mapper::Manual; return true; }
-    if(arg == "lorom" ) { mapper = Mapper::LoROM;  return true; }
-    if(arg == "hirom" ) { mapper = Mapper::HiROM;  return true; }
+    if(arg == "none" ) { mapper = Mapper::None;  return true; }
+    if(arg == "lorom") { mapper = Mapper::LoROM; return true; }
+    if(arg == "hirom") { mapper = Mapper::HiROM; return true; }
     error("invalid mapper ID");
   }
 
@@ -179,7 +179,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
     if(name == "jmp") { write(0x6c); write(n, 2); return true; }
     if(name == "lda") { write(0xb2); write(n, 1); return true; }
     if(name == "ora") { write(0x12); write(n, 1); return true; }
-    if(name == "pei") { write(0xd4); write(n, 2); return true; }
+    if(name == "pei") { write(0xd4); write(n, 1); return true; }
     if(name == "sbc") { write(0xf2); write(n, 1); return true; }
     if(name == "sta") { write(0x92); write(n, 1); return true; }
     return false;

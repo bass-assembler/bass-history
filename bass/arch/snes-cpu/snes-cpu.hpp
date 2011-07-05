@@ -3,5 +3,5 @@ struct BassSnesCpu : public Bass {
   bool assembleBlock(const string &block);
 
 protected:
-  enum class Mapper : unsigned { Manual, LoROM, HiROM } mapper;
+  enum class Mapper : unsigned { None, LoROM, HiROM } mapper;
 };

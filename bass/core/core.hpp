@@ -10,8 +10,9 @@ protected:
   virtual bool assembleLine(const string &line);
   virtual bool assembleBlock(const string &block);
   void setDefine(const string &name, const lstring &args, const string &value);
+  void setLabel(const string &name, unsigned offset);
   virtual void seek(unsigned offset);
-  void write(uint64_t data, unsigned length = 1);
+  virtual void write(uint64_t data, unsigned length = 1);
 
   struct Define {
     string name;
@@ -40,11 +41,10 @@ protected:
   Define *activeDefine;
   string activeNamespace;
   string activeLabel;
+  unsigned defineExpandCounter;
   unsigned negativeLabelCounter;
   unsigned positiveLabelCounter;
-  stack_filo<string> fileName;
-  stack_filo<unsigned> lineNumber;
-  stack_filo<unsigned> blockNumber;
+  stack<string> fileName;
+  stack<unsigned> lineNumber;
+  stack<unsigned> blockNumber;
 };
-
-#include "../arch/snes-cpu/snes-cpu.hpp"
