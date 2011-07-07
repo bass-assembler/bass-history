@@ -6,6 +6,7 @@ struct Bass {
 protected:
   void warning(const string &s);
   void error(const string &s);
+  unsigned pc() const;
   void assembleFile(const string &filename);
   virtual bool assembleLine(const string &line);
   virtual bool assembleBlock(const string &block);
@@ -33,8 +34,8 @@ protected:
   file output;
   enum class Endian : bool { LSB, MSB } endian;
   unsigned pass;
-  unsigned offset;
-  unsigned base;
+  unsigned origin;
+  signed base;
   uint64_t table[256];
   linear_vector<Define> defines;
   linear_vector<Label> labels;
@@ -44,6 +45,7 @@ protected:
   unsigned defineExpandCounter;
   unsigned negativeLabelCounter;
   unsigned positiveLabelCounter;
+  stack<unsigned> stackPC;
   stack<string> fileName;
   stack<unsigned> lineNumber;
   stack<unsigned> blockNumber;

@@ -18,6 +18,17 @@ bool BassSnesSmp::assembleBlock(const string &block) {
 
   //two-argument
 
+  if(block == "mov x,a"   ) { write(0x5d); return true; }
+  if(block == "mov a,x"   ) { write(0x7d); return true; }
+  if(block == "mov a,y"   ) { write(0xdd); return true; }
+  if(block == "mov x,sp"  ) { write(0x9d); return true; }
+  if(block == "mov y,a"   ) { write(0xfd); return true; }
+  if(block == "mov sp,x"  ) { write(0xbd); return true; }
+  if(block == "mov a,(x)+") { write(0xbf); return true; }
+  if(block == "mov (x)+,a") { write(0xaf); return true; }
+  if(block == "mov (x),a" ) { write(0xc6); return true; }
+  if(block == "div ya,x"  ) { write(0x9e); return true; }
+
   if(args == "a,(x)") {
     if(name == "or" ) { write(0x06); return true; }
     if(name == "and") { write(0x26); return true; }
@@ -25,15 +36,8 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x66); return true; }
     if(name == "adc") { write(0x86); return true; }
     if(name == "sbc") { write(0xa6); return true; }
+    if(name == "mov") { write(0xe6); return true; }
     return false;
-  }
-
-  if(args == "x,a") {
-    if(name == "mov") { write(0x5d); return true; }
-  }
-
-  if(args == "a,x") {
-    if(name == "mov") { write(0x7d); return true; }
   }
 
   if(args == "(x),(y)") {
@@ -46,17 +50,16 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     return false;
   }
 
-  if(args.wildcard("(?*+x)")) {
-    args.ltrim<1>("(");
-    args.rtrim<1>("+x)");
-    if(name == "jmp") { write(0x1f); write(eval(args), 2); return true; }
-    return false;
-  }
-
   if(args.wildcard("ya,?*")) {
     args.ltrim<1>("ya,");
     if(name == "cmpw") { write(0x5a); write(eval(args)); return true; }
     if(name == "addw") { write(0x7a); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*,ya")) {
+    args.rtrim<1>(",ya");
+    if(name == "movw") { write(0xda); write(eval(args)); return true; }
     return false;
   }
 
@@ -68,6 +71,14 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x68); write(eval(args)); return true; }
     if(name == "adc") { write(0x88); write(eval(args)); return true; }
     if(name == "sbc") { write(0xa8); write(eval(args)); return true; }
+    if(name == "mov") { write(0xe8); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("x,#?*")) {
+    args.ltrim<1>("x,#");
+    if(name == "cmp") { write(0xc8); write(eval(args)); return true; }
+    if(name == "mov") { write(0xcd); write(eval(args)); return true; }
     return false;
   }
 
@@ -80,6 +91,7 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x67); write(eval(args)); return true; }
     if(name == "adc") { write(0x87); write(eval(args)); return true; }
     if(name == "sbc") { write(0xa7); write(eval(args)); return true; }
+    if(name == "mov") { write(0xe7); write(eval(args)); return true; }
     return false;
   }
 
@@ -92,6 +104,14 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x77); write(eval(args)); return true; }
     if(name == "adc") { write(0x97); write(eval(args)); return true; }
     if(name == "sbc") { write(0xb7); write(eval(args)); return true; }
+    if(name == "mov") { write(0xf7); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("(?*)+y,a")) {
+    args.ltrim<1>("(");
+    args.rtrim<1>(")+y,a");
+    if(name == "mov") { write(0xd7); write(eval(args)); return true; }
     return false;
   }
 
@@ -106,6 +126,7 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "cmp") { write(0x74); write(eval(args)); return true; }
       if(name == "adc") { write(0x94); write(eval(args)); return true; }
       if(name == "sbc") { write(0xb4); write(eval(args)); return true; }
+      if(name == "mov") { write(0xf4); write(eval(args)); return true; }
     }
     if(size != 1) {
       if(name == "or" ) { write(0x15); write(eval(args), 2); return true; }
@@ -114,6 +135,7 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "cmp") { write(0x75); write(eval(args), 2); return true; }
       if(name == "adc") { write(0x95); write(eval(args), 2); return true; }
       if(name == "sbc") { write(0xb5); write(eval(args), 2); return true; }
+      if(name == "mov") { write(0xf5); write(eval(args), 2); return true; }
     }
     return false;
   }
@@ -129,6 +151,7 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "cmp") { write(0x76); write(eval(args), 2); return true; }
       if(name == "adc") { write(0x96); write(eval(args), 2); return true; }
       if(name == "sbc") { write(0xb6); write(eval(args), 2); return true; }
+      if(name == "mov") { write(0xf6); write(eval(args), 2); return true; }
     }
     return false;
   }
@@ -143,6 +166,7 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "cmp") { write(0x64); write(eval(args)); return true; }
       if(name == "adc") { write(0x84); write(eval(args)); return true; }
       if(name == "sbc") { write(0xa4); write(eval(args)); return true; }
+      if(name == "mov") { write(0xe4); write(eval(args)); return true; }
     }
     if(size != 1) {
       if(name == "or" ) { write(0x05); write(eval(args), 2); return true; }
@@ -151,7 +175,15 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "cmp") { write(0x65); write(eval(args), 2); return true; }
       if(name == "adc") { write(0x85); write(eval(args), 2); return true; }
       if(name == "sbc") { write(0xa5); write(eval(args), 2); return true; }
+      if(name == "mov") { write(0xe5); write(eval(args), 2); return true; }
     }
+    return false;
+  }
+
+  if(args.wildcard("x,?*+y")) {
+    args.ltrim<1>("x,");
+    args.rtrim<1>("+y");
+    if(name == "mov") { write(0xf9); write(eval(args)); return true; }
     return false;
   }
 
@@ -159,11 +191,27 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     args.ltrim<1>("x,");
     detectSize();
     if(size == 1) {
-      if(name == "cmp") { write(0x3e); write(eval(args)); return true; }
+      if(name == "cmp") { write(0x3e); write(eval(args), 1); return true; }
+      if(name == "mov") { write(0xf8); write(eval(args), 1); return true; }
     }
     if(size != 1) {
       if(name == "cmp") { write(0x1e); write(eval(args), 2); return true; }
+      if(name == "mov") { write(0xe9); write(eval(args), 2); return true; }
     }
+    return false;
+  }
+
+  if(args.wildcard("y,#?*")) {
+    args.ltrim<1>("y,#");
+    if(name == "mov") { write(0x8d); write(eval(args)); return true; }
+    if(name == "cmp") { write(0xad); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("y,?*+x")) {
+    args.ltrim<1>("y,");
+    args.rtrim<1>("+x");
+    if(name == "mov") { write(0xfb); write(eval(args)); return true; }
     return false;
   }
 
@@ -171,11 +219,17 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     args.ltrim<1>("y,");
     detectSize();
     if(size == 1) {
-      if(name == "cmp") { write(0x7e); write(eval(args)); return true; }
+      if(name == "cmp") { write(0x7e); write(eval(args), 1); return true; }
+      if(name == "mov") { write(0xeb); write(eval(args), 1); return true; }
     }
     if(size != 1) {
       if(name == "cmp") { write(0x5e); write(eval(args), 2); return true; }
+      if(name == "mov") { write(0xec); write(eval(args), 2); return true; }
     }
+    //
+    signed relative = eval(args) - (pc() + 1);
+    if(relative < -128 || relative > 127) error("branch out of bounds");
+    if(name == "dbnz") { write(0xfe); write(eval(args)); return true; }
     return false;
   }
 
@@ -194,6 +248,42 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     unsigned data = (eval(part[1]) << 13) | (eval(part[0]) & 0x1fff);
     if(name == "or1" ) { write(0x0a); write(data, 2); return true; }
     if(name == "and1") { write(0x4a); write(data, 2); return true; }
+    if(name == "eor1") { write(0x8a); write(data, 2); return true; }
+    if(name == "mov1") { write(0xaa); write(data, 2); return true; }
+    if(name == "not1") { write(0xea); write(data, 2); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*.?,c")) {
+    args.rtrim<1>(",c");
+    part.split<1>(".", args);
+    unsigned data = (eval(part[1]) << 13) | (eval(part[0]) & 0x1fff);
+    if(name == "mov1") { write(0xca); write(data, 2); return true; }
+    return false;
+  }
+
+  if(args.wildcard("(?*+x),a")) {
+    args.ltrim<1>("(");
+    args.rtrim<1>("+x),a");
+    if(name == "mov") { write(0xc7); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*+x,a")) {
+    args.rtrim<1>("+x,a");
+    detectSize();
+    if(size == 1) {
+      if(name == "mov") { write(0xd4); write(eval(args), 1); return true; }
+    }
+    if(size != 1) {
+      if(name == "mov") { write(0xd5); write(eval(args), 2); return true; }
+    }
+    return false;
+  }
+
+  if(args.wildcard("?*+y,a")) {
+    args.rtrim<1>("+y,a");
+    if(name == "mov") { write(0xd6); write(eval(args), 2); return true; }
     return false;
   }
 
@@ -201,16 +291,60 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     args.rtrim<1>(",a");
     if(name == "tset") { write(0x0e); write(eval(args), 2); return true; }
     if(name == "tclr") { write(0x4e); write(eval(args), 2); return true; }
+    //
+    detectSize();
+    if(size == 1) {
+      if(name == "mov") { write(0xc4); write(eval(args), 1); return true; }
+    }
+    if(size != 1) {
+      if(name == "mov") { write(0xc5); write(eval(args), 2); return true; }
+    }
+    return false;
+  }
+
+  if(args.wildcard("?*+x,y")) {
+    args.rtrim<1>("+x,y");
+    if(name == "mov") { write(0xdb); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*+y,x")) {
+    args.rtrim<1>("+y,x");
+    if(name == "mov") { write(0xd9); write(eval(args)); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*,x")) {
+    args.rtrim<1>(",x");
+    detectSize();
+    if(size == 1) {
+      if(name == "mov") { write(0xd8); write(eval(args), 1); return true; }
+    }
+    if(size != 1) {
+      if(name == "mov") { write(0xc9); write(eval(args), 2); return true; }
+    }
+    return false;
+  }
+
+  if(args.wildcard("?*,y")) {
+    args.rtrim<1>(",y");
+    detectSize();
+    if(size == 1) {
+      if(name == "mov") { write(0xcb); write(eval(args), 1); return true; }
+    }
+    if(size != 1) {
+      if(name == "mov") { write(0xcc); write(eval(args), 2); return true; }
+    }
     return false;
   }
 
   if(args.wildcard("?*.?,?*")) {
     part.split<1>(",", args);
     list.split<1>(".", part[0]);
-    signed relative = eval(part[1]) - (base + 3);
+    signed relative = eval(part[1]) - (pc() + 3);
     if(relative < -128 || relative > 127) error("branch out of bounds");
-    if(name == "bbs") { write(0x03 | (eval(list[1]) << 5)); write(eval(list[0])); write(relative); return true; }
-    if(name == "bbc") { write(0x13 | (eval(list[1]) << 5)); write(eval(list[0])); write(relative); return true; }
+    if(name == "bbs1") { write(0x03 | (eval(list[1]) << 5)); write(eval(list[0])); write(relative); return true; }
+    if(name == "bbc1") { write(0x13 | (eval(list[1]) << 5)); write(eval(list[0])); write(relative); return true; }
     return false;
   }
 
@@ -223,6 +357,16 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x78); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "adc") { write(0x98); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "sbc") { write(0xb8); write(eval(part[1])); write(eval(part[0])); return true; }
+    if(name == "mov") { write(0x8f); write(eval(part[1])); write(eval(part[0])); return true; }
+    return false;
+  }
+
+  if(args.wildcard("?*+x,?*")) {
+    part.split<1>(",", args);
+    part[0].rtrim<1>("+x");
+    signed relative = eval(part[1]) - (pc() + 2);
+    if(relative < -128 || relative > 127) error("branch out of bounds");
+    if(name == "cbne") { write(0xde); write(eval(part[0])); write(relative); return true; }
     return false;
   }
 
@@ -234,8 +378,9 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "cmp") { write(0x69); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "adc") { write(0x89); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "sbc") { write(0xa9); write(eval(part[1])); write(eval(part[0])); return true; }
+    if(name == "mov") { write(0xfa); write(eval(part[1])); write(eval(part[0])); return true; }
     //
-    signed relative = eval(part[1]) - (base + 2);
+    signed relative = eval(part[1]) - (pc() + 2);
     if(relative < -128 || relative > 127) error("branch out of bounds");
     if(name == "cbne") { write(0x2e); write(eval(part[0])); write(relative); return true; }
     if(name == "dbnz") { write(0x6e); write(eval(part[0])); write(relative); return true; }
@@ -250,6 +395,12 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "rol" ) { write(0x3c); return true; }
     if(name == "lsr" ) { write(0x5c); return true; }
     if(name == "ror" ) { write(0x7c); return true; }
+    if(name == "dec" ) { write(0x9c); return true; }
+    if(name == "xcn" ) { write(0x9f); return true; }
+    if(name == "pop" ) { write(0xae); return true; }
+    if(name == "inc" ) { write(0xbc); return true; }
+    if(name == "das" ) { write(0xbe); return true; }
+    if(name == "daa" ) { write(0xdf); return true; }
     return false;
   }
 
@@ -257,16 +408,26 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     if(name == "dec" ) { write(0x1d); return true; }
     if(name == "inc" ) { write(0x3d); return true; }
     if(name == "push") { write(0x4d); return true; }
+    if(name == "pop" ) { write(0xce); return true; }
     return false;
   }
 
   if(args == "y") {
     if(name == "push") { write(0x6d); return true; }
+    if(name == "dec" ) { write(0xdc); return true; }
+    if(name == "pop" ) { write(0xee); return true; }
+    if(name == "inc" ) { write(0xfc); return true; }
+    return false;
+  }
+
+  if(args == "ya") {
+    if(name == "mul") { write(0xcf); return true; }
     return false;
   }
 
   if(args == "p") {
     if(name == "push") { write(0x0d); return true; }
+    if(name == "pop" ) { write(0x8e); return true; }
     return false;
   }
 
@@ -274,6 +435,13 @@ bool BassSnesSmp::assembleBlock(const string &block) {
     part.split<1>(".", args);
     if(name == "set1") { write(0x02 | (eval(part[1]) << 5)); write(eval(part[0])); return true; }
     if(name == "clr1") { write(0x12 | (eval(part[1]) << 5)); write(eval(part[0])); return true; }
+    return false;
+  }
+
+  if(args.wildcard("(?*+x)")) {
+    args.ltrim<1>("(");
+    args.rtrim<1>("+x)");
+    if(name == "jmp") { write(0x1f); write(eval(args), 2); return true; }
     return false;
   }
 
@@ -285,6 +453,8 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "rol") { write(0x3b); write(eval(args)); return true; }
       if(name == "lsr") { write(0x5b); write(eval(args)); return true; }
       if(name == "ror") { write(0x7b); write(eval(args)); return true; }
+      if(name == "dec") { write(0x9b); write(eval(args)); return true; }
+      if(name == "inc") { write(0xbb); write(eval(args)); return true; }
     }
     return false;
   }
@@ -296,12 +466,16 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "rol") { write(0x2b); write(eval(args)); return true; }
       if(name == "lsr") { write(0x4b); write(eval(args)); return true; }
       if(name == "ror") { write(0x6b); write(eval(args)); return true; }
+      if(name == "dec") { write(0x8b); write(eval(args)); return true; }
+      if(name == "inc") { write(0xab); write(eval(args)); return true; }
     }
     if(size != 1) {
       if(name == "asl" ) { write(0x0c); write(eval(args), 2); return true; }
       if(name == "rol" ) { write(0x2c); write(eval(args), 2); return true; }
       if(name == "lsr" ) { write(0x4c); write(eval(args), 2); return true; }
       if(name == "ror" ) { write(0x6c); write(eval(args), 2); return true; }
+      if(name == "dec" ) { write(0x8c); write(eval(args), 2); return true; }
+      if(name == "inc" ) { write(0xac); write(eval(args), 2); return true; }
       if(name == "call") { write(0x3f); write(eval(args), 2); return true; }
       if(name == "jmp" ) { write(0x5f); write(eval(args), 2); return true; }
       //
@@ -311,8 +485,10 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "decw" ) { write(0x1a); write(eval(args)); return true; }
       if(name == "incw" ) { write(0x3a); write(eval(args)); return true; }
       if(name == "pcall") { write(0x4f); write(eval(args)); return true; }
+      if(name == "subw" ) { write(0x9a); write(eval(args)); return true; }
+      if(name == "movw" ) { write(0xba); write(eval(args)); return true; }
       //
-      signed relative = eval(args) - (base + 2);
+      signed relative = eval(args) - (pc() + 2);
       if(relative < -128 || relative > 127) error("branch out of bounds");
       if(name == "bpl") { write(0x10); write(relative); return true; }
       if(name == "bra") { write(0x2f); write(relative); return true; }
@@ -320,6 +496,9 @@ bool BassSnesSmp::assembleBlock(const string &block) {
       if(name == "bvc") { write(0x50); write(relative); return true; }
       if(name == "bvs") { write(0x70); write(relative); return true; }
       if(name == "bcc") { write(0x90); write(relative); return true; }
+      if(name == "bcs") { write(0xb0); write(relative); return true; }
+      if(name == "bne") { write(0xd0); write(relative); return true; }
+      if(name == "beq") { write(0xf0); write(relative); return true; }
     }
     return false;
   }
@@ -327,14 +506,20 @@ bool BassSnesSmp::assembleBlock(const string &block) {
   //zero-argument
 
   if(args == "") {
-    if(name == "nop" ) { write(0x00); return true; }
-    if(name == "brk" ) { write(0x0f); return true; }
-    if(name == "clrp") { write(0x20); return true; }
-    if(name == "setp") { write(0x40); return true; }
-    if(name == "clrc") { write(0x60); return true; }
-    if(name == "ret" ) { write(0x6f); return true; }
-    if(name == "reti") { write(0x7f); return true; }
-    if(name == "setc") { write(0x80); return true; }
+    if(name == "nop"  ) { write(0x00); return true; }
+    if(name == "brk"  ) { write(0x0f); return true; }
+    if(name == "clrp" ) { write(0x20); return true; }
+    if(name == "setp" ) { write(0x40); return true; }
+    if(name == "clrc" ) { write(0x60); return true; }
+    if(name == "ret"  ) { write(0x6f); return true; }
+    if(name == "reti" ) { write(0x7f); return true; }
+    if(name == "setc" ) { write(0x80); return true; }
+    if(name == "ei"   ) { write(0xa0); return true; }
+    if(name == "di"   ) { write(0xc0); return true; }
+    if(name == "clrv" ) { write(0xe0); return true; }
+    if(name == "notc" ) { write(0xed); return true; }
+    if(name == "sleep") { write(0xef); return true; }
+    if(name == "stop" ) { write(0xff); return true; }
     return false;
   }
 

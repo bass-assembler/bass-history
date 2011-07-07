@@ -305,7 +305,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
   signed n = eval(arg);
 
   if(name == "brl") {
-    if(!arg.wildcard("$????")) n = n - (base + 3);
+    if(!arg.wildcard("$????")) n = n - (pc() + 3);
     if(pass == 2 && (n < -32768 || n > 32767)) warning("branch out of bounds");
     write(0x82);
     write(n, 2);
@@ -314,7 +314,7 @@ bool BassSnesCpu::assembleBlock(const string &block) {
 
   function<bool (const string&, uint8_t)> relative = [this, &name, &arg, &n](const string &test, uint8_t opcode) {
     if(name != test) return false;
-    if(!arg.wildcard("$??")) n = n - (base + 2);
+    if(!arg.wildcard("$??")) n = n - (this->pc() + 2);
     if(pass == 2 && (n < -128 || n > 127)) this->warning("branch out of bounds");
     this->write(opcode);
     this->write(n);

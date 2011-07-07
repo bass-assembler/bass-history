@@ -10,7 +10,7 @@ bool Bass::open(const string &filename) {
 bool Bass::assemble(const string &filename) {
   for(pass = 1; pass <= 2; pass++) {
     endian = Endian::LSB;
-    offset = 0;
+    origin = 0;
     base = 0;
     for(unsigned n = 0; n < 256; n++) table[n] = n;
     defines.reset();
@@ -20,6 +20,7 @@ bool Bass::assemble(const string &filename) {
     defineExpandCounter = 1;
     negativeLabelCounter = 1;
     positiveLabelCounter = 1;
+    stackPC.reset();
     try {
       assembleFile(filename);
     } catch(const char*) {
@@ -42,6 +43,10 @@ void Bass::warning(const string &s) {
 void Bass::error(const string &s) {
   print("[bass error] ", fileName(), ":", lineNumber(), ":", blockNumber(), ":\n> ", s, "\n");
   throw "";
+}
+
+unsigned Bass::pc() const {
+  return origin + base;
 }
 
 void Bass::assembleFile(const string &filename) {
@@ -181,8 +186,8 @@ bool Bass::assembleBlock(const string &s) {
   //=======
   if(block.wildcard("org ?*")) {
     block.ltrim<1>("org ");
-    offset = base = eval(block);
-    seek(offset);
+    origin = eval(block);
+    seek(origin);
     return true;
   }
 
@@ -191,7 +196,25 @@ bool Bass::assembleBlock(const string &s) {
   //========
   if(block.wildcard("base ?*")) {
     block.ltrim<1>("base ");
-    base = eval(block);
+    base = eval(block) - origin;
+    return true;
+  }
+
+  //===========
+  //= enqueue =
+  //===========
+  if(block == "enqueue pc") {
+    stackPC.push(origin);
+    return true;
+  }
+
+  //===========
+  //= dequeue =
+  //===========
+  if(block == "dequeue pc") {
+    if(stackPC.size() == 0) error("stack is empty");
+    origin = stackPC.pull();
+    seek(origin);
     return true;
   }
 
@@ -202,7 +225,7 @@ bool Bass::assembleBlock(const string &s) {
     block.ltrim<1>("align ");
     unsigned align = eval(block);
     if(align == 0) return false;
-    while(base % align) write(0x00);
+    while(pc() % align) write(0x00);
     return true;
   }
 
@@ -252,7 +275,7 @@ bool Bass::assembleBlock(const string &s) {
     } else {
       activeLabel = block;
     }
-    setLabel({ activeNamespace, "::", block }, base);
+    setLabel({ activeNamespace, "::", block }, pc());
     return true;
   }
 
@@ -260,7 +283,7 @@ bool Bass::assembleBlock(const string &s) {
   //= + label =
   //===========
   if(block == "+") {
-    if(pass == 1) setLabel({ "+", positiveLabelCounter }, base);
+    if(pass == 1) setLabel({ "+", positiveLabelCounter }, pc());
     positiveLabelCounter++;
     return true;
   }
@@ -269,7 +292,7 @@ bool Bass::assembleBlock(const string &s) {
   //= - label =
   //===========
   if(block == "-") {
-    if(pass == 1) setLabel({ "-", negativeLabelCounter }, base);
+    if(pass == 1) setLabel({ "-", negativeLabelCounter }, pc());
     negativeLabelCounter++;
     return true;
   }
@@ -292,10 +315,10 @@ bool Bass::assembleBlock(const string &s) {
       lstring list;
       list.qsplit(",", block);
       foreach(item, list) {
-        if(item == "org") {
-          print("0x", hex(offset));
-        } else if(item == "base") {
-          print("0x", hex(base));
+        if(item == "pc") {
+          print("0x", hex(pc()));
+        } else if(item == "origin") {
+          print("0x", hex(origin));
         } else {
           item.trim<1>("\"");
           print(item);
@@ -344,6 +367,5 @@ void Bass::write(uint64_t data, unsigned length) {
     if(endian == Endian::LSB) output.writel(data, length);
     if(endian == Endian::MSB) output.writem(data, length);
   }
-  offset += length;
-  base += length;
+  origin += length;
 }
