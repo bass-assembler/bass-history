@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v00.04\n");
+    print("bass v00.05\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) -o output input [input ...]\n\n");
     print("supported archs:\n");
