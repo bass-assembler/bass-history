@@ -1,3 +1,3 @@
-struct BassSnesSpc700 : public Bass {
+struct BassSnesSmpCanonical : public Bass {
   bool assembleBlock(const string &block);
 };

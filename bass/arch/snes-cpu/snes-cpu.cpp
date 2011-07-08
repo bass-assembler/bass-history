@@ -6,398 +6,514 @@ void BassSnesCpu::seek(unsigned offset) {
   Bass::seek(offset);
 }
 
-bool BassSnesCpu::assembleBlock(const string &block) {
+bool BassSnesCpu::assembleBlock(const string &block_) {
+  string block = block_;
   if(Bass::assembleBlock(block) == true) return true;
+
+  signed relative, repeat, size = 0;
+  if(block[3] == '<') { block[3] = ' '; size = 1; }
+  if(block[3] == '>') { block[3] = ' '; size = 2; }
+  if(block[3] == '^') { block[3] = ' '; size = 3; }
 
   lstring part;
   part.split<1>(" ", block);
-  string name   = part[0];
-  string arg    = part[1];
-  unsigned size = 0;
+  string name = part[0], param = part[1];
 
   if(name == "mapper") {
-    if(arg == "none" ) { mapper = Mapper::None;  return true; }
-    if(arg == "lorom") { mapper = Mapper::LoROM; return true; }
-    if(arg == "hirom") { mapper = Mapper::HiROM; return true; }
+    if(param == "none ") { mapper = Mapper::None;  return true; }
+    if(param == "lorom") { mapper = Mapper::LoROM; return true; }
+    if(param == "hirom") { mapper = Mapper::HiROM; return true; }
     error("invalid mapper ID");
   }
 
-  function<void ()> detectSize = [&name, &arg, &size]() {
-         if(arg.wildcard("$??"    )) size = 1;
-    else if(arg.wildcard("$????"  )) size = 2;
-    else if(arg.wildcard("$??????")) size = 3;
-         if(name.endswith(".b")) { size = 1; name.rtrim<1>(".b"); }
-    else if(name.endswith(".w")) { size = 2; name.rtrim<1>(".w"); }
-    else if(name.endswith(".l")) { size = 3; name.rtrim<1>(".l"); }
-  };
+  #define isbyte() !( \
+    (size == 2 || size == 3 || param.wildcard("$????") || param.wildcard("$??????")) || \
+    (!o.priority && size != 1 && !param.wildcard("$??")) \
+  )
 
-  if(arg == "" || arg.wildcard("#?*")) {
-    arg.ltrim<1>("#");
-    unsigned n = arg == "" ? 1 : eval(arg);
-    if(name == "asl") { for(unsigned r = 0; r < n; r++) write(0x0a); return true; }
-    if(name == "clc") { for(unsigned r = 0; r < n; r++) write(0x18); return true; }
-    if(name == "cld") { for(unsigned r = 0; r < n; r++) write(0xd8); return true; }
-    if(name == "cli") { for(unsigned r = 0; r < n; r++) write(0x58); return true; }
-    if(name == "clv") { for(unsigned r = 0; r < n; r++) write(0xb8); return true; }
-    if(name == "dec") { for(unsigned r = 0; r < n; r++) write(0x3a); return true; }
-    if(name == "dex") { for(unsigned r = 0; r < n; r++) write(0xca); return true; }
-    if(name == "dey") { for(unsigned r = 0; r < n; r++) write(0x88); return true; }
-    if(name == "inc") { for(unsigned r = 0; r < n; r++) write(0x1a); return true; }
-    if(name == "inx") { for(unsigned r = 0; r < n; r++) write(0xe8); return true; }
-    if(name == "iny") { for(unsigned r = 0; r < n; r++) write(0xc8); return true; }
-    if(name == "lsr") { for(unsigned r = 0; r < n; r++) write(0x4a); return true; }
-    if(name == "nop") { for(unsigned r = 0; r < n; r++) write(0xea); return true; }
-    if(name == "pha") { for(unsigned r = 0; r < n; r++) write(0x48); return true; }
-    if(name == "phb") { for(unsigned r = 0; r < n; r++) write(0x8b); return true; }
-    if(name == "phd") { for(unsigned r = 0; r < n; r++) write(0x0b); return true; }
-    if(name == "phk") { for(unsigned r = 0; r < n; r++) write(0x4b); return true; }
-    if(name == "php") { for(unsigned r = 0; r < n; r++) write(0x08); return true; }
-    if(name == "phx") { for(unsigned r = 0; r < n; r++) write(0xda); return true; }
-    if(name == "phy") { for(unsigned r = 0; r < n; r++) write(0x5a); return true; }
-    if(name == "pla") { for(unsigned r = 0; r < n; r++) write(0x68); return true; }
-    if(name == "plb") { for(unsigned r = 0; r < n; r++) write(0xab); return true; }
-    if(name == "pld") { for(unsigned r = 0; r < n; r++) write(0x2b); return true; }
-    if(name == "plp") { for(unsigned r = 0; r < n; r++) write(0x28); return true; }
-    if(name == "plx") { for(unsigned r = 0; r < n; r++) write(0xfa); return true; }
-    if(name == "ply") { for(unsigned r = 0; r < n; r++) write(0x7a); return true; }
-    if(name == "rol") { for(unsigned r = 0; r < n; r++) write(0x2a); return true; }
-    if(name == "ror") { for(unsigned r = 0; r < n; r++) write(0x6a); return true; }
-    if(name == "rti") { for(unsigned r = 0; r < n; r++) write(0x40); return true; }
-    if(name == "rtl") { for(unsigned r = 0; r < n; r++) write(0x6b); return true; }
-    if(name == "rts") { for(unsigned r = 0; r < n; r++) write(0x60); return true; }
-    if(name == "sec") { for(unsigned r = 0; r < n; r++) write(0x38); return true; }
-    if(name == "sed") { for(unsigned r = 0; r < n; r++) write(0xf8); return true; }
-    if(name == "sei") { for(unsigned r = 0; r < n; r++) write(0x78); return true; }
-    if(name == "stp") { for(unsigned r = 0; r < n; r++) write(0xdb); return true; }
-    if(name == "tax") { for(unsigned r = 0; r < n; r++) write(0xaa); return true; }
-    if(name == "tay") { for(unsigned r = 0; r < n; r++) write(0xa8); return true; }
-    if(name == "tcd") { for(unsigned r = 0; r < n; r++) write(0x5b); return true; }
-    if(name == "tcs") { for(unsigned r = 0; r < n; r++) write(0x1b); return true; }
-    if(name == "tdc") { for(unsigned r = 0; r < n; r++) write(0x7b); return true; }
-    if(name == "tsc") { for(unsigned r = 0; r < n; r++) write(0x3b); return true; }
-    if(name == "tsx") { for(unsigned r = 0; r < n; r++) write(0xba); return true; }
-    if(name == "txa") { for(unsigned r = 0; r < n; r++) write(0x8a); return true; }
-    if(name == "txs") { for(unsigned r = 0; r < n; r++) write(0x9a); return true; }
-    if(name == "txy") { for(unsigned r = 0; r < n; r++) write(0x9b); return true; }
-    if(name == "tya") { for(unsigned r = 0; r < n; r++) write(0x98); return true; }
-    if(name == "tyx") { for(unsigned r = 0; r < n; r++) write(0xbb); return true; }
-    if(name == "wai") { for(unsigned r = 0; r < n; r++) write(0xcb); return true; }
-    if(name == "xba") { for(unsigned r = 0; r < n; r++) write(0xeb); return true; }
-    if(name == "xce") { for(unsigned r = 0; r < n; r++) write(0xfb); return true; }
-    if(arg == "") return false;
-    detectSize();
-    if(size == 0) size = 1;
-    if(name == "adc") { write(0x69); write(n, size); return true; }
-    if(name == "and") { write(0x29); write(n, size); return true; }
-    if(name == "bit") { write(0x89); write(n, size); return true; }
-    if(name == "brk") { write(0x00); write(n,    1); return true; }
-    if(name == "cmp") { write(0xc9); write(n, size); return true; }
-    if(name == "cop") { write(0x02); write(n,    1); return true; }
-    if(name == "cpx") { write(0xe0); write(n, size); return true; }
-    if(name == "cpy") { write(0xc0); write(n, size); return true; }
-    if(name == "eor") { write(0x49); write(n, size); return true; }
-    if(name == "lda") { write(0xa9); write(n, size); return true; }
-    if(name == "ldx") { write(0xa2); write(n, size); return true; }
-    if(name == "ldy") { write(0xa0); write(n, size); return true; }
-    if(name == "ora") { write(0x09); write(n, size); return true; }
-    if(name == "rep") { write(0xc2); write(n,    1); return true; }
-    if(name == "sbc") { write(0xe9); write(n, size); return true; }
-    if(name == "sep") { write(0xe2); write(n,    1); return true; }
-    if(name == "wdm") { write(0x42); write(n,    1); return true; }
-    return false;
-  }
+  #define isword() !( \
+    (size == 1 || size == 3 || param.wildcard("$??") || param.wildcard("$??????")) || \
+    (!o.priority && size != 2 && !param.wildcard("$????")) \
+  )
 
-  if(arg.wildcard("?*,s")) {
-    arg.rtrim<1>(",s");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x63); write(n); return true; }
-    if(name == "and") { write(0x23); write(n); return true; }
-    if(name == "cmp") { write(0xc3); write(n); return true; }
-    if(name == "eor") { write(0x43); write(n); return true; }
-    if(name == "lda") { write(0xa3); write(n); return true; }
-    if(name == "ora") { write(0x03); write(n); return true; }
-    if(name == "sbc") { write(0xe3); write(n); return true; }
-    if(name == "sta") { write(0x83); write(n); return true; }
-    return false;
-  }
+  #define islong() !( \
+    (size == 1 || size == 2 || param.wildcard("$??") || param.wildcard("$????")) || \
+    (!o.priority && size != 3 && !param.wildcard("$??????")) \
+  )
 
-  if(arg.wildcard("(?*,s),y")) {
-    arg.ltrim<1>("(");
-    arg.rtrim<1>(",s),y");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x73); write(n); return true; }
-    if(name == "and") { write(0x33); write(n); return true; }
-    if(name == "cmp") { write(0xd3); write(n); return true; }
-    if(name == "eor") { write(0x53); write(n); return true; }
-    if(name == "lda") { write(0xb3); write(n); return true; }
-    if(name == "ora") { write(0x13); write(n); return true; }
-    if(name == "sbc") { write(0xf3); write(n); return true; }
-    if(name == "sta") { write(0x93); write(n); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("(?*,x)")) {
-    arg.ltrim<1>("(");
-    arg.rtrim<2>(",x)");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x61); write(n, 1); return true; }
-    if(name == "and") { write(0x21); write(n, 1); return true; }
-    if(name == "cmp") { write(0xc1); write(n, 1); return true; }
-    if(name == "eor") { write(0x41); write(n, 1); return true; }
-    if(name == "jmp") { write(0x7c); write(n, 2); return true; }
-    if(name == "jsr") { write(0xfc); write(n, 2); return true; }
-    if(name == "lda") { write(0xa1); write(n, 1); return true; }
-    if(name == "ora") { write(0x01); write(n, 1); return true; }
-    if(name == "sbc") { write(0xe1); write(n, 1); return true; }
-    if(name == "sta") { write(0x81); write(n, 1); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("(?*),y")) {
-    arg.ltrim<1>("(");
-    arg.rtrim<1>("),y");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x71); write(n); return true; }
-    if(name == "and") { write(0x31); write(n); return true; }
-    if(name == "cmp") { write(0xd1); write(n); return true; }
-    if(name == "eor") { write(0x51); write(n); return true; }
-    if(name == "lda") { write(0xb1); write(n); return true; }
-    if(name == "ora") { write(0x11); write(n); return true; }
-    if(name == "sbc") { write(0xf1); write(n); return true; }
-    if(name == "sta") { write(0x91); write(n); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("(?*)")) {
-    arg.ltrim<1>("(");
-    arg.rtrim<1>(")");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x72); write(n, 1); return true; }
-    if(name == "and") { write(0x32); write(n, 1); return true; }
-    if(name == "cmp") { write(0xd2); write(n, 1); return true; }
-    if(name == "eor") { write(0x52); write(n, 1); return true; }
-    if(name == "jmp") { write(0x6c); write(n, 2); return true; }
-    if(name == "lda") { write(0xb2); write(n, 1); return true; }
-    if(name == "ora") { write(0x12); write(n, 1); return true; }
-    if(name == "pei") { write(0xd4); write(n, 1); return true; }
-    if(name == "sbc") { write(0xf2); write(n, 1); return true; }
-    if(name == "sta") { write(0x92); write(n, 1); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("[?*],y")) {
-    arg.ltrim<1>("[");
-    arg.rtrim<1>("],y");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x77); write(n); return true; }
-    if(name == "and") { write(0x37); write(n); return true; }
-    if(name == "cmp") { write(0xd7); write(n); return true; }
-    if(name == "eor") { write(0x57); write(n); return true; }
-    if(name == "lda") { write(0xb7); write(n); return true; }
-    if(name == "ora") { write(0x17); write(n); return true; }
-    if(name == "sbc") { write(0xf7); write(n); return true; }
-    if(name == "sta") { write(0x97); write(n); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("[?*]")) {
-    arg.ltrim<1>("[");
-    arg.rtrim<1>("]");
-    unsigned n = eval(arg);
-    if(name == "adc") { write(0x67); write(n, 1); return true; }
-    if(name == "and") { write(0x27); write(n, 1); return true; }
-    if(name == "cmp") { write(0xc7); write(n, 1); return true; }
-    if(name == "eor") { write(0x47); write(n, 1); return true; }
-    if(name == "jmp") { write(0xdc); write(n, 2); return true; }
-    if(name == "lda") { write(0xa7); write(n, 1); return true; }
-    if(name == "ora") { write(0x07); write(n, 1); return true; }
-    if(name == "sbc") { write(0xe7); write(n, 1); return true; }
-    if(name == "sta") { write(0x87); write(n, 1); return true; }
-    return false;
-  }
-
-  if(arg.wildcard("?*,x")) {
-    arg.rtrim<1>(",x");
-    unsigned n = eval(arg);
-    detectSize();
-    if(size == 3 || size == 0) {
-      if(name == "adc") { write(0x7f); write(n, 3); return true; }
-      if(name == "and") { write(0x3f); write(n, 3); return true; }
-      if(name == "cmp") { write(0xdf); write(n, 3); return true; }
-      if(name == "eor") { write(0x5f); write(n, 3); return true; }
-      if(name == "lda") { write(0xbf); write(n, 3); return true; }
-      if(name == "ora") { write(0x1f); write(n, 3); return true; }
-      if(name == "sbc") { write(0xff); write(n, 3); return true; }
-      if(name == "sta") { write(0x9f); write(n, 3); return true; }
+  foreach(f, family) if(param.wildcard(f.pattern)) {
+    foreach(o, f.opcode) if(name == o.name) {
+      switch(o.mode) {
+      case Mode::Implied:
+        write(o.prefix);
+        return true;
+      case Mode::ImpliedRepeat:
+        param.ltrim<1>("#");
+        repeat = eval(param);
+        while(repeat--) write(o.prefix);
+        return true;
+      case Mode::Immediate:
+        param.ltrim<1>("#");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::ImmediateM:
+      case Mode::ImmediateX:
+        param.ltrim<1>("#");
+        if(size == 0 && param.wildcard("$??"  )) size = 1;
+        if(size == 0 && param.wildcard("$????")) size = 2;
+        write(o.prefix);
+        write(eval(param), size == 1 ? 1 : 2);
+        return true;
+      case Mode::Direct:
+        if(isbyte() == false) break;
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::DirectX:
+        param.rtrim<1>("+x");
+        if(isbyte() == false) break;
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::DirectY:
+        param.rtrim<1>("+y");
+        if(isbyte() == false) break;
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::DirectS:
+        param.rtrim<1>("+s");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::Indirect:
+        param.ltrim<1>("(");
+        param.rtrim<1>(")");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::IndirectX:
+        param.ltrim<1>("(");
+        param.rtrim<1>("+x)");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::IndirectY:
+        param.ltrim<1>("(");
+        param.rtrim<1>(")+y");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::IndirectSY:
+        param.ltrim<1>("(");
+        param.rtrim<1>("+s)+y");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::IndirectLong:
+        param.ltrim<1>("[");
+        param.rtrim<1>("]");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::IndirectLongY:
+        param.ltrim<1>("[");
+        param.rtrim<1>("]+y");
+        write(o.prefix);
+        write(eval(param));
+        return true;
+      case Mode::Absolute:
+        if(isword() == false) break;
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::AbsoluteX:
+        param.rtrim<1>("+x");
+        if(isword() == false) break;
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::AbsoluteY:
+        param.rtrim<1>("+y");
+        if(isword() == false) break;
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::IndirectAbsolute:
+        param.ltrim<1>("(");
+        param.rtrim<1>(")");
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::IndirectAbsoluteX:
+        param.ltrim<1>("(");
+        param.rtrim<1>("+x)");
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::IndirectLongAbsolute:
+        param.ltrim<1>("[");
+        param.rtrim<1>("]");
+        write(o.prefix);
+        write(eval(param), 2);
+        return true;
+      case Mode::Long:
+        if(islong() == false) break;
+        write(o.prefix);
+        write(eval(param), 3);
+        return true;
+      case Mode::LongX:
+        param.rtrim<1>("+x");
+        if(islong() == false) break;
+        write(o.prefix);
+        write(eval(param), 3);
+        return true;
+      case Mode::Relative:
+        if(size == 1 || param.wildcard("$??")) {
+          relative = eval(param);
+        } else {
+          relative = eval(param) - (pc() + 2);
+          if(pass == 2 && (relative < -128 || relative > +127)) error("branch out of bounds");
+        }
+        write(o.prefix);
+        write(relative);
+        return true;
+      case Mode::RelativeLong:
+        if(size == 2 || param.wildcard("$????")) {
+          relative = eval(param);
+        } else {
+          relative = eval(param) - (pc() + 3);
+          if(pass == 2 && (relative < -32768 || relative > +32767)) error("branch out of bounds");
+        }
+        write(o.prefix);
+        write(relative, 2);
+        return true;
+      case Mode::BlockMove:
+        part.split<1>(",", param);
+        write(o.prefix);
+        write(eval(part[1]));
+        write(eval(part[0]));
+        return true;
+      }
     }
-    if(size == 2 || size == 0) {
-      if(name == "adc") { write(0x7d); write(n, 2); return true; }
-      if(name == "and") { write(0x3d); write(n, 2); return true; }
-      if(name == "asl") { write(0x1e); write(n, 2); return true; }
-      if(name == "bit") { write(0x3c); write(n, 2); return true; }
-      if(name == "cmp") { write(0xdd); write(n, 2); return true; }
-      if(name == "dec") { write(0xde); write(n, 2); return true; }
-      if(name == "eor") { write(0x5d); write(n, 2); return true; }
-      if(name == "inc") { write(0xfe); write(n, 2); return true; }
-      if(name == "lda") { write(0xbd); write(n, 2); return true; }
-      if(name == "ldy") { write(0xbc); write(n, 2); return true; }
-      if(name == "lsr") { write(0x5e); write(n, 2); return true; }
-      if(name == "ora") { write(0x1d); write(n, 2); return true; }
-      if(name == "rol") { write(0x3e); write(n, 2); return true; }
-      if(name == "ror") { write(0x7e); write(n, 2); return true; }
-      if(name == "sbc") { write(0xfd); write(n, 2); return true; }
-      if(name == "sta") { write(0x9d); write(n, 2); return true; }
-      if(name == "stz") { write(0x9e); write(n, 2); return true; }
-    }
-    if(size == 1 || size == 0) {
-      if(name == "adc") { write(0x75); write(n, 1); return true; }
-      if(name == "and") { write(0x35); write(n, 1); return true; }
-      if(name == "asl") { write(0x16); write(n, 1); return true; }
-      if(name == "bit") { write(0x34); write(n, 1); return true; }
-      if(name == "cmp") { write(0xd5); write(n, 1); return true; }
-      if(name == "dec") { write(0xd6); write(n, 1); return true; }
-      if(name == "eor") { write(0x55); write(n, 1); return true; }
-      if(name == "inc") { write(0xf6); write(n, 1); return true; }
-      if(name == "lda") { write(0xb5); write(n, 1); return true; }
-      if(name == "ldy") { write(0xb4); write(n, 1); return true; }
-      if(name == "lsr") { write(0x56); write(n, 1); return true; }
-      if(name == "ora") { write(0x15); write(n, 1); return true; }
-      if(name == "rol") { write(0x36); write(n, 1); return true; }
-      if(name == "ror") { write(0x76); write(n, 1); return true; }
-      if(name == "sbc") { write(0xf5); write(n, 1); return true; }
-      if(name == "sta") { write(0x95); write(n, 1); return true; }
-      if(name == "sty") { write(0x94); write(n, 1); return true; }
-      if(name == "stz") { write(0x74); write(n, 1); return true; }
-    }
-    return false;
   }
 
-  if(arg.wildcard("?*,y")) {
-    arg.rtrim<1>(",y");
-    unsigned n = eval(arg);
-    detectSize();
-    if(size == 2 || size == 0) {
-      if(name == "adc") { write(0x79); write(n, 2); return true; }
-      if(name == "and") { write(0x39); write(n, 2); return true; }
-      if(name == "cmp") { write(0xd9); write(n, 2); return true; }
-      if(name == "eor") { write(0x59); write(n, 2); return true; }
-      if(name == "lda") { write(0xb9); write(n, 2); return true; }
-      if(name == "ldx") { write(0xbe); write(n, 2); return true; }
-      if(name == "ora") { write(0x19); write(n, 2); return true; }
-      if(name == "sbc") { write(0xf9); write(n, 2); return true; }
-      if(name == "sta") { write(0x99); write(n, 2); return true; }
-    }
-    if(size == 1 || size == 0) {
-      if(name == "ldx") { write(0xb6); write(n, 1); return true; }
-      if(name == "stx") { write(0x96); write(n, 1); return true; }
-    }
-    return false;
-  }
+  #undef isbyte
+  #undef isword
+  #undef islong
 
-  if(arg.wildcard("?*,?*")) {
-    lstring bank;
-    bank.split(",", arg);
-    if(name == "mvn") { write(0x54); write(eval(bank[1])); write(eval(bank[0])); return true; }
-    if(name == "mvp") { write(0x44); write(eval(bank[1])); write(eval(bank[0])); return true; }
-    return false;
-  }
-
-  signed n = eval(arg);
-
-  if(name == "brl") {
-    if(!arg.wildcard("$????")) n = n - (pc() + 3);
-    if(pass == 2 && (n < -32768 || n > 32767)) warning("branch out of bounds");
-    write(0x82);
-    write(n, 2);
-    return true;
-  }
-
-  function<bool (const string&, uint8_t)> relative = [this, &name, &arg, &n](const string &test, uint8_t opcode) {
-    if(name != test) return false;
-    if(!arg.wildcard("$??")) n = n - (this->pc() + 2);
-    if(pass == 2 && (n < -128 || n > 127)) this->warning("branch out of bounds");
-    this->write(opcode);
-    this->write(n);
-    return true;
-  };
-  if(relative("bcc", 0x90)) return true;
-  if(relative("bcs", 0xb0)) return true;
-  if(relative("beq", 0xf0)) return true;
-  if(relative("bne", 0xd0)) return true;
-  if(relative("bmi", 0x30)) return true;
-  if(relative("bpl", 0x10)) return true;
-  if(relative("bvc", 0x50)) return true;
-  if(relative("bvs", 0x70)) return true;
-  if(relative("bra", 0x80)) return true;
-
-  detectSize();
-  if(size == 3 || size == 0) {
-    if(name == "adc") { write(0x6f); write(n, 3); return true; }
-    if(name == "and") { write(0x2f); write(n, 3); return true; }
-    if(name == "cmp") { write(0xcf); write(n, 3); return true; }
-    if(name == "eor") { write(0x4f); write(n, 3); return true; }
-    if(name == "jml") { write(0x5c); write(n, 3); return true; }
-    if(name == "jsl") { write(0x22); write(n, 3); return true; }
-    if(name == "lda") { write(0xaf); write(n, 3); return true; }
-    if(name == "ora") { write(0x0f); write(n, 3); return true; }
-    if(name == "sbc") { write(0xef); write(n, 3); return true; }
-    if(name == "sta") { write(0x8f); write(n, 3); return true; }
-  }
-  if(size == 2 || size == 0) {
-    if(name == "adc") { write(0x6d); write(n, 2); return true; }
-    if(name == "and") { write(0x2d); write(n, 2); return true; }
-    if(name == "asl") { write(0x0e); write(n, 2); return true; }
-    if(name == "bit") { write(0x2c); write(n, 2); return true; }
-    if(name == "cmp") { write(0xcd); write(n, 2); return true; }
-    if(name == "cpx") { write(0xec); write(n, 2); return true; }
-    if(name == "cpy") { write(0xcc); write(n, 2); return true; }
-    if(name == "dec") { write(0xce); write(n, 2); return true; }
-    if(name == "eor") { write(0x4d); write(n, 2); return true; }
-    if(name == "inc") { write(0xee); write(n, 2); return true; }
-    if(name == "jmp") { write(0x4c); write(n, 2); return true; }
-    if(name == "jsr") { write(0x20); write(n, 2); return true; }
-    if(name == "lda") { write(0xad); write(n, 2); return true; }
-    if(name == "ldx") { write(0xae); write(n, 2); return true; }
-    if(name == "ldy") { write(0xac); write(n, 2); return true; }
-    if(name == "lsr") { write(0x4e); write(n, 2); return true; }
-    if(name == "ora") { write(0x0d); write(n, 2); return true; }
-    if(name == "pea") { write(0xf4); write(n, 2); return true; }
-    if(name == "per") { write(0x62); write(n, 2); return true; }
-    if(name == "rol") { write(0x2e); write(n, 2); return true; }
-    if(name == "ror") { write(0x6e); write(n, 2); return true; }
-    if(name == "sbc") { write(0xed); write(n, 2); return true; }
-    if(name == "sta") { write(0x8d); write(n, 2); return true; }
-    if(name == "stx") { write(0x8e); write(n, 2); return true; }
-    if(name == "sty") { write(0x8c); write(n, 2); return true; }
-    if(name == "stz") { write(0x9c); write(n, 2); return true; }
-    if(name == "trb") { write(0x1c); write(n, 2); return true; }
-    if(name == "tsb") { write(0x0c); write(n, 2); return true; }
-  }
-  if(size == 1 || size == 0) {
-    if(name == "adc") { write(0x65); write(n, 1); return true; }
-    if(name == "and") { write(0x25); write(n, 1); return true; }
-    if(name == "asl") { write(0x06); write(n, 1); return true; }
-    if(name == "bit") { write(0x24); write(n, 1); return true; }
-    if(name == "cmp") { write(0xc5); write(n, 1); return true; }
-    if(name == "cpx") { write(0xe4); write(n, 1); return true; }
-    if(name == "cpy") { write(0xc4); write(n, 1); return true; }
-    if(name == "dec") { write(0xc6); write(n, 1); return true; }
-    if(name == "eor") { write(0x45); write(n, 1); return true; }
-    if(name == "inc") { write(0xe6); write(n, 1); return true; }
-    if(name == "lda") { write(0xa5); write(n, 1); return true; }
-    if(name == "ldx") { write(0xa6); write(n, 1); return true; }
-    if(name == "ldy") { write(0xa4); write(n, 1); return true; }
-    if(name == "lsr") { write(0x46); write(n, 1); return true; }
-    if(name == "ora") { write(0x05); write(n, 1); return true; }
-    if(name == "rol") { write(0x26); write(n, 1); return true; }
-    if(name == "ror") { write(0x66); write(n, 1); return true; }
-    if(name == "sbc") { write(0xe5); write(n, 1); return true; }
-    if(name == "sta") { write(0x85); write(n, 1); return true; }
-    if(name == "stx") { write(0x86); write(n, 1); return true; }
-    if(name == "sty") { write(0x84); write(n, 1); return true; }
-    if(name == "stz") { write(0x64); write(n, 1); return true; }
-    if(name == "trb") { write(0x14); write(n, 1); return true; }
-    if(name == "tsb") { write(0x04); write(n, 1); return true; }
-  }
   return false;
+}
+
+BassSnesCpu::BassSnesCpu() {
+  linear_vector<Opcode> table = {
+    { 0x00, "brk #*       ", 1, Mode::Immediate },
+    { 0x01, "ora (*+x)    ", 1, Mode::IndirectX },
+    { 0x02, "cop #*       ", 1, Mode::Immediate },
+    { 0x03, "ora *+s      ", 1, Mode::DirectS },
+    { 0x04, "tsb *        ", 0, Mode::Direct },
+    { 0x05, "ora *        ", 0, Mode::Direct },
+    { 0x06, "asl *        ", 0, Mode::Direct },
+    { 0x07, "ora [*]      ", 1, Mode::IndirectLong },
+    { 0x08, "php          ", 1, Mode::Implied },
+    { 0x09, "ora #*       ", 1, Mode::ImmediateM },
+    { 0x0a, "asl          ", 1, Mode::Implied },
+    { 0x0b, "phd          ", 1, Mode::Implied },
+    { 0x0c, "tsb *        ", 1, Mode::Absolute },
+    { 0x0d, "ora *        ", 0, Mode::Absolute },
+    { 0x0e, "asl *        ", 1, Mode::Absolute },
+    { 0x0f, "ora *        ", 1, Mode::Long },
+
+    { 0x10, "bpl *        ", 1, Mode::Relative },
+    { 0x11, "ora (*)+y    ", 1, Mode::IndirectY },
+    { 0x12, "ora (*)      ", 1, Mode::Indirect },
+    { 0x13, "ora (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0x14, "trb *        ", 0, Mode::Direct },
+    { 0x15, "ora *+x      ", 0, Mode::DirectX },
+    { 0x16, "asl *+x      ", 0, Mode::DirectX },
+    { 0x17, "ora [*]+y    ", 1, Mode::IndirectLongY },
+    { 0x18, "clc          ", 1, Mode::Implied },
+    { 0x19, "ora *+y      ", 1, Mode::AbsoluteY },
+    { 0x1a, "inc          ", 1, Mode::Implied },
+    { 0x1b, "tcs          ", 1, Mode::Implied },
+    { 0x1c, "trb *        ", 1, Mode::Absolute },
+    { 0x1d, "ora *+x      ", 0, Mode::AbsoluteX },
+    { 0x1e, "asl *+x      ", 1, Mode::AbsoluteX },
+    { 0x1f, "ora *+x      ", 1, Mode::LongX },
+
+    { 0x20, "jsr *        ", 1, Mode::Absolute },
+    { 0x21, "and (*+x)    ", 1, Mode::IndirectX },
+    { 0x22, "jsl *        ", 1, Mode::Long },
+    { 0x23, "and *+s      ", 1, Mode::DirectS },
+    { 0x24, "bit *        ", 0, Mode::Direct },
+    { 0x25, "and *        ", 0, Mode::Direct },
+    { 0x26, "rol *        ", 0, Mode::Direct },
+    { 0x27, "and [*]      ", 1, Mode::IndirectLong },
+    { 0x28, "plp          ", 1, Mode::Implied },
+    { 0x29, "and #*       ", 1, Mode::ImmediateM },
+    { 0x2a, "rol          ", 1, Mode::Implied },
+    { 0x2b, "pld          ", 1, Mode::Implied },
+    { 0x2c, "bit *        ", 1, Mode::Absolute },
+    { 0x2d, "and *        ", 0, Mode::Absolute },
+    { 0x2e, "rol *        ", 1, Mode::Absolute },
+    { 0x2f, "and *        ", 1, Mode::Long },
+
+    { 0x30, "bmi *        ", 1, Mode::Relative },
+    { 0x31, "and (*)+y    ", 1, Mode::IndirectY },
+    { 0x32, "and (*)      ", 1, Mode::Indirect, },
+    { 0x33, "and (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0x34, "bit *+x      ", 0, Mode::DirectX },
+    { 0x35, "and *+x      ", 0, Mode::DirectX },
+    { 0x36, "rol *+x      ", 0, Mode::DirectX },
+    { 0x37, "and [*]+y    ", 1, Mode::IndirectLongY },
+    { 0x38, "sec          ", 1, Mode::Implied },
+    { 0x39, "and *+y      ", 1, Mode::AbsoluteY },
+    { 0x3a, "dec          ", 1, Mode::Implied },
+    { 0x3b, "tsc          ", 1, Mode::Implied },
+    { 0x3c, "bit *+x      ", 1, Mode::AbsoluteX },
+    { 0x3d, "and *+x      ", 0, Mode::AbsoluteX },
+    { 0x3e, "rol *+x      ", 1, Mode::AbsoluteX },
+    { 0x3f, "and *+x      ", 1, Mode::LongX },
+
+    { 0x40, "rti          ", 1, Mode::Implied },
+    { 0x41, "eor (*+x)    ", 1, Mode::IndirectX },
+    { 0x42, "wdm #*       ", 1, Mode::Immediate },
+    { 0x43, "eor *+s      ", 1, Mode::DirectS },
+    { 0x44, "mvp *,*      ", 1, Mode::BlockMove },
+    { 0x45, "eor *        ", 0, Mode::Direct },
+    { 0x46, "lsr *        ", 0, Mode::Direct },
+    { 0x47, "eor [*]      ", 1, Mode::IndirectLong },
+    { 0x48, "pha          ", 1, Mode::Implied },
+    { 0x49, "eor #*       ", 1, Mode::ImmediateM },
+    { 0x4a, "lsr          ", 1, Mode::Implied },
+    { 0x4b, "phk          ", 1, Mode::Implied },
+    { 0x4c, "jmp *        ", 1, Mode::Absolute },
+    { 0x4d, "eor *        ", 0, Mode::Absolute },
+    { 0x4e, "lsr *        ", 1, Mode::Absolute },
+    { 0x4f, "eor *        ", 1, Mode::Long },
+
+    { 0x50, "bvc *        ", 1, Mode::Relative },
+    { 0x51, "eor (*)+y    ", 1, Mode::IndirectY },
+    { 0x52, "eor (*)      ", 1, Mode::Indirect },
+    { 0x53, "eor (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0x54, "mvn *,*      ", 1, Mode::BlockMove },
+    { 0x55, "eor *+x      ", 0, Mode::DirectX },
+    { 0x56, "lsr *+x      ", 0, Mode::DirectX },
+    { 0x57, "eor [*]+y    ", 1, Mode::IndirectLongY },
+    { 0x58, "cli          ", 1, Mode::Implied },
+    { 0x59, "eor *+y      ", 1, Mode::AbsoluteY },
+    { 0x5a, "phy          ", 1, Mode::Implied },
+    { 0x5b, "tcd          ", 1, Mode::Implied },
+    { 0x5c, "jml *        ", 1, Mode::Long },
+    { 0x5d, "eor *+x      ", 0, Mode::AbsoluteX },
+    { 0x5e, "lsr *+x      ", 1, Mode::AbsoluteX },
+    { 0x5f, "eor *+x      ", 1, Mode::LongX },
+
+    { 0x60, "rts          ", 1, Mode::Implied },
+    { 0x61, "adc (*+x)    ", 1, Mode::IndirectX },
+    { 0x62, "per *        ", 1, Mode::Absolute },
+    { 0x63, "adc *+s      ", 1, Mode::DirectS },
+    { 0x64, "stz *        ", 0, Mode::Direct },
+    { 0x65, "adc *        ", 0, Mode::Direct },
+    { 0x66, "ror *        ", 0, Mode::Direct },
+    { 0x67, "adc [*]      ", 1, Mode::IndirectLong },
+    { 0x68, "pla          ", 1, Mode::Implied },
+    { 0x69, "adc #*       ", 1, Mode::ImmediateM },
+    { 0x6a, "ror          ", 1, Mode::Implied },
+    { 0x6b, "rtl          ", 1, Mode::Implied },
+    { 0x6c, "jmp (*)      ", 1, Mode::IndirectAbsolute },
+    { 0x6d, "adc *        ", 0, Mode::Absolute },
+    { 0x6e, "ror *        ", 1, Mode::Absolute },
+    { 0x6f, "adc *        ", 1, Mode::Long },
+
+    { 0x70, "bvs *        ", 1, Mode::Relative },
+    { 0x71, "adc (*)+y    ", 1, Mode::IndirectY },
+    { 0x72, "adc (*)      ", 1, Mode::Indirect },
+    { 0x73, "adc (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0x74, "stz *+x      ", 0, Mode::DirectX },
+    { 0x75, "adc *+x      ", 0, Mode::DirectX },
+    { 0x76, "ror *+x      ", 0, Mode::DirectX },
+    { 0x77, "adc [*]+y    ", 1, Mode::IndirectLongY },
+    { 0x78, "sei          ", 1, Mode::Implied },
+    { 0x79, "adc *+y      ", 1, Mode::AbsoluteY },
+    { 0x7a, "ply          ", 1, Mode::Implied },
+    { 0x7b, "tdc          ", 1, Mode::Implied },
+    { 0x7c, "jmp (*+x)    ", 1, Mode::IndirectAbsoluteX },
+    { 0x7d, "adc *+x      ", 0, Mode::AbsoluteX },
+    { 0x7e, "ror *+x      ", 1, Mode::AbsoluteX },
+    { 0x7f, "adc *+x      ", 1, Mode::LongX },
+
+    { 0x80, "bra *        ", 1, Mode::Relative },
+    { 0x81, "sta (*+x)    ", 1, Mode::IndirectX },
+    { 0x82, "brl *        ", 1, Mode::RelativeLong },
+    { 0x83, "sta *+s      ", 1, Mode::DirectS },
+    { 0x84, "sty *        ", 0, Mode::Direct },
+    { 0x85, "sta *        ", 0, Mode::Direct },
+    { 0x86, "stx *        ", 0, Mode::Direct },
+    { 0x87, "sta [*]      ", 1, Mode::IndirectLong },
+    { 0x88, "dey          ", 1, Mode::Implied },
+    { 0x89, "bit #*       ", 1, Mode::ImmediateM },
+    { 0x8a, "txa          ", 1, Mode::Implied },
+    { 0x8b, "phb          ", 1, Mode::Implied },
+    { 0x8c, "sty *        ", 1, Mode::Absolute },
+    { 0x8d, "sta *        ", 0, Mode::Absolute },
+    { 0x8e, "stx *        ", 1, Mode::Absolute },
+    { 0x8f, "sta *        ", 1, Mode::Long },
+
+    { 0x90, "bcc *        ", 1, Mode::Relative },
+    { 0x91, "sta (*)+y    ", 1, Mode::IndirectY },
+    { 0x92, "sta (*)      ", 1, Mode::Indirect },
+    { 0x93, "sta (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0x94, "sty *+x      ", 1, Mode::DirectX },
+    { 0x95, "sta *+x      ", 0, Mode::DirectX },
+    { 0x96, "stx *+y      ", 1, Mode::DirectY },
+    { 0x97, "sta [*]+y    ", 1, Mode::IndirectLongY },
+    { 0x98, "tya          ", 1, Mode::Implied },
+    { 0x99, "sta *+y      ", 1, Mode::AbsoluteY },
+    { 0x9a, "txs          ", 1, Mode::Implied },
+    { 0x9b, "txy          ", 1, Mode::Implied },
+    { 0x9c, "stz *        ", 1, Mode::Absolute },
+    { 0x9d, "sta *+x      ", 0, Mode::AbsoluteX },
+    { 0x9e, "stz *+x      ", 1, Mode::AbsoluteX },
+    { 0x9f, "sta *+x      ", 1, Mode::LongX },
+
+    { 0xa0, "ldy #*       ", 1, Mode::ImmediateX },
+    { 0xa1, "lda (*+x)    ", 1, Mode::IndirectX },
+    { 0xa2, "ldx #*       ", 1, Mode::ImmediateX },
+    { 0xa3, "lda *+s      ", 1, Mode::DirectS },
+    { 0xa4, "ldy *        ", 0, Mode::Direct },
+    { 0xa5, "lda *        ", 0, Mode::Direct },
+    { 0xa6, "ldx *        ", 0, Mode::Direct },
+    { 0xa7, "lda [*]      ", 1, Mode::IndirectLong },
+    { 0xa8, "tay          ", 1, Mode::Implied },
+    { 0xa9, "lda #*       ", 1, Mode::ImmediateM },
+    { 0xaa, "tax          ", 1, Mode::Implied },
+    { 0xab, "plb          ", 1, Mode::Implied },
+    { 0xac, "ldy *        ", 1, Mode::Absolute },
+    { 0xad, "lda *        ", 0, Mode::Absolute },
+    { 0xae, "ldx *        ", 1, Mode::Absolute },
+    { 0xaf, "lda *        ", 1, Mode::Long },
+
+    { 0xb0, "bcs *        ", 1, Mode::Relative },
+    { 0xb1, "lda (*)+y    ", 1, Mode::IndirectY },
+    { 0xb2, "lda (*)      ", 1, Mode::Indirect },
+    { 0xb3, "lda (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0xb4, "ldy *+x      ", 0, Mode::DirectX },
+    { 0xb5, "lda *+x      ", 0, Mode::DirectX },
+    { 0xb6, "ldx *+y      ", 0, Mode::DirectY },
+    { 0xb7, "lda [*]+y    ", 1, Mode::IndirectLongY },
+    { 0xb8, "clv          ", 1, Mode::Implied },
+    { 0xb9, "lda *+y      ", 1, Mode::AbsoluteY },
+    { 0xba, "tsx          ", 1, Mode::Implied },
+    { 0xbb, "tyx          ", 1, Mode::Implied },
+    { 0xbc, "ldy *+x      ", 1, Mode::AbsoluteX },
+    { 0xbd, "lda *+x      ", 0, Mode::AbsoluteX },
+    { 0xbe, "ldx *+y      ", 1, Mode::AbsoluteY },
+    { 0xbf, "lda *+x      ", 1, Mode::LongX },
+
+    { 0xc0, "cpy #*       ", 1, Mode::ImmediateX },
+    { 0xc1, "cmp (*+x)    ", 1, Mode::IndirectX },
+    { 0xc2, "rep #*       ", 1, Mode::Immediate },
+    { 0xc3, "cmp *+s      ", 1, Mode::DirectS },
+    { 0xc4, "cpy *        ", 0, Mode::Direct },
+    { 0xc5, "cmp *        ", 0, Mode::Direct },
+    { 0xc6, "dec *        ", 0, Mode::Direct },
+    { 0xc7, "cmp [*]      ", 1, Mode::IndirectLong },
+    { 0xc8, "iny          ", 1, Mode::Implied },
+    { 0xc9, "cmp #*       ", 1, Mode::ImmediateM },
+    { 0xca, "dex          ", 1, Mode::Implied },
+    { 0xcb, "wai          ", 1, Mode::Implied },
+    { 0xcc, "cpy *        ", 1, Mode::Absolute },
+    { 0xcd, "cmp *        ", 0, Mode::Absolute },
+    { 0xce, "dec *        ", 1, Mode::Absolute },
+    { 0xcf, "cmp *        ", 1, Mode::Long },
+
+    { 0xd0, "bne *        ", 1, Mode::Relative },
+    { 0xd1, "cmp (*)+y    ", 1, Mode::IndirectY },
+    { 0xd2, "cmp (*)      ", 1, Mode::Indirect },
+    { 0xd3, "cmp (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0xd4, "pei (*)      ", 1, Mode::Indirect },
+    { 0xd5, "cmp *+x      ", 0, Mode::DirectX },
+    { 0xd6, "dec *+x      ", 0, Mode::DirectX },
+    { 0xd7, "cmp [*]+y    ", 1, Mode::IndirectLongY },
+    { 0xd8, "cld          ", 1, Mode::Implied },
+    { 0xd9, "cmp *+y      ", 1, Mode::AbsoluteY },
+    { 0xda, "phx          ", 1, Mode::Implied },
+    { 0xdb, "stp          ", 1, Mode::Implied },
+    { 0xdc, "jmp [*]      ", 1, Mode::IndirectLongAbsolute },
+    { 0xdd, "cmp *+x      ", 0, Mode::AbsoluteX },
+    { 0xde, "dec *+x      ", 1, Mode::AbsoluteX },
+    { 0xdf, "cmp *+x      ", 1, Mode::LongX },
+
+    { 0xe0, "cpx #*       ", 1, Mode::ImmediateX },
+    { 0xe1, "sbc (*+x)    ", 1, Mode::IndirectX },
+    { 0xe2, "sep #*       ", 1, Mode::Immediate },
+    { 0xe3, "sbc *+s      ", 1, Mode::DirectS },
+    { 0xe4, "cpx *        ", 0, Mode::Direct },
+    { 0xe5, "sbc *        ", 0, Mode::Direct },
+    { 0xe6, "inc *        ", 0, Mode::Direct },
+    { 0xe7, "sbc [*]      ", 1, Mode::IndirectLong },
+    { 0xe8, "inx          ", 1, Mode::Implied },
+    { 0xe9, "sbc #*       ", 1, Mode::ImmediateM },
+    { 0xea, "nop          ", 1, Mode::Implied },
+    { 0xeb, "xba          ", 1, Mode::Implied },
+    { 0xec, "cpx *        ", 1, Mode::Absolute },
+    { 0xed, "sbc *        ", 0, Mode::Absolute },
+    { 0xee, "inc *        ", 1, Mode::Absolute },
+    { 0xef, "sbc *        ", 1, Mode::Long },
+
+    { 0xf0, "beq *        ", 1, Mode::Relative },
+    { 0xf1, "sbc (*)+y    ", 1, Mode::IndirectY },
+    { 0xf2, "sbc (*)      ", 1, Mode::Indirect },
+    { 0xf3, "sbc (*+s)+y  ", 1, Mode::IndirectSY },
+    { 0xf4, "pea *        ", 1, Mode::Absolute },
+    { 0xf5, "sbc *+x      ", 0, Mode::DirectX },
+    { 0xf6, "inc *+x      ", 0, Mode::DirectX },
+    { 0xf7, "sbc [*]+y    ", 1, Mode::IndirectLongY },
+    { 0xf8, "sed          ", 1, Mode::Implied },
+    { 0xf9, "sbc *+y      ", 1, Mode::AbsoluteY },
+    { 0xfa, "plx          ", 1, Mode::Implied },
+    { 0xfb, "xce          ", 1, Mode::Implied },
+    { 0xfc, "jsr (*+x)    ", 1, Mode::IndirectAbsoluteX },
+    { 0xfd, "sbc *+x      ", 0, Mode::AbsoluteX },
+    { 0xfe, "inc *+x      ", 1, Mode::AbsoluteX },
+    { 0xff, "sbc *+x      ", 1, Mode::LongX },
+  };
+
+  unsigned size = table.size();
+  for(unsigned n = 0; n < size; n++) {
+    if(table[n].mode == Mode::Implied) {
+      Opcode opcode = table[n];
+      opcode.mnemonic.rtrim(" ");
+      opcode.mnemonic = { opcode.mnemonic, " #*" };
+      opcode.mode = Mode::ImpliedRepeat;
+      table.append(opcode);
+    }
+  }
+
+  lstring patterns;
+  foreach(opcode, table) {
+    while(opcode.mnemonic.position("  ")) opcode.mnemonic.replace("  ", " ");
+    opcode.mnemonic.replace("*", "?*");
+    opcode.mnemonic.rtrim(" ");
+    lstring part;
+    part.split<1>(" ", opcode.mnemonic);
+    opcode.name = part[0];
+    opcode.pattern = part[1];
+    if(!patterns.find(opcode.pattern)) patterns.append(opcode.pattern);
+  }
+
+  foreach(x, patterns) {
+    foreach(y, patterns) {
+      if(&x != &y && x.wildcard(y)) swap(x, y);
+    }
+  }
+
+  foreach(opcode, table) {
+    if(auto position = patterns.find(opcode.pattern)) {
+      family[position()].pattern = opcode.pattern;
+      family[position()].opcode.append(opcode);
+    }
+  }
 }

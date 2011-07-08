@@ -2,6 +2,11 @@ struct Bass {
   bool open(const string &filename);
   bool assemble(const string &filename);
   void close();
+  Bass();
+
+  struct Options {
+    bool caseInsensitive;
+  } options;
 
 protected:
   void warning(const string &s);

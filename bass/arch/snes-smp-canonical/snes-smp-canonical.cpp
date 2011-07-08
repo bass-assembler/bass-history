@@ -1,4 +1,4 @@
-bool BassSnesSpc700::assembleBlock(const string &block) {
+bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   lstring part, list;

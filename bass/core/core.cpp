@@ -34,6 +34,10 @@ void Bass::close() {
   if(output.open()) output.close();
 }
 
+Bass::Bass() {
+  options.caseInsensitive = false;
+}
+
 //internal
 
 void Bass::warning(const string &s) {
@@ -58,6 +62,8 @@ void Bass::assembleFile(const string &filename) {
   if(filedata.readfile(filename) == false) {
     error({ "source file ", filename, " not found" });
   }
+
+  if(options.caseInsensitive) filedata.qlower();
 
   filedata.transform("\r", " ");
   filedata.transform("\t", " ");

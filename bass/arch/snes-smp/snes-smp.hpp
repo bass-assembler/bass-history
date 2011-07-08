@@ -9,6 +9,7 @@ protected:
     Immediate,
     Direct,
     DirectX,
+    DirectY,
     DirectBit,
     DirectBitRelative,
     IndirectX,
@@ -16,6 +17,7 @@ protected:
     DirectImmediate,
     DirectDirect,
     DirectRelative,
+    DirectXRelative,
     Absolute,
     AbsoluteX,
     AbsoluteY,
@@ -23,6 +25,7 @@ protected:
     AbsoluteBitNot,
     IndirectAbsoluteX,
     Relative,
+    YRelative,
   };
 
   struct Opcode {
