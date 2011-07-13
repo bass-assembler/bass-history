@@ -8,6 +8,7 @@
 #include "arch/snes-cpu-canonical/snes-cpu-canonical.cpp"
 #include "arch/snes-smp/snes-smp.cpp"
 #include "arch/snes-smp-canonical/snes-smp-canonical.cpp"
+#include "arch/x86/x86.cpp"
 
 #if defined(BASS_BINARY)
 
@@ -31,6 +32,9 @@ int main(int argc, char **argv) {
     } else if(!arch && !strcmp(argv[n], "-arch=snes-smp-canonical")) {
       arch = new BassSnesSmpCanonical;
       n++;
+    } else if(!arch && !strcmp(argv[n], "-arch=x86")) {
+      arch = new BassX86;
+      n++;
     } else if(!strcmp(argv[n], "-case-insensitive")) {
       if(arch) arch->options.caseInsensitive = true;
       n++;
@@ -50,7 +54,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v02\n");
+    print("bass v02.01\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -58,6 +62,7 @@ int main(int argc, char **argv) {
     print("  snes-cpu-canonical\n");
     print("  snes-smp\n");
     print("  snes-smp-canonical\n");
+    print("  x86\n");
     print("\n");
     print("supported options:\n");
     print("  -case-insensitive\n");

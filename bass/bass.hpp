@@ -11,3 +11,4 @@ using namespace nall;
 #include "arch/snes-cpu-canonical/snes-cpu-canonical.hpp"
 #include "arch/snes-smp/snes-smp.hpp"
 #include "arch/snes-smp-canonical/snes-smp-canonical.hpp"
+#include "arch/x86/x86.hpp"
