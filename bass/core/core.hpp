@@ -6,6 +6,7 @@ struct Bass {
 
   struct Options {
     bool caseInsensitive;
+    bool overwrite;
   } options;
 
 protected:

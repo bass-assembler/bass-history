@@ -1,3 +1,7 @@
+//bass
+//author: byuu
+//license: GPLv2
+
 #include "bass.hpp"
 #include "core/core.cpp"
 #include "arch/snes-cpu/snes-cpu.cpp"
@@ -30,6 +34,9 @@ int main(int argc, char **argv) {
     } else if(!strcmp(argv[n], "-case-insensitive")) {
       if(arch) arch->options.caseInsensitive = true;
       n++;
+    } else if(!strcmp(argv[n], "-overwrite")) {
+      if(arch) arch->options.overwrite = true;
+      n++;
     } else if(!strcmp(argv[n], "-o") && n + 1 < argc) {
       outputFilename = argv[n + 1];
       n += 2;
@@ -43,7 +50,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v01\n");
+    print("bass v02\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -54,6 +61,7 @@ int main(int argc, char **argv) {
     print("\n");
     print("supported options:\n");
     print("  -case-insensitive\n");
+    print("  -overwrite\n");
     print("\n");
     return 0;
   }

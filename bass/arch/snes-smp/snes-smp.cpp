@@ -383,7 +383,7 @@ BassSnesSmp::BassSnesSmp() {
     { 0xee, "ply        ", 1, Mode::Implied },
     { 0xef, "wai        ", 1, Mode::Implied },
 
-    { 0xf0, "beq *      ", 1, Mode::Implied },
+    { 0xf0, "beq *      ", 1, Mode::Relative },
     { 0xf4, "lda *+x    ", 0, Mode::DirectX },
     { 0xf5, "lda *+x    ", 1, Mode::AbsoluteX },
     { 0xf6, "lda *+y    ", 1, Mode::AbsoluteY },

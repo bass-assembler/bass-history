@@ -1,10 +1,14 @@
 #include "eval.cpp"
 
 bool Bass::open(const string &filename) {
-  if(output.open(filename, file::mode::readwrite) == false) {
-    if(output.open(filename, file::mode::write) == false) return false;
+  close();
+  if(options.overwrite == false) {
+    output.open(filename, file::mode::readwrite);
   }
-  return true;
+  if(output.open() == false) {
+    output.open(filename, file::mode::write);
+  }
+  return output.open();
 }
 
 bool Bass::assemble(const string &filename) {
@@ -36,6 +40,7 @@ void Bass::close() {
 
 Bass::Bass() {
   options.caseInsensitive = false;
+  options.overwrite = false;
 }
 
 //internal

@@ -66,8 +66,11 @@ void Bass::evalDefines(string &line) {
   unsigned length = line.length();
   for(unsigned x = 0; x < length; x++) {
     if(line[x] == '{') {
+      signed counter = 1;
       for(unsigned y = x + 1; y < length; y++) {
-        if(line[y] == '}') {
+        if(line[y] == '{') counter++;
+        if(line[y] == '}') counter--;
+        if(line[y] == '}' && counter == 0) {
           string name = substr(line, x + 1, y - x - 1);
           if(!name.position("::")) name = { activeNamespace, "::", name };
 
