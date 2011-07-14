@@ -1,7 +1,3 @@
-#include <tuple>
-using std::tuple;
-using std::get;
-
 struct BassX86 : public Bass {
   bool assembleBlock(const string &block);
   BassX86();
@@ -9,33 +5,30 @@ struct BassX86 : public Bass {
 protected:
   enum Mode : unsigned {
     Implied,
-    ModRM8,
-    ModRM32,
-    ModRM8Reverse,
-    ModRM32Reverse,
-    EA8,
-    EA32,
-    EA8_IMM8,
-    EA32_IMM32,
-    Immediate8,
-    Immediate16,
-    Immediate32,
-    Immediate8S,
-    Immediate16S,
-    Immediate32S,
-    R32,
-    Relative8,
-    Relative16,
-    Relative32,
+    AccumulatorImmediateWord,
+    AccumulatorImmediateByte,
+    EffectiveWordRegister,
+    EffectiveByteRegister,
+    RegisterEffectiveWord,
+    RegisterEffectiveByte,
+    EffectiveWord,
+    EffectiveByte,
+    EffectiveWordImmediateByte,
+    EffectiveWordImmediate,
+    EffectiveByteImmediate,
+    ImmediateWord,
+    ImmediateByte,
+    RegisterWord,
+    RelativeWord,
+    RelativeByte,
   };
 
   enum Flag : unsigned {
     None     = 0x00000000,
     Prefix   = 0x00000001,
     Priority = 0x00000002,
-    Short    = 0x00000004,
-    Long     = 0x00000008,
-    ModR     = 0x00000010,
+    Byte     = 0x00000004,
+    Word     = 0x00000008,
   };
 
   struct Opcode {
@@ -55,9 +48,12 @@ protected:
 
   linear_vector<Family> family;
 
-  unsigned addr;
+  struct CPU {
+    unsigned bits;  //16, 32
+  } cpu;
 
   struct Info {
+    unsigned ps;  //prefix size
     bool rp;
     bool mp;
     unsigned seg;
@@ -72,14 +68,14 @@ protected:
     unsigned dd;
   } info;
 
-  unsigned prefixLength(const Opcode&) const;
   void writePrefix(const Opcode&);
   bool isRegister(const string&) const;
   optional<unsigned> reg8(const string&) const;
   optional<unsigned> reg16(const string&) const;
   optional<unsigned> reg32(const string&) const;
   optional<unsigned> reg32m(string, optional<unsigned> &multiplier) const;
-  tuple<unsigned, unsigned> size(const string&);
+  unsigned size(const string&);
+  int64_t eval(const string&);
 
   bool effectiveAddress(const Opcode&, string);
   bool reg(const Opcode&, const string&);

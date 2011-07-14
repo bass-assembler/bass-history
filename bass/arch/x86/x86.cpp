@@ -6,81 +6,109 @@ bool BassX86::assembleBlock(const string &block) {
   string name = part[0], args = part[1];
   part.split<1>(",", args);
 
-  tuple<unsigned, unsigned> immediate;
+  signed addr;
+
+       if(name.endswith("<")) { name.rtrim<1>("<"); info.ps =  8; }
+  else if(name.endswith(">")) { name.rtrim<1>(">"); info.ps = 16; }
+  else if(name.endswith("^")) { name.rtrim<1>("^"); info.ps = 32; }
+  else info.ps = 0;
 
   foreach(f, family) if(args.wildcard(f.pattern)) {
     foreach(o, f.opcode) if(name == o.name) switch(o.mode) {
     case Mode::Implied:
       writePrefix(o);
       return true;
-    case Mode::ModRM8:
-    case Mode::ModRM32:
+
+    case Mode::EffectiveByteRegister:
+    case Mode::EffectiveWordRegister:
       if(effectiveAddress(o, part[0]) == false) continue;
       if(reg(o, part[1]) == false) continue;
       writeEffectiveAddress(o);
       return true;
-    case Mode::ModRM8Reverse:
-    case Mode::ModRM32Reverse:
+
+    case Mode::RegisterEffectiveByte:
+    case Mode::RegisterEffectiveWord:
       if(effectiveAddress(o, part[1]) == false) continue;
       if(reg(o, part[0]) == false) continue;
       writeEffectiveAddress(o);
       return true;
-    case Mode::EA8:
-    case Mode::EA32:
+
+    case Mode::EffectiveByte:
+      if(info.ps && info.ps !=  8) continue;
       if(effectiveAddress(o, part[0]) == false) continue;
       info.r = o.param0;
       writeEffectiveAddress(o);
       return true;
-    case Mode::EA8_IMM8:
+
+    case Mode::EffectiveWord:
+      if(info.ps && info.ps != 16 && info.ps != 32) continue;
+      if(effectiveAddress(o, part[0]) == false) continue;
+      info.r = o.param0;
+      if(info.ps == 16) info.rp = true;
+      writeEffectiveAddress(o);
+      return true;
+
+    case Mode::EffectiveByteImmediate:
+      if(info.ps && info.ps != 8) continue;
       if(effectiveAddress(o, part[0]) == false) continue;
       info.r = o.param0;
       writeEffectiveAddress(o);
       write(eval(part[1]), 1);
       return true;
-    case Mode::EA32_IMM32:
+
+    case Mode::EffectiveWordImmediate:
+      if(info.ps && info.ps != 16 && info.ps != 32) continue;
+      if(size(part[1]) && size(part[1]) != 16 && size(part[1]) != 32) continue;
       if(effectiveAddress(o, part[0]) == false) continue;
       info.r = o.param0;
-      immediate = size(part[1]);
-      if(get<0>(immediate) == 8) continue;
+      if(info.ps == 16) info.rp = true;
       writeEffectiveAddress(o);
-      write(get<1>(immediate), get<0>(immediate) == 16 ? 2 : 4);
+      write(eval(part[1]), info.ps == 16 ? 2 : 4);
       return true;
-/*
-    case Mode::Immediate8:
-      if(size && size != 8) continue;
+
+    case Mode::EffectiveWordImmediateByte:
+      if(info.ps && info.ps != 16 && info.ps != 32) continue;
+      if(size(part[1]) && size(part[1]) != 8) continue;
+      if(effectiveAddress(o, part[0]) == false) continue;
+      info.r = o.param0;
+      if(info.ps == 16) info.rp = true;
+      writeEffectiveAddress(o);
+      write(eval(part[1]), 1);
+      return true;
+
+    case Mode::ImmediateByte:
+      if(size(args) && size(args) != 8) continue;
       writePrefix(o);
       write(eval(args), 1);
       return true;
-    case Mode::Immediate16:
-      if(size && size != 16) continue;
+
+    case Mode::ImmediateWord:
+      if(size(args) && size(args) != 16 && size(args) != 32) continue;
+      info.rp = (size(args) == 16);
+      if(info.rp) write(0x66);
       writePrefix(o);
-      write(eval(args), 2);
+      write(eval(args), info.rp ? 2 : 4);
       return true;
-    case Mode::Immediate32:
-      if(size && size != 32) continue;
-      writePrefix(o);
-      write(eval(args), 4);
-      return true;
-    case Mode::Immediate8S:
-      if(size && size != 8) continue;
+
+    case Mode::AccumulatorImmediateByte:
+      if(part[0] != "al") continue;
+      if(size(part[1]) && size(part[1]) !=  8) continue;
       if(isRegister(part[1])) continue;
       writePrefix(o);
       write(eval(part[1]), 1);
       return true;
-    case Mode::Immediate16S:
-      if(size && size != 16) continue;
+
+    case Mode::AccumulatorImmediateWord:
+      if(part[0] != "ax" && part[0] != "eax") continue;
+      if(size(part[1]) && size(part[1]) != 16 && size(part[1]) != 32) continue;
       if(isRegister(part[1])) continue;
+      info.rp = (part[0] == "ax");
+      if(info.rp) write(0x66);
       writePrefix(o);
-      write(eval(part[1]), 2);
+      write(eval(part[1]), info.rp ? 2 : 4);
       return true;
-    case Mode::Immediate32S:
-      if(size && size != 32) continue;
-      if(isRegister(part[1])) continue;
-      writePrefix(o);
-      write(eval(part[1]), 4);
-      return true;
-*/
-    case Mode::R32:
+
+    case Mode::RegisterWord:
       if(auto p = reg16(args)) {
         write(0x66);
         write(o.prefix + p());
@@ -91,39 +119,32 @@ bool BassX86::assembleBlock(const string &block) {
         return true;
       }
       continue;
-/*
-    case Mode::Relative8:
-      if(size && size != 8) continue;
+
+    case Mode::RelativeByte:
+      if(info.ps && info.ps !=  8) continue;
       writePrefix(o);
       addr = eval(args) - (pc() + 1);
       if(pass == 2 && (addr <   -128 || addr >   +127)) error("branch out of bounds");
       write(addr, 1);
       return true;
-    case Mode::Relative16:
-      if(size && size != 16) continue;
+
+    case Mode::RelativeWord:
+      if(info.ps && info.ps != 16 && info.ps != 32) continue;
+      if(info.ps == 16) write(0x66);
       writePrefix(o);
-      addr = eval(args) - (pc() + 2);
-      if(pass == 2 && (addr < -32768 || addr > +32767)) error("branch out of bounds");
-      write(addr, 2);
+      if(info.ps == 16) {
+        addr = eval(args) - (pc() + 2);
+        if(pass == 2 && (addr < -32768 || addr > +32767)) error("branch out of bounds");
+        write(addr, 2);
+      } else {
+        addr = eval(args) - (pc() + 4);
+        write(addr, 4);
+      }
       return true;
-    case Mode::Relative32:
-      if(size && size != 32) continue;
-      writePrefix(o);
-      addr = eval(args) - (pc() + 4);
-      write(addr, 4);
-      return true;
-*/
     }
   }
 
   return false;
-}
-
-unsigned BassX86::prefixLength(const Opcode &o) const {
-  if(o.prefix >> 24) return 4;
-  if(o.prefix >> 16) return 3;
-  if(o.prefix >>  8) return 2;
-                     return 1;
 }
 
 void BassX86::writePrefix(const Opcode &o) {
@@ -218,14 +239,21 @@ optional<unsigned> BassX86::reg32m(string s, optional<unsigned> &multiplier) con
   return { false, 0 };
 }
 
-tuple<unsigned, unsigned> BassX86::size(const string &s) {
-  if(s.beginswith("<")) return tuple<unsigned, unsigned>( 8u, eval((const char*)s + 1));
-  if(s.beginswith(">")) return tuple<unsigned, unsigned>(16u, eval((const char*)s + 1));
-  if(s.beginswith("^")) return tuple<unsigned, unsigned>(32u, eval((const char*)s + 1));
-  if(s.wildcard("0x??"      )) return tuple<unsigned, unsigned>( 8u, eval(s));
-  if(s.wildcard("0x????"    )) return tuple<unsigned, unsigned>(16u, eval(s));
-  if(s.wildcard("0x????????")) return tuple<unsigned, unsigned>(32u, eval(s));
-  return tuple<unsigned, unsigned>(0u, eval(s));  //unknown size (assume 32, then 16, then 8)
+unsigned BassX86::size(const string &s) {
+  if(s.beginswith("<")) return  8;
+  if(s.beginswith(">")) return 16;
+  if(s.beginswith("^")) return 32;
+  if(s.wildcard("0x??"      )) return  8;
+  if(s.wildcard("0x????"    )) return 16;
+  if(s.wildcard("0x????????")) return 32;
+  return 0;
+}
+
+int64_t BassX86::eval(const string &s) {
+  if(s.beginswith("<")) return Bass::eval((const char*)s + 1);
+  if(s.beginswith(">")) return Bass::eval((const char*)s + 1);
+  if(s.beginswith("^")) return Bass::eval((const char*)s + 1);
+  return Bass::eval(s);
 }
 
 bool BassX86::effectiveAddress(const Opcode &o, string ea) {
@@ -241,8 +269,7 @@ bool BassX86::effectiveAddress(const Opcode &o, string ea) {
   info.ds = 0;
   info.dd = 0;
 
-  tuple<unsigned, unsigned> immediate;
-
+  unsigned ds;
   bool indirect = ea.wildcard("[*]");
   if(indirect) {
     ea.ltrim<1>("[");
@@ -292,11 +319,11 @@ bool BassX86::effectiveAddress(const Opcode &o, string ea) {
             ea.ltrim<1>(part[1]);
             ea.ltrim<1>("+");
             if(info.r0 == 4) return false;
-            immediate = size(ea), info.mod = (get<0>(immediate) == 8 ? 1 : 2), info.m = 4, info.sib = true, info.ds = (get<0>(immediate) == 8 ? 1 : 4), info.dd = get<1>(immediate);
+            ds = size(ea), info.mod = (ds == 8 ? 1 : 2), info.m = 4, info.sib = true, info.ds = (ds == 8 ? 1 : 4), info.dd = eval(ea);
           }
         } else {
           //[reg+displacement]
-          immediate = size(ea), info.mod = (get<0>(immediate) == 8 ? 1 : 2), info.m = info.r0, info.ds = (get<0>(immediate) == 8 ? 1 : 4), info.dd = get<1>(immediate);
+          ds = size(ea), info.mod = (ds == 8 ? 1 : 2), info.m = info.r0, info.ds = (ds == 8 ? 1 : 4), info.dd = eval(ea);
         }
       }
     } else if(auto p = reg16(part[0])) {
@@ -322,27 +349,26 @@ bool BassX86::effectiveAddress(const Opcode &o, string ea) {
       } else {
         //[reg+displacement]
         ea.ltrim<1>("+");
-        immediate = size(ea);
-        info.mod = (get<0>(immediate) == 8 ? 1 : 2), info.ds = (get<0>(immediate) == 8 ? 1 : 2), info.dd = get<1>(immediate);
+        ds = size(ea), info.mod = (ds == 8 ? 1 : 2), info.ds = (ds == 8 ? 1 : 2), info.dd = eval(ea);
       }
     } else {
       //[displacement]
-      immediate = size(ea);
-      if(get<0>(immediate) != 16) {
+      ds = size(ea);
+      if(ds != 16) {
         //[displacement] {M32}
-        info.mod = 0, info.m = 5, info.ds = 4, info.dd = get<1>(immediate);
+        info.mod = 0, info.m = 5, info.ds = 4, info.dd = eval(ea);
       } else {
         //[displacement] {M16}
-        info.mp = true, info.mod = 0, info.m = 6, info.ds = 2, info.dd = get<1>(immediate);
+        info.mp = true, info.mod = 0, info.m = 6, info.ds = 2, info.dd = eval(ea);
       }
     }
   } else {
     //reg
-    if(o.flag == Flag::Short) {
+    if(o.flag == Flag::Byte) {
       if(auto p = reg8(ea)) {
         info.mod = 3, info.m = p();
       } else return false;
-    } else if(o.flag == Flag::Long) {
+    } else if(o.flag == Flag::Word) {
       if(auto p = reg32(ea)) {
         info.mod = 3, info.m = p();
       } else if(auto p = reg16(ea)) {
@@ -355,11 +381,11 @@ bool BassX86::effectiveAddress(const Opcode &o, string ea) {
 }
 
 bool BassX86::reg(const Opcode &o, const string &r) {
-  if(o.flag == Flag::Short) {
+  if(o.flag == Flag::Byte) {
     if(auto p = reg8(r)) {
       info.r = p();
     } else return false;
-  } else if(o.flag == Flag::Long) {
+  } else if(o.flag == Flag::Word) {
     if(auto p = reg32(r)) {
       info.r = p();
     } else if(auto p = reg16(r)) {
@@ -381,151 +407,201 @@ void BassX86::writeEffectiveAddress(const Opcode &o) {
 
 BassX86::BassX86() {
   Opcode table[] = {
-    {     0x00, "add    *,*  ", Mode::ModRM8, Flag::Short },
-    {     0x01, "add    *,*  ", Mode::ModRM32, Flag::Long },
-    {     0x02, "add    *,*  ", Mode::ModRM8Reverse, Flag::Short },
-    {     0x03, "add    *,*  ", Mode::ModRM32Reverse, Flag::Long },
-    {     0x04, "add    al,* ", Mode::Immediate8S },
-    {   0x6605, "add    ax,* ", Mode::Immediate16S },
-    {     0x05, "add    eax,*", Mode::Immediate32S },
+    {     0x00, "add    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x01, "add    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x02, "add    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x03, "add    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x04, "add    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x05, "add    *,*  ", Mode::AccumulatorImmediateWord },
 
     {     0x06, "push   es   ", Mode::Implied },
     {     0x07, "pop    es   ", Mode::Implied },
 
-    {     0x08, "or     *,*  ", Mode::ModRM8, Flag::Short },
-    {     0x09, "or     *,*  ", Mode::ModRM32, Flag::Long },
-    {     0x0a, "or     *,*  ", Mode::ModRM8Reverse, Flag::Short },
-    {     0x0b, "or     *,*  ", Mode::ModRM32Reverse, Flag::Long },
-    {     0x0c, "or     al,* ", Mode::Immediate8S },
-    {   0x660c, "or     ax,* ", Mode::Immediate16S },
-    {     0x0d, "or     eax,*", Mode::Immediate32S },
-    {     0x0e, "push   cs   ", Mode::Implied },
+    {     0x08, "or     *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x09, "or     *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x0a, "or     *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x0b, "or     *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x0c, "or     *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x0d, "or     *,*  ", Mode::AccumulatorImmediateWord },
 
-    {     0x10, "adc    *,*  ", Mode::ModRM8, Flag::Short },
-    {     0x11, "adc    *,*  ", Mode::ModRM32, Flag::Long },
-    {     0x12, "adc    *,*  ", Mode::ModRM8Reverse, Flag::Short },
-    {     0x13, "adc    *,*  ", Mode::ModRM32Reverse, Flag::Long },
-    {     0x14, "adc    al,* ", Mode::Immediate8S },
-    {     0x15, "adc    ax,* ", Mode::Immediate16S },
-    {     0x15, "adc    eax,*", Mode::Immediate32S },
+    {     0x0e, "push   cs   ", Mode::Implied },
+    //0f = opcode extensions (pop cs removed after 8086)
+
+    {     0x10, "adc    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x11, "adc    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x12, "adc    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x13, "adc    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x14, "adc    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x15, "adc    *,*  ", Mode::AccumulatorImmediateWord },
 
     {     0x16, "push   ss   ", Mode::Implied },
     {     0x17, "pop    ss   ", Mode::Implied },
 
-    {     0x18, "sbb    *,*  ", Mode::ModRM8, Flag::Short },
-    {     0x19, "sbb    *,*  ", Mode::ModRM32, Flag::Long },
-    {     0x1a, "sbb    *,*  ", Mode::ModRM8Reverse, Flag::Short },
-    {     0x1b, "sbb    *,*  ", Mode::ModRM32Reverse, Flag::Long },
-    {     0x1c, "sbb    al,* ", Mode::Immediate8S },
-    {   0x661d, "sbb    ax,* ", Mode::Immediate16S },
-    {     0x1d, "sbb    eax,*", Mode::Immediate32S },
+    {     0x18, "sbb    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x19, "sbb    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x1a, "sbb    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x1b, "sbb    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x1c, "sbb    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x1d, "sbb    *,*  ", Mode::AccumulatorImmediateWord },
 
     {     0x1e, "push   ds   ", Mode::Implied },
     {     0x1f, "pop    ds   ", Mode::Implied },
 
-    {     0x26, "es          ", Mode::Implied, Flag::Prefix },
-    {     0x2e, "cs          ", Mode::Implied, Flag::Prefix },
-    {     0x36, "ss          ", Mode::Implied, Flag::Prefix },
-    {     0x3e, "ds          ", Mode::Implied, Flag::Prefix },
+    {     0x20, "and    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x21, "and    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x22, "and    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x23, "and    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x24, "and    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x25, "and    *,*  ", Mode::AccumulatorImmediateWord },
 
-    {     0x40, "inc    *    ", Mode::R32 },
-    {     0x48, "dec    *    ", Mode::R32 },
-    {     0x50, "push   *    ", Mode::R32 },
-    {     0x58, "pop    *    ", Mode::R32 },
+    {     0x26, "es          ", Mode::Implied, Flag::Prefix },
+    {     0x27, "daa         ", Mode::Implied },
+
+    {     0x28, "sub    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x29, "sub    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x2a, "sub    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x2b, "sub    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x2c, "sub    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x2d, "sub    *,*  ", Mode::AccumulatorImmediateWord },
+
+    {     0x2e, "cs          ", Mode::Implied, Flag::Prefix },
+    {     0x2f, "das         ", Mode::Implied },
+
+    {     0x30, "xor    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x31, "xor    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x32, "xor    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x33, "xor    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x34, "xor    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x35, "xor    *,*  ", Mode::AccumulatorImmediateWord },
+
+    {     0x36, "ss          ", Mode::Implied, Flag::Prefix },
+    {     0x37, "aaa         ", Mode::Implied },
+
+    {     0x38, "cmp    *,*  ", Mode::EffectiveByteRegister, Flag::Byte },
+    {     0x39, "cmp    *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+    {     0x3a, "cmp    *,*  ", Mode::RegisterEffectiveByte, Flag::Byte },
+    {     0x3b, "cmp    *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+    {     0x3c, "cmp    *,*  ", Mode::AccumulatorImmediateByte },
+    {     0x3d, "cmp    *,*  ", Mode::AccumulatorImmediateWord },
+
+    {     0x3e, "ds          ", Mode::Implied, Flag::Prefix },
+    {     0x3f, "aas         ", Mode::Implied },
+
+    {     0x40, "inc    *    ", Mode::RegisterWord },
+    {     0x48, "dec    *    ", Mode::RegisterWord },
+    {     0x50, "push   *    ", Mode::RegisterWord },
+    {     0x58, "pop    *    ", Mode::RegisterWord },
 
     {     0x60, "pushad      ", Mode::Implied },
     {     0x61, "popad       ", Mode::Implied },
 
+    {     0x62, "bound  *,*  ", Mode::RegisterEffectiveWord, Flag::Word },
+  //{     0x63, "arpl   *,*  ", Mode::EffectiveWordRegister, Flag::Word },
+
     {     0x64, "fs          ", Mode::Implied, Flag::Prefix },
     {     0x65, "gs          ", Mode::Implied, Flag::Prefix },
 
-    {     0x68, "push   *    ", Mode::Immediate32 },
-    {   0x6668, "push   *    ", Mode::Immediate16 },
-    {     0x6a, "push   *    ", Mode::Immediate8 },
+    {     0x68, "push   *    ", Mode::ImmediateWord },
+    {     0x6a, "push   *    ", Mode::ImmediateByte },
 
-    {     0x70, "jo     *    ", Mode::Relative8 },
-    {     0x71, "jno    *    ", Mode::Relative8 },
-    {     0x72, "jc     *    ", Mode::Relative8 },
-    {     0x73, "jnc    *    ", Mode::Relative8 },
-    {     0x74, "jz     *    ", Mode::Relative8 },
-    {     0x75, "jnz    *    ", Mode::Relative8 },
-    {     0x76, "jna    *    ", Mode::Relative8 },
-    {     0x77, "ja     *    ", Mode::Relative8 },
-    {     0x78, "js     *    ", Mode::Relative8 },
-    {     0x79, "jns    *    ", Mode::Relative8 },
-    {     0x7a, "jp     *    ", Mode::Relative8 },
-    {     0x7b, "jnp    *    ", Mode::Relative8 },
-    {     0x7c, "jl     *    ", Mode::Relative8 },
-    {     0x7d, "jnl    *    ", Mode::Relative8 },
-    {     0x7e, "jng    *    ", Mode::Relative8 },
-    {     0x7f, "jg     *    ", Mode::Relative8 },
+    {     0x70, "jo     *    ", Mode::RelativeByte },
+    {     0x71, "jno    *    ", Mode::RelativeByte },
+    {     0x72, "jc     *    ", Mode::RelativeByte },
+    {     0x73, "jnc    *    ", Mode::RelativeByte },
+    {     0x74, "jz     *    ", Mode::RelativeByte },
+    {     0x75, "jnz    *    ", Mode::RelativeByte },
+    {     0x76, "jna    *    ", Mode::RelativeByte },
+    {     0x77, "ja     *    ", Mode::RelativeByte },
+    {     0x78, "js     *    ", Mode::RelativeByte },
+    {     0x79, "jns    *    ", Mode::RelativeByte },
+    {     0x7a, "jp     *    ", Mode::RelativeByte },
+    {     0x7b, "jnp    *    ", Mode::RelativeByte },
+    {     0x7c, "jl     *    ", Mode::RelativeByte },
+    {     0x7d, "jnl    *    ", Mode::RelativeByte },
+    {     0x7e, "jng    *    ", Mode::RelativeByte },
+    {     0x7f, "jg     *    ", Mode::RelativeByte },
 
-    {     0x80, "add    *,*  ", Mode::EA8_IMM8, Flag::Short, 0 },
-    {     0x80, "or     *,*  ", Mode::EA8_IMM8, Flag::Short, 1 },
-    {     0x80, "adc    *,*  ", Mode::EA8_IMM8, Flag::Short, 2 },
-    {     0x80, "sbb    *,*  ", Mode::EA8_IMM8, Flag::Short, 3 },
-    {     0x80, "and    *,*  ", Mode::EA8_IMM8, Flag::Short, 4 },
-    {     0x80, "sub    *,*  ", Mode::EA8_IMM8, Flag::Short, 5 },
-    {     0x80, "xor    *,*  ", Mode::EA8_IMM8, Flag::Short, 6 },
-    {     0x80, "cmp    *,*  ", Mode::EA8_IMM8, Flag::Short, 7 },
+    {     0x80, "add    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 0 },
+    {     0x80, "or     *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 1 },
+    {     0x80, "adc    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 2 },
+    {     0x80, "sbb    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 3 },
+    {     0x80, "and    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 4 },
+    {     0x80, "sub    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 5 },
+    {     0x80, "xor    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 6 },
+    {     0x80, "cmp    *,*  ", Mode::EffectiveByteImmediate, Flag::Byte, 7 },
 
-    {     0x81, "add    *,*  ", Mode::EA32_IMM32, Flag::Long, 0 },
-    {     0x81, "or     *,*  ", Mode::EA32_IMM32, Flag::Long, 1 },
-    {     0x81, "adc    *,*  ", Mode::EA32_IMM32, Flag::Long, 2 },
-    {     0x81, "sbb    *,*  ", Mode::EA32_IMM32, Flag::Long, 3 },
-    {     0x81, "and    *,*  ", Mode::EA32_IMM32, Flag::Long, 4 },
-    {     0x81, "sub    *,*  ", Mode::EA32_IMM32, Flag::Long, 5 },
-    {     0x81, "xor    *,*  ", Mode::EA32_IMM32, Flag::Long, 6 },
-    {     0x81, "cmp    *,*  ", Mode::EA32_IMM32, Flag::Long, 7 },
+    {     0x81, "add    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 0 },
+    {     0x81, "or     *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 1 },
+    {     0x81, "adc    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 2 },
+    {     0x81, "sbb    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 3 },
+    {     0x81, "and    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 4 },
+    {     0x81, "sub    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 5 },
+    {     0x81, "xor    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 6 },
+    {     0x81, "cmp    *,*  ", Mode::EffectiveWordImmediate, Flag::Word, 7 },
+
+    {     0x83, "add    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 0 },
+    {     0x83, "or     *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 1 },
+    {     0x83, "adc    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 2 },
+    {     0x83, "sbb    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 3 },
+    {     0x83, "and    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 4 },
+    {     0x83, "sub    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 5 },
+    {     0x83, "xor    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 6 },
+    {     0x83, "cmp    *,*  ", Mode::EffectiveWordImmediateByte, Flag::Word, 7 },
 
     {     0x90, "nop         ", Mode::Implied },
-    {     0xe0, "loopnz *    ", Mode::Relative8 },
-    {     0xe9, "jmp    *    ", Mode::Relative32 },
-    {   0x66e9, "jmp    *    ", Mode::Relative16 },
-    {     0xeb, "jmp    *    ", Mode::Relative8 },
+
+    {     0x9c, "pushfd      ", Mode::Implied },
+    {     0x9d, "popfd       ", Mode::Implied },
+    {     0x9e, "sahf        ", Mode::Implied },
+    {     0x9f, "lahf        ", Mode::Implied },
+
+    {     0xe0, "loopnz *    ", Mode::RelativeByte },
+    {     0xe9, "jmp    *    ", Mode::RelativeWord },
+    {     0xeb, "jmp    *    ", Mode::RelativeByte },
 
     {     0xf0, "lock        ", Mode::Implied, Flag::Prefix },
     {     0xf2, "repnz       ", Mode::Implied, Flag::Prefix },
     {     0xf3, "repz        ", Mode::Implied, Flag::Prefix },
 
-    {     0xfe, "inc    *    ", Mode::EA8, Flag::Short, 0 },
-    {     0xfe, "dec    *    ", Mode::EA8, Flag::Short, 1 },
+    {     0xf4, "hlt         ", Mode::Implied },
+    {     0xf5, "cmc         ", Mode::Implied },
 
-    {     0xff, "inc    *    ", Mode::EA32, Flag::Long, 0 },
-    {     0xff, "dec    *    ", Mode::EA32, Flag::Long, 0 },
+    {     0xf8, "clc         ", Mode::Implied },
+    {     0xf9, "stc         ", Mode::Implied },
+    {     0xfa, "cli         ", Mode::Implied },
+    {     0xfb, "sti         ", Mode::Implied },
+    {     0xfc, "cld         ", Mode::Implied },
+    {     0xfd, "std         ", Mode::Implied },
 
-    {   0x0f80, "jo     *    ", Mode::Relative32 },
-    { 0x660f80, "jo     *    ", Mode::Relative16 },
-    {   0x0f81, "jno    *    ", Mode::Relative32 },
-    { 0x660f81, "jno    *    ", Mode::Relative16 },
-    {   0x0f82, "jc     *    ", Mode::Relative32 },
-    { 0x660f82, "jc     *    ", Mode::Relative16 },
-    {   0x0f83, "jnc    *    ", Mode::Relative32 },
-    { 0x660f83, "jnc    *    ", Mode::Relative16 },
-    {   0x0f84, "jz     *    ", Mode::Relative32 },
-    { 0x660f84, "jz     *    ", Mode::Relative16 },
-    {   0x0f85, "jnz    *    ", Mode::Relative32 },
-    { 0x660f85, "jnz    *    ", Mode::Relative16 },
-    {   0x0f86, "jna    *    ", Mode::Relative32 },
-    { 0x660f86, "jna    *    ", Mode::Relative16 },
-    {   0x0f87, "ja     *    ", Mode::Relative32 },
-    { 0x660f87, "ja     *    ", Mode::Relative16 },
-    {   0x0f88, "js     *    ", Mode::Relative32 },
-    { 0x660f88, "js     *    ", Mode::Relative16 },
-    {   0x0f89, "jns    *    ", Mode::Relative32 },
-    { 0x660f89, "jns    *    ", Mode::Relative16 },
-    {   0x0f8a, "jp     *    ", Mode::Relative32 },
-    { 0x660f8a, "jp     *    ", Mode::Relative16 },
-    {   0x0f8b, "jnp    *    ", Mode::Relative32 },
-    { 0x660f8b, "jnp    *    ", Mode::Relative16 },
-    {   0x0f8c, "jl     *    ", Mode::Relative32 },
-    { 0x660f8c, "jl     *    ", Mode::Relative16 },
-    {   0x0f8d, "jnl    *    ", Mode::Relative32 },
-    { 0x660f8d, "jnl    *    ", Mode::Relative16 },
-    {   0x0f8e, "jng    *    ", Mode::Relative32 },
-    { 0x660f8e, "jng    *    ", Mode::Relative16 },
-    {   0x0f8f, "jg     *    ", Mode::Relative32 },
-    { 0x660f8f, "jg     *    ", Mode::Relative16 },
+    {     0xfe, "inc    *    ", Mode::EffectiveByte, Flag::Byte, 0 },
+    {     0xfe, "dec    *    ", Mode::EffectiveByte, Flag::Byte, 1 },
+    //2-7 = undefined
+
+    {     0xff, "inc    *    ", Mode::EffectiveWord, Flag::Word, 0 },
+    {     0xff, "dec    *    ", Mode::EffectiveWord, Flag::Word, 1 },
+    {     0xff, "call   *    ", Mode::EffectiveWord, Flag::Word, 2 },
+    //3 = callf
+    {     0xff, "jmp    *    ", Mode::EffectiveWord, Flag::Word, 4 },
+    //5 = jmpf
+    {     0xff, "push   *    ", Mode::EffectiveWord, Flag::Word, 6 },
+    //7 = undefined
+
+    {   0x0f80, "jo     *    ", Mode::RelativeWord },
+    {   0x0f81, "jno    *    ", Mode::RelativeWord },
+    {   0x0f82, "jc     *    ", Mode::RelativeWord },
+    {   0x0f83, "jnc    *    ", Mode::RelativeWord },
+    {   0x0f84, "jz     *    ", Mode::RelativeWord },
+    {   0x0f85, "jnz    *    ", Mode::RelativeWord },
+    {   0x0f86, "jna    *    ", Mode::RelativeWord },
+    {   0x0f87, "ja     *    ", Mode::RelativeWord },
+    {   0x0f88, "js     *    ", Mode::RelativeWord },
+    {   0x0f89, "jns    *    ", Mode::RelativeWord },
+    {   0x0f8a, "jp     *    ", Mode::RelativeWord },
+    {   0x0f8b, "jnp    *    ", Mode::RelativeWord },
+    {   0x0f8c, "jl     *    ", Mode::RelativeWord },
+    {   0x0f8d, "jnl    *    ", Mode::RelativeWord },
+    {   0x0f8e, "jng    *    ", Mode::RelativeWord },
+    {   0x0f8f, "jg     *    ", Mode::RelativeWord },
   };
 
   lstring patterns;
@@ -540,15 +616,10 @@ BassX86::BassX86() {
     if(!patterns.find(opcode.pattern)) patterns.append(opcode.pattern);
   }
 
-  //sort all Relative32 instructions before all Relative8 instructions
-  foreach(x, table) {
-    foreach(y, table) {
-      if(&x == &y);
-      else if(x.mode == Mode::Relative32 && y.mode == Mode::Relative16) swap(x, y);
-      else if(x.mode == Mode::Relative32 && y.mode == Mode::Relative8 ) swap(x, y);
-      else if(x.mode == Mode::Relative16 && y.mode == Mode::Relative8 ) swap(x, y);
-      else if(x.mode == Mode::EA32 && y.mode == Mode::EA8) swap(x, y);
-      else if(x.mode == Mode::EA32_IMM32 && y.mode == EA8_IMM8) swap(x, y);
+  //sort all opcodes by their order in Mode list
+  foreach(y, table) {
+    foreach(x, table) {
+      if(&x != &y && (unsigned)x.mode > (unsigned)y.mode) swap(x, y);
     }
   }
 
