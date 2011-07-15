@@ -2,41 +2,54 @@ struct BassX86 : public Bass {
   bool assembleBlock(const string &block);
   BassX86();
 
-protected:
   enum Mode : unsigned {
     Implied,
-    AccumulatorImmediateWord,
-    AccumulatorImmediateByte,
-    EffectiveWordRegister,
-    EffectiveByteRegister,
-    RegisterEffectiveWord,
-    RegisterEffectiveByte,
-    EffectiveWord,
-    EffectiveByte,
-    EffectiveWordImmediateByte,
-    EffectiveWordImmediate,
-    EffectiveByteImmediate,
-    ImmediateWord,
-    ImmediateByte,
-    RegisterWord,
-    RelativeWord,
-    RelativeByte,
+    Register,
+    AccumulatorImmediate,
+    EffectiveRegister,
+    RegisterEffective,
+    Effective,
+    EffectiveImmediate,
+    Immediate,
+    Relative,
   };
 
-  enum Flag : unsigned {
-    None     = 0x00000000,
-    Prefix   = 0x00000001,
-    Priority = 0x00000002,
-    Byte     = 0x00000004,
-    Word     = 0x00000008,
+  enum class Flag : unsigned {
+    None   = 0x00000000,
+    Prefix = 0x00000001,
+
+    RM = 0x70000000,
+    R0 = 0x00000000,
+    R1 = 0x10000000,
+    R2 = 0x20000000,
+    R3 = 0x30000000,
+    R4 = 0x40000000,
+    R5 = 0x50000000,
+    R6 = 0x60000000,
+    R7 = 0x70000000,
   };
 
+  enum class Size : unsigned {
+    None,       //size unknown
+    Byte,       // 8-bit
+    Word,       //16-bit
+    Pair,       //16-bit or 32-bit
+    Long,       //32-bit
+    Quad,       //64-bit
+    ExactByte,  // 8-bit only
+    ExactWord,  //16-bit only
+    ExactLong,  //32-bit only
+    ExactQuad,  //64-bit only
+  };
+
+protected:
   struct Opcode {
     unsigned prefix;
     string mnemonic;
     Mode mode;
     Flag flag;
-    unsigned param0;
+    Size operand0;
+    Size operand1;
     string name;
     string pattern;
   };
@@ -53,9 +66,14 @@ protected:
   } cpu;
 
   struct Info {
-    unsigned ps;  //prefix size
+    Size os0;
+    Size os1;
+
     bool rp;
     bool mp;
+
+    //effective address (ModR/M + SIB + displacement)
+    Size ear;
     unsigned seg;
     unsigned mod;
     unsigned r;
@@ -68,6 +86,8 @@ protected:
     unsigned dd;
   } info;
 
+  void writeR(Size size);
+  void writeM(Size size);
   void writePrefix(const Opcode&);
   bool isRegister(const string&) const;
   optional<unsigned> reg8(const string&) const;
@@ -76,8 +96,11 @@ protected:
   optional<unsigned> reg32m(string, optional<unsigned> &multiplier) const;
   unsigned size(const string&);
   int64_t eval(const string&);
+  unsigned flagR(const Opcode&);
+  bool isCorrectSize(const Opcode&);
+  Size detectSize(string &s);
 
-  bool effectiveAddress(const Opcode&, string);
+  bool effectiveAddress(const Opcode&, const string&);
   bool reg(const Opcode&, const string&);
   void writeEffectiveAddress(const Opcode&);
 };

@@ -1,43 +1,53 @@
 org 0
 
 main:
-  bound eax,[eax]
-  bound ax,[bx+si]
-//arpl [eax],ax
+  //Mode::Implied
+  //pushad
+  //popad
 
-  add eax,0x01234567
-  add ax,0x0123
-  add al,0x01
-  add bl,0x01
+  //Mode::Register
+  //push eax
+  //push ax
 
-  push< 0xff
-  push> 0xffff
-  push^ 0xffffffff
+  //Effective
+  //inc <[eax]
+  //inc >[eax]
+  //inc ^[eax]
+  //inc  [eax]
 
-  add< [eax],0xff
-  add> [eax],0xffff
-  add^ [eax],0xffffffff
+  //Relative
+  //jmp <main
+  //jmp >main
+  //jmp ^main
+  //jmp  main
 
-  add> [eax+<-1],0x0123
-
-  add> [eax],<0xff
-  add^ [eax],<0xff
-
-  inc eax
-  inc ax
-  inc al
-  inc ebx
-  inc bx
-  inc bl
-  inc> [es:eax*4+ebx+0x01234567]
-
-  add ebx,[es:eax*4+ebp+0x01234566+1]
-  add ebx,[eax+0x01234567]
-  add eax,eax
-  add ax,ax
+  //EffectiveRegister
+  add [eax],al
   add al,al
+  add [eax],eax
+  add eax,eax
+  add [es:eax*4+ebp+<0x20],ax
+  arpl >[eax],ax
 
-  jz< main
-  jz> main
-  jz^ main
+  //RegisterEffective
+  add al,[eax]
+  add eax,[eax]
+  add ax,[es:eax*4+ebp+<0x20]
+
+  //AccumulatorImmediate
+  //add al,0x01
+  //add ax,0x0123
+  //add eax,0x01234567
+
+  //Immediate
+  //push <0x01
+  //push >0x0123
+  //push ^0x01234567
+  //push  0x01234567
+
+  //EffectiveImmediate
+  add bl,<0x55
+  add bx,>0x0123
+  add ebx,^0x01234567
+  add >[eax],<0x55
 
