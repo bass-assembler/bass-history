@@ -12,11 +12,12 @@ bool BassX86::assembleBlock(const string &block) {
   lstring part, byte;
   part.split<1>(" ", block);
   string name = part[0], args = part[1];
-  part.split<1>(",", args);
+  part.split<2>(",", args);
 
   signed addr;
   info.os0 = detectSize(part[0]);
   info.os1 = detectSize(part[1]);
+  info.os2 = detectSize(part[2]);
 
   foreach(f, family) if(args.wildcard(f.pattern)) {
     foreach(o, f.opcode) if(name == o.name && isCorrectSize(o)) switch(o.mode) {
@@ -25,19 +26,8 @@ bool BassX86::assembleBlock(const string &block) {
       return true;
 
     case Mode::Register:
-      if(auto p = reg8(args)) {
-        if(o.operand0 != Size::Byte) continue;
-        write(o.prefix + p());
-      }
-      if(auto p = reg16(args)) {
-        if(o.operand0 != Size::Word && o.operand0 != Size::Pair) continue;
-        if(o.operand0 == Size::Pair) writeR(Size::Word);
-        write(o.prefix + p());
-        return true;
-      }
-      if(auto p = reg32(args)) {
-        if(o.operand0 != Size::Long && o.operand0 != Size::Pair) continue;
-        if(o.operand0 == Size::Pair) writeR(Size::Long);
+      if(auto p = verifyRegister(o.operand0, part[0])) {
+        if(info.rp) write(0x66);
         write(o.prefix + p());
         return true;
       }
@@ -62,7 +52,7 @@ bool BassX86::assembleBlock(const string &block) {
       return true;
 
     case Mode::Effective:
-      if(effectiveAddress(o, part[0]) == false) continue;
+      if(effectiveAddress(o.operand0, part[0]) == false) continue;
       info.r = flagR(o);
       if(o.operand0 == Size::Pair) writeR(info.os0);
       writeEffectiveAddress(o);
@@ -89,54 +79,20 @@ bool BassX86::assembleBlock(const string &block) {
       return true;
 
     case Mode::EffectiveRegister:
-      if(effectiveAddress(o, part[0]) == false) continue;
-      if(o.operand0 == Size::ExactWord && o.operand1 == Size::Word) {
-        if(auto p = reg16(part[1])) {
-          info.r = p();
-          writeEffectiveAddress(o);
-          return true;
-        }
-      } else if(o.operand1 == Size::Byte) {
-        if(auto p = reg8(part[1])) {
-          info.r = p();
-          writeEffectiveAddress(o);
-          return true;
-        }
-      } else if(o.operand1 == Size::Pair) {
-        if(auto p = reg16(part[1])) {
-          info.r = p();
-          writeR(Size::Word);
-          writeEffectiveAddress(o);
-          return true;
-        } else if(auto p = reg32(part[1])) {
-          info.r = p();
-          writeR(Size::Long);
-          writeEffectiveAddress(o);
-          return true;
-        }
+      if(effectiveAddress(o.operand0, part[0]) == false) continue;
+      if(auto p = verifyRegister(o.operand1, part[1])) {
+        info.r = p();
+        writeEffectiveAddress(o);
+        return true;
       }
       continue;
 
     case Mode::RegisterEffective:
-      if(effectiveAddress(o, part[1]) == false) continue;
-      if(o.operand0 == Size::Byte) {
-        if(auto p = reg8(part[0])) {
-          info.r = p();
-          writeEffectiveAddress(o);
-          return true;
-        }
-      } else if(o.operand0 == Size::Pair) {
-        if(auto p = reg16(part[0])) {
-          info.r = p();
-          writeR(Size::Word);
-          writeEffectiveAddress(o);
-          return true;
-        } else if(auto p = reg32(part[0])) {
-          info.r = p();
-          writeR(Size::Long);
-          writeEffectiveAddress(o);
-          return true;
-        }
+      if(effectiveAddress(o.operand1, part[1]) == false) continue;
+      if(auto p = verifyRegister(o.operand0, part[0])) {
+        info.r = p();
+        writeEffectiveAddress(o);
+        return true;
       }
       continue;
 
@@ -147,7 +103,7 @@ bool BassX86::assembleBlock(const string &block) {
       return true;
 
     case Mode::EffectiveImmediate:
-      if(effectiveAddress(o, part[0]) == false) continue;
+      if(effectiveAddress(o.operand0, part[0]) == false) continue;
       info.r = flagR(o);
       if(o.operand0 == Size::Pair) writeR(info.os0);
       writeEffectiveAddress(o);
@@ -157,6 +113,18 @@ bool BassX86::assembleBlock(const string &block) {
         write(eval(part[1]), o.operand1 == Size::Byte ? 1 : info.os1 == Size::Word ? 2 : 4);
       }
       return true;
+
+    case Mode::RegisterEffectiveImmediate:
+      if(effectiveAddress(o.operand1, part[1]) == false) continue;
+      if(auto p = verifyRegister(o.operand0, part[0])) {
+        if(info.os2 == Size::Byte && o.operand2 != Size::ExactByte) continue;
+        info.r = p();
+        writeEffectiveAddress(o);
+        write(eval(part[2]), info.os2 == Size::Byte ? 1 : info.os2 == Size::Word ? 2 : 4);
+        return true;
+      }
+      continue;
+
     }
   }
 
@@ -267,6 +235,18 @@ optional<unsigned> BassX86::reg32m(string s, optional<unsigned> &multiplier) con
   return { false, 0 };
 }
 
+optional<unsigned> BassX86::regs(const string &s) const {
+  if(s == "es") return { 0, true };
+  if(s == "cs") return { 1, true };
+  if(s == "ss") return { 2, true };
+  if(s == "ds") return { 3, true };
+  if(s == "fs") return { 4, true };
+  if(s == "gs") return { 5, true };
+  if(s == "s6") return { 6, true };
+  if(s == "s7") return { 7, true };
+  return { false, 0 };
+}
+
 unsigned BassX86::size(const string &s) {
   if(s.beginswith("<")) return  8;
   if(s.beginswith(">")) return 16;
@@ -331,11 +311,28 @@ BassX86::Size BassX86::detectSize(string &s) {
   return Size::None;
 }
 
-bool BassX86::effectiveAddress(const Opcode &o, const string &ea_) {
+optional<unsigned> BassX86::verifyRegister(Size size, const string &s) {
+  info.rp = false;
+  if(size == Size::Byte || size == Size::ExactByte) return reg8(s);
+  if(size == Size::Word || size == Size::ExactWord) return reg16(s);
+  if(size == Size::Long || size == Size::ExactLong) return reg32(s);
+  if(size == Size::Pair) {
+    if(auto p = reg16(s)) {
+      if(cpu.bits == 32) info.rp = true;
+      return p;
+    }
+    if(auto p = reg32(s)) {
+      if(cpu.bits == 16) info.rp = true;
+      return p;
+    }
+  }
+  return { false, 0 };
+}
+
+bool BassX86::effectiveAddress(Size os, const string &ea_) {
   string ea = ea_;
   info.rp = false;
   info.mp = false;
-  info.ear = Size::None;
   info.seg = 0x00;
   info.mod = 0;
   info.m = 0;
@@ -440,13 +437,9 @@ bool BassX86::effectiveAddress(const Opcode &o, const string &ea_) {
       }
     }
   } else {
-    //reg
-    if(auto p = reg8(ea)) {
-      info.ear = Size::Byte, info.mod = 3, info.m = p();
-    } else if(auto p = reg16(ea)) {
-      info.ear = Size::Word, info.rp = true, info.mod = 3, info.m = p();
-    } else if(auto p = reg32(ea)) {
-      info.ear = Size::Long, info.mod = 3, info.m = p();
+    //register
+    if(auto p = verifyRegister(os, ea)) {
+      info.mod = 3, info.m = p();
     } else return false;
   }
 
@@ -500,7 +493,7 @@ BassX86::BassX86() {
     {     0x0d, "or     *,*  ", Mode::AccumulatorImmediate, Flag::None, Size::Pair, Size::Pair },
 
     {     0x0e, "push   cs   ", Mode::Implied },
-    //0f = opcode extensions (pop cs removed after 8086)
+    {     0x0f, "pop    cs   ", Mode::Implied },  //8086 only
 
     {     0x10, "adc    *,*  ", Mode::EffectiveRegister, Flag::None, Size::Byte, Size::Byte },
     {     0x11, "adc    *,*  ", Mode::EffectiveRegister, Flag::None, Size::Pair, Size::Pair },
@@ -568,16 +561,26 @@ BassX86::BassX86() {
     {     0x58, "pop    *    ", Mode::Register, Flag::None, Size::Pair },
 
     {     0x60, "pushad      ", Mode::Implied },
+    {   0x6660, "pushaw      ", Mode::Implied },
     {     0x61, "popad       ", Mode::Implied },
+    {   0x6661, "popaw       ", Mode::Implied },
 
     {     0x62, "bound  *,*  ", Mode::RegisterEffective, Flag::None, Size::Pair, Size::Pair },
-    {     0x63, "arpl   *,*  ", Mode::EffectiveRegister, Flag::None, Size::ExactWord, Size::Word },
+    {     0x63, "arpl   *,*  ", Mode::EffectiveRegister, Flag::None, Size::Word, Size::Word },
 
     {     0x64, "fs          ", Mode::Implied, Flag::Prefix },
     {     0x65, "gs          ", Mode::Implied, Flag::Prefix },
 
     {     0x68, "push   *    ", Mode::Immediate, Flag::None, Size::Pair },
+    {     0x69, "imul   *,*,*", Mode::RegisterEffectiveImmediate, Flag::None, Size::Pair, Size::Pair, Size::Pair },
     {     0x6a, "push   *    ", Mode::Immediate, Flag::None, Size::ExactByte },
+    {     0x6b, "imul   *,*,*", Mode::RegisterEffectiveImmediate, Flag::None, Size::Pair, Size::Pair, Size::ExactByte },
+    {     0x6c, "insb        ", Mode::Implied },
+    {   0x666d, "insw        ", Mode::Implied },
+    {     0x6d, "insd        ", Mode::Implied },
+    {     0x6e, "outsb       ", Mode::Implied },
+    {   0x666f, "outsw       ", Mode::Implied },
+    {     0x6f, "outsd       ", Mode::Implied },
 
     {     0x70, "jo     *    ", Mode::Relative, Flag::None, Size::ExactByte },
     {     0x71, "jno    *    ", Mode::Relative, Flag::None, Size::ExactByte },
@@ -614,6 +617,8 @@ BassX86::BassX86() {
     {     0x81, "xor    *,*  ", Mode::EffectiveImmediate, Flag::R6, Size::Pair, Size::Pair },
     {     0x81, "cmp    *,*  ", Mode::EffectiveImmediate, Flag::R7, Size::Pair, Size::Pair },
 
+    //0x82 = mirror of 0x80?
+
     {     0x83, "add    *,*  ", Mode::EffectiveImmediate, Flag::R0, Size::Pair, Size::ExactByte },
     {     0x83, "or     *,*  ", Mode::EffectiveImmediate, Flag::R1, Size::Pair, Size::ExactByte },
     {     0x83, "adc    *,*  ", Mode::EffectiveImmediate, Flag::R2, Size::Pair, Size::ExactByte },
@@ -623,7 +628,26 @@ BassX86::BassX86() {
     {     0x83, "xor    *,*  ", Mode::EffectiveImmediate, Flag::R6, Size::Pair, Size::ExactByte },
     {     0x83, "cmp    *,*  ", Mode::EffectiveImmediate, Flag::R7, Size::Pair, Size::ExactByte },
 
+    {     0x84, "test   *,*  ", Mode::EffectiveRegister, Flag::None, Size::Byte, Size::Byte },
+    {     0x85, "test   *,*  ", Mode::EffectiveRegister, Flag::None, Size::Pair, Size::Pair },
+    {     0x86, "xchg   *,*  ", Mode::RegisterEffective, Flag::None, Size::Byte, Size::Byte },
+    {     0x87, "xchg   *,*  ", Mode::RegisterEffective, Flag::None, Size::Pair, Size::Pair },
+    {     0x88, "mov    *,*  ", Mode::EffectiveRegister, Flag::None, Size::Byte, Size::Byte },
+    {     0x89, "mov    *,*  ", Mode::EffectiveRegister, Flag::None, Size::Pair, Size::Pair },
+    {     0x8a, "mov    *,*  ", Mode::RegisterEffective, Flag::None, Size::Byte, Size::Byte },
+    {     0x8b, "mov    *,*  ", Mode::RegisterEffective, Flag::None, Size::Pair, Size::Pair },
+    //0x8c = mov effective,segment
+    //0x8d = lea ???
+    //0x8e = mov segment,effective
+    {     0x8f, "pop    *    ", Mode::Effective, Flag::None, Size::Pair },
+
     {     0x90, "nop         ", Mode::Implied },
+    {   0xf390, "pause       ", Mode::Implied },
+
+    {     0x98, "cwde        ", Mode::Implied },
+    {   0x6698, "cbw         ", Mode::Implied },
+    {     0x99, "cdq         ", Mode::Implied },
+    {   0x6699, "cwd         ", Mode::Implied },
 
     {     0x9c, "pushfd      ", Mode::Implied },
     {     0x9d, "popfd       ", Mode::Implied },

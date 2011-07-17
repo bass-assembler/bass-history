@@ -12,6 +12,7 @@ struct BassX86 : public Bass {
     EffectiveImmediate,
     Immediate,
     Relative,
+    RegisterEffectiveImmediate,
   };
 
   enum class Flag : unsigned {
@@ -50,6 +51,7 @@ protected:
     Flag flag;
     Size operand0;
     Size operand1;
+    Size operand2;
     string name;
     string pattern;
   };
@@ -68,12 +70,12 @@ protected:
   struct Info {
     Size os0;
     Size os1;
+    Size os2;
 
     bool rp;
     bool mp;
 
     //effective address (ModR/M + SIB + displacement)
-    Size ear;
     unsigned seg;
     unsigned mod;
     unsigned r;
@@ -94,13 +96,15 @@ protected:
   optional<unsigned> reg16(const string&) const;
   optional<unsigned> reg32(const string&) const;
   optional<unsigned> reg32m(string, optional<unsigned> &multiplier) const;
+  optional<unsigned> regs(const string&) const;
   unsigned size(const string&);
   int64_t eval(const string&);
   unsigned flagR(const Opcode&);
   bool isCorrectSize(const Opcode&);
+  optional<unsigned> verifyRegister(Size, const string&);
   Size detectSize(string &s);
 
-  bool effectiveAddress(const Opcode&, const string&);
+  bool effectiveAddress(Size, const string&);
   bool reg(const Opcode&, const string&);
   void writeEffectiveAddress(const Opcode&);
 };
