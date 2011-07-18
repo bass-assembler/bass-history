@@ -24,7 +24,10 @@ bool Bass::assemble(const string &filename) {
     defineExpandCounter = 1;
     negativeLabelCounter = 1;
     positiveLabelCounter = 1;
+    conditionalState = Conditional::Matching;
     stackPC.reset();
+    stackConditional.reset();
+    stackConditional.push(conditionalState);
     try {
       assembleFile(filename);
     } catch(const char*) {
@@ -96,6 +99,8 @@ void Bass::assembleFile(const string &filename) {
     lineNumber()++;
   }
 
+  if(stackConditional.size() != 1) error("if without matching endif");
+
   fileName.pull();
   lineNumber.pull();
   blockNumber.pull();
@@ -154,6 +159,49 @@ bool Bass::assembleLine(const string &line) {
 bool Bass::assembleBlock(const string &s) {
   if(s == "") return true;
   string block = s;
+
+  //========================
+  //= conditional assembly =
+  //========================
+
+  if(block.wildcard("if ?*")) {
+    block.ltrim<1>("if ");
+    stackConditional.push(conditionalState);
+    conditionalState = eval(block) ? Conditional::Matching : Conditional::NotYetMatched;
+    foreach(item, stackConditional) {
+      if(item != Conditional::Matching) conditionalState = Conditional::AlreadyMatched;
+    }
+    return true;
+  }
+
+  if(block.wildcard("elseif ?*")) {
+    if(conditionalState != Conditional::NotYetMatched) {
+      conditionalState = Conditional::AlreadyMatched;
+      return true;
+    }
+    block.ltrim<1>("elseif ");
+    conditionalState = eval(block) ? Conditional::Matching : Conditional::NotYetMatched;
+    return true;
+  }
+
+  if(block == "else") {
+    if(conditionalState != Conditional::NotYetMatched) {
+      conditionalState = Conditional::AlreadyMatched;
+      return true;
+    }
+    conditionalState = Conditional::Matching;
+    return true;
+  }
+
+  if(block == "endif") {
+    conditionalState = stackConditional.pull();
+    if(stackConditional.size() == 0) error("endif without matching if");
+    return true;
+  }
+
+  if(conditionalState != Conditional::Matching) {
+    return true;
+  }
 
   //==========
   //= endian =
@@ -250,6 +298,16 @@ bool Bass::assembleBlock(const string &s) {
     unsigned length = eval(list[0]);
     unsigned byte = list[1] == "" ? 0x00 : eval(list[1]);
     while(length--) write(byte);
+    return true;
+  }
+
+  //========
+  //= seek =
+  //========
+  if(block.wildcard("seek ?*")) {
+    block.ltrim<1>("seek ");
+    origin += eval(block);
+    seek(origin);
     return true;
   }
 

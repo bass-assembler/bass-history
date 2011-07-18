@@ -51,7 +51,9 @@ protected:
   unsigned defineExpandCounter;
   unsigned negativeLabelCounter;
   unsigned positiveLabelCounter;
+  enum class Conditional : unsigned { NotYetMatched, Matching, AlreadyMatched } conditionalState;
   stack<unsigned> stackPC;
+  stack<Conditional> stackConditional;
   stack<string> fileName;
   stack<unsigned> lineNumber;
   stack<unsigned> blockNumber;
