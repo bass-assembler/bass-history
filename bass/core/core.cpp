@@ -17,11 +17,11 @@ bool Bass::assemble(const string &filename) {
     origin = 0;
     base = 0;
     for(unsigned n = 0; n < 256; n++) table[n] = n;
-    defines.reset();
-    activeDefine = 0;
+    macros.reset();
     activeNamespace = "global";
     activeLabel = "global";
-    defineExpandCounter = 1;
+    macroNestingCounter = 0;
+    macroExpandCounter = 1;
     negativeLabelCounter = 1;
     positiveLabelCounter = 1;
     conditionalState = Conditional::Matching;
@@ -72,9 +72,7 @@ void Bass::assembleFile(const string &filename) {
   }
 
   if(options.caseInsensitive) filedata.qlower();
-
-  filedata.transform("\r", " ");
-  filedata.transform("\t", " ");
+  filedata.transform("\r\t", "  ");
 
   lstring lines;
   lines.split("\n", filedata);
@@ -84,85 +82,38 @@ void Bass::assembleFile(const string &filename) {
     while(auto position = line.qposition("  ")) line.qreplace("  ", " ");
     line.qreplace(", ", ",");
     line.trim(" ");
-    if(assembleLine(line) == false) {
-      evalDefines(line);
-      lstring blocks;
-      blocks.qsplit(";", line);
-      foreach(block, blocks) {
-        block.trim(" ");
-        if(assembleBlock(block) == false) {
-          error({ "unknown command:", block });
-        }
-        blockNumber()++;
-      }
+
+    while(true) {
+      evalMacros(line);
+      lstring block;
+      block.qsplit<1>(";", line);
+      line.ltrim<1>(string(block[0], ";"));
+      block[0].trim(" ");
+      if(assembleBlock(block[0]) == false) error({ "unknown command:", block[0] });
+      blockNumber()++;
+      if(block.size() == 1) break;
     }
+
     lineNumber()++;
   }
 
   if(stackConditional.size() != 1) error("if without matching endif");
+  if(macroNestingCounter) error("macro without matching endmacro");
 
   fileName.pull();
   lineNumber.pull();
   blockNumber.pull();
 }
 
-bool Bass::assembleLine(const string &line) {
-  if(line == "") return true;
+bool Bass::assembleBlock(const string &block_) {
+  if(block_ == "") return true;
+  string block = block_;
 
-  //==========
-  //= enddef =
-  //==========
-  if(line == "enddef" && activeDefine) {
-    activeDefine->value.rtrim<1>("; ");
-    activeDefine = 0;
-    return true;
-  }
+  block.replace("{pc}", string("0x", hex(pc())));
 
-  //=====================
-  //= multi-line define =
-  //=====================
-  if(activeDefine) {
-    if(line.beginswith("define ")) error("recursive defines are not supported");
-    activeDefine->value.append(line, "; ");
-    return true;
-  }
-
-  //==========
-  //= define =
-  //==========
-  if(line.beginswith("define ")) {
-    lstring part;
-    part.split<1>("=", line);  //part[0] = define name [params...], part[1] = value
-    part[0].trim(" ");
-    if(part.size() == 2) {
-      //single-line
-      part[1].trim(" ");
-      lstring header, args;
-      header.split<2>(" ", part[0]);  //header[1] = name, header[2] = params
-      if(header[2] != "") args.split(",", header[2]);
-      setDefine(header[1], args, part[1]);
-      return true;
-    } else {
-      //multi-line
-      lstring header, args;
-      header.split<2>(" ", line);  //header[1] = name, header[2] = params
-      if(header[2] != "") args.split(",", header[2]);
-      setDefine(header[1], args, "");
-      activeDefine = &defines[defines.size() - 1];
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool Bass::assembleBlock(const string &s) {
-  if(s == "") return true;
-  string block = s;
-
-  //========================
-  //= conditional assembly =
-  //========================
+  //================
+  //= conditionals =
+  //================
 
   if(block.wildcard("if ?*")) {
     block.ltrim<1>("if ");
@@ -200,6 +151,55 @@ bool Bass::assembleBlock(const string &s) {
   }
 
   if(conditionalState != Conditional::Matching) {
+    return true;
+  }
+
+  //==========
+  //= macros =
+  //==========
+
+  if(block == "endmacro") {
+    if(macroNestingCounter == 0) error("endmacro without matching macro");
+    if(--macroNestingCounter) {
+      activeMacro.value.append(block, "; ");
+      return true;
+    }
+    activeMacro.value.rtrim<1>("; ");
+    setMacro(activeMacro.name, activeMacro.args, activeMacro.value);
+    return true;
+  }
+
+  if(macroNestingCounter) {
+    if(block.beginswith("macro ")) macroNestingCounter++;
+    activeMacro.value.append(block, "; ");
+    return true;
+  }
+
+  if(block.beginswith("macro ")) {
+    block.ltrim<1>("macro ");
+    lstring header, args;
+    header.split<2>(" ", block);  //header[0] = name, header[1] = params
+    if(header[1] != "") args.split(",", header[1]);
+    activeMacro.name = header[0];
+    activeMacro.args = args;
+    activeMacro.value = "";
+    macroNestingCounter++;
+    return true;
+  }
+
+  //==========
+  //= define =
+  //==========
+  if(block.wildcard("define ?* ?*")) {
+    block.ltrim<1>("define ");
+    lstring part;
+    part.split<1>(" ", block);
+    if(part[0].wildcard("'?'")) {
+      table[part[0][1]] = eval(part[1]);
+      return true;
+    }
+    if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
+    setLabel(part[0], eval(part[1]), true);
     return true;
   }
 
@@ -259,18 +259,18 @@ bool Bass::assembleBlock(const string &s) {
     return true;
   }
 
-  //===========
-  //= enqueue =
-  //===========
-  if(block == "enqueue pc") {
+  //==========
+  //= pushpc =
+  //==========
+  if(block == "pushpc") {
     stackPC.push(origin);
     return true;
   }
 
-  //===========
-  //= dequeue =
-  //===========
-  if(block == "dequeue pc") {
+  //==========
+  //= pullpc =
+  //==========
+  if(block == "pullpc") {
     if(stackPC.size() == 0) error("stack is empty");
     origin = stackPC.pull();
     seek(origin);
@@ -378,22 +378,35 @@ bool Bass::assembleBlock(const string &s) {
   //=========
   //= print =
   //=========
-  if(block.wildcard("print ?*")) {
+  if(block.wildcard("print \"?*\"")) {
     if(pass == 2) {
       block.ltrim<1>("print ");
-      lstring list;
-      list.qsplit(",", block);
-      foreach(item, list) {
-        if(item == "pc") {
-          print("0x", hex(pc()));
-        } else if(item == "origin") {
-          print("0x", hex(origin));
-        } else {
-          item.trim<1>("\"");
-          print(item);
-        }
-      }
-      print("\n");
+      block.trim<1>("\"");
+      print(block, "\n");
+    }
+    return true;
+  }
+
+  //===========
+  //= warning =
+  //===========
+  if(block.wildcard("warning \"?*\"")) {
+    if(pass == 2) {
+      block.ltrim<1>("warning ");
+      block.trim<1>("\"");
+      warning(block);
+    }
+    return true;
+  }
+
+  //=========
+  //= error =
+  //=========
+  if(block.wildcard("error \"?*\"")) {
+    if(pass == 2) {
+      block.ltrim<1>("error ");
+      block.trim<1>("\"");
+      error(block);
     }
     return true;
   }
@@ -401,29 +414,32 @@ bool Bass::assembleBlock(const string &s) {
   return false;
 }
 
-void Bass::setDefine(const string &name_, const lstring &args, const string &value) {
+void Bass::setMacro(const string &name_, const lstring &args, const string &value) {
   string name = name_;
-
-  if(name.wildcard("'?'") && args.size() == 0) {
-    table[name[1]] = eval(value);
-    return;
-  }
-
   if(!name.position("::")) name = { activeNamespace, "::", name };
 
-  foreach(define, defines) {
-    if(name == define.name) {
-      define.value = value;
+  foreach(macro, macros) {
+    if(name == macro.name) {
+      macro.value = value;
       return;
     }
   }
-  defines.append({ name, args, value });
+
+  macros.append({ name, args, value });
 }
 
-void Bass::setLabel(const string &name, unsigned offset) {
-  if(pass == 1) foreach(label, labels) {
-    if(name == label.name) error({ "Label ", name, " has already been declared" });
+void Bass::setLabel(const string &name, unsigned offset, bool force) {
+  foreach(label, labels) {
+    if(name == label.name) {
+      if(force == false) {
+        if(pass == 1) error({ "Label ", name, " has already been declared" });
+      } else {
+        label.offset = offset;
+        return;
+      }
+    }
   }
+
   labels.append({ name, offset });
 }
 

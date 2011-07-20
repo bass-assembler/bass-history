@@ -14,14 +14,13 @@ protected:
   void error(const string &s);
   unsigned pc() const;
   void assembleFile(const string &filename);
-  virtual bool assembleLine(const string &line);
   virtual bool assembleBlock(const string &block);
-  void setDefine(const string &name, const lstring &args, const string &value);
-  void setLabel(const string &name, unsigned offset);
+  void setMacro(const string &name, const lstring &args, const string &value);
+  void setLabel(const string &name, unsigned offset, bool force = false);
   virtual void seek(unsigned offset);
   virtual void write(uint64_t data, unsigned length = 1);
 
-  struct Define {
+  struct Macro {
     string name;
     lstring args;
     string value;
@@ -34,8 +33,8 @@ protected:
 
   //eval.cpp
   int64_t eval(const string &s);
-  void evalDefines(string &line);
-  void evalParams(string &line, Bass::Define &define, lstring &args);
+  void evalMacros(string &line);
+  void evalParams(string &line, Bass::Macro &macro, lstring &args);
 
   file output;
   enum class Endian : bool { LSB, MSB } endian;
@@ -43,12 +42,13 @@ protected:
   unsigned origin;
   signed base;
   uint64_t table[256];
-  linear_vector<Define> defines;
+  linear_vector<Macro> macros;
   linear_vector<Label> labels;
-  Define *activeDefine;
+  Macro activeMacro;
   string activeNamespace;
   string activeLabel;
-  unsigned defineExpandCounter;
+  unsigned macroNestingCounter;
+  unsigned macroExpandCounter;
   unsigned negativeLabelCounter;
   unsigned positiveLabelCounter;
   enum class Conditional : unsigned { NotYetMatched, Matching, AlreadyMatched } conditionalState;

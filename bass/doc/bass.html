@@ -316,6 +316,13 @@
     <p>Will write <i>length</i> number of bytes to the file. The byte to write
     can optionally be specified as well. Otherwise, it will use 0x00.</p>
 
+    <h4>seek length</h4>
+
+    <p>Will skip forward or backward by the specified length. Use a negative
+    length to go backward. Will not write any data to the file, so be careful
+    not to seek forward if there is no data there yet (for instance, if you are
+    in overwrite mode and already at the end of the file.)</p>
+
     <h4>db ...; dw ...; dl ...; dd ...; dq ...</h4>
 
     <p>Writes raw data to the target file. db writes 1-byte at a time; dw writes
