@@ -16,7 +16,7 @@ protected:
   void assembleFile(const string &filename);
   virtual bool assembleBlock(const string &block);
   void setMacro(const string &name, const lstring &args, const string &value);
-  void setLabel(const string &name, unsigned offset, bool force = false);
+  void setLabel(const string &name, unsigned offset);
   virtual void seek(unsigned offset);
   virtual void write(uint64_t data, unsigned length = 1);
 

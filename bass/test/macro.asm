@@ -9,15 +9,16 @@ macro addsub x,y
 endmacro
 
 define offset $7efff8 + 8
-define length 32
+define length $20
 define 'A' 0x61
 define 'B' 0x62
 
 main:
   {addsub #$20,#$40}
-  lda^ offset
-  {add #length}
+  lda {offset}
+  {add #{length}}
   db "ABCD"
+  jml main
 
 if {pc} >= 0x8040
   error "Out of space! PC = {pc}"

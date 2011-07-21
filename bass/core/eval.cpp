@@ -2,7 +2,7 @@ int64_t Bass::eval(const string &s) {
   if(s == "+") {
     string name = { "+", positiveLabelCounter + 0 };
     foreach(label, labels) if(name == label.name) return label.offset;
-    if(pass == 1) return 0u;
+    if(pass == 1) return pc();
     warning("eval:unmatched + label");
     return 0;
   }
@@ -10,7 +10,7 @@ int64_t Bass::eval(const string &s) {
   if(s == "-") {
     string name = { "-", negativeLabelCounter - 1 };
     foreach(label, labels) if(name == label.name) return label.offset;
-    if(pass == 1) return 0u;
+    if(pass == 1) return pc();
     warning("eval:unmatched - label");
     return 0;
   }

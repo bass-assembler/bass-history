@@ -79,7 +79,7 @@
 
     <p><i>-case-insenstive</i> will treat all input as lowercase. This will
     allow typing directives and opcodes in capital letters, but has the downside
-    of making labels and defines case-insensitive as well.</p>
+    of making labels, defines and macros case-insensitive as well.</p>
 
     <p><i>-overwrite</i> will always create a new output file, specified by the
     -o flag. Without this flag, bass will act in its traditional form and apply
@@ -142,56 +142,87 @@
     be prefixed with either 0x or $. Binary values must be prefixed with either
     0b or %. Octal values must be prefixed with 0.</p>
 
-    <p>The math parser supports full C/C++ operator precedence and parentheses.
-    Logical and/or are also supported. Math parsing can be used just about
-    anywhere. Example:</p>
+    <p>The math parser supports full C/C++ operator precedence, ternary
+    expressions and conditional statements, and grouping. Math parsing can be
+    used just about anywhere. Example:</p>
 
     <pre>org (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
     jmp (table+0x20,x)</pre>
 
-    <h3>Defines and Macros</h3>
+    <p>Internally, architectures will search for a valid opcode. In this case,
+    <i>jmp (?*,x)</i>. Once found, it will remove "jmp (" from the left-hand
+    side, and ",x)" from the right-hand side. Anything left will be evaluated by
+    the math parser.</p>
 
-    <p>Defines allow for user-specified expansion of code. They are also used
-    for multi-line macro support.</p>
+    <h3>Macros</h3>
 
-    <p>Single-line defines use the syntax: define x [arg, arg ...] = result</p>
+    <p>Macros allow for user-specified expansion of code.</p>
 
-    <p>Multi-line defines use the syntax: define x [arg, arg ...]; ...; enddef
-    </p>
-
-    <p>Please note that define directives must appear on their own lines, they
-    cannot be grouped using the ; block separator.</p>
+    <p>Macros use the syntax: macro x [arg, arg ...]; ...; endmacro</p>
 
     <p>Example:</p>
-    <pre>define add n = clc; adc {n}
-    define offset = $7e0000
-    define copy length, index
+    <pre>macro add n; clc; adc {n}; endmacro
+    macro waitForVblank; -; bit $4212; bpl -; endmacro
+    macro fill length, index
     &nbsp;&nbsp;ldy #{length}
     &nbsp;&nbsp;loop{#}:
-    &nbsp;&nbsp;sta {offset}+{index},x
+    &nbsp;&nbsp;sta $7e2000+{index},x
     &nbsp;&nbsp;dey
     &nbsp;&nbsp;bne loop{#}
     &nbsp;&nbsp;rts
-    enddef
+    endmacro
 
     {add #$20}  //expands to: clc; adc #$20
-    {copy $0080, $0020}
-    define length = 32
-    {copy {length}, $0020}</pre>
+    {waitForVblank}
+    {fill $0020, $0000}
+    {fill $0020, $0020}</pre>
 
-    <p>As you can see, defines can take zero or more arguments. Each argument is
-    named for clarity, and the define lasts for the scope of the define block.
-    There is also a special {#} define, which is used to indicate the number of
-    times defines have been decoded. It is used to create labels that will not
-    conflict if the define is invoked more than once in the same namespace.</p>
+    <p>As you can see, macros can take zero or more arguments. Each argument is
+    named for clarity. Immediately upon unrolling a macro, all argument
+    references are replaced with the values passed to the macro. Macro arguments
+    will shadow global macros and defines.</p>
 
-    <p>Defines can also be passed to defines. However, defines cannot be
-    redefined inside of other defines. Multi-line defines are identical to
-    single-line defines with the ; separator. In fact, they expand by replacing
-    line feeds with the ; block separator, except for the last line. Multi-line
-    syntax is simply more suited to writing more complex macros for clarity.</p>
+    <p>There is also a special argument, {#}, which is used to indicate the
+    number of times macros have been decoded. It is used to create labels that
+    will not conflict if the macro is invoked more than once in the same
+    namespace.</p>
 
-    <p>Defines can be re-defined in the global scope.</p>
+    <p>You can also redeclare macros again and again, pass macros as arguments
+    to other macros, and even delcare new macros inside of other macros.</p>
+
+    <h3>Defines</h3>
+
+    <p>Defines are essentially macros that take zero arguments and contain only
+    a single block. They utilize the same markup, and can in fact overwrite each
+    other (eg if a define uses the same name as a macro, or vice versa.)</p>
+
+    <p>They are primarily intended to be used as a convenient way to declare
+    static variables.</p>
+
+    <p>Example:</p>
+    <pre>define base $2000
+    define offset $7e0000 + base
+    lda {offset}+8  //lda $7e2008
+    define offset $7e4000
+    lda {offset}+8  //lda $7e4008</pre>
+
+    <p>Defines also allow redefinition of the ASCII table for strings. This
+    functionality can be used to create translation tables.</p>
+
+    <p>Example:</p>
+    <pre>define 'A' 0x61  //0x61 is the ASCII code for 'a'
+    define 'B' 0x62  //0x62 is the ASCII code for 'b'
+    db "ABCD"  //assembles as "abCD"</pre>
+
+    <p>This also works with dw, dl, dd and dq. The define values can be larger
+    than one byte; and will be truncated when using smaller directive sizes.</p>
+
+    <p>Example:</p>
+    <pre>endian lsb
+    define 'A' 0x12345678
+    db "A"  //write 0x78
+    dw "A"  //write 0x5678
+    dd "A"  //writes 0x12345678"</pre>
 
     <h3>Conditional Assembly</h3>
 
@@ -217,7 +248,7 @@
 
     <p>Unlike C++, bass namespaces are single-level only, and not nested. This
     is done so that it is easier to jump to other namespaces at any point.
-    Namespaces basically act as prefixes to every define and label. The active
+    Namespaces basically act as prefixes to every label and macro. The active
     namespace is implicitly added if one is not manually specified.</p>
 
     <p>Labels must start with an underscore or alpha character, and must be
@@ -232,11 +263,12 @@
     the - label, it will refer to the last definition of -. When referencing the
     + label, it will refer to the next definition of +.</p>
 
-    <p>The default namespace is global, as is the default label name.</p>
+    <p>The default namespace is global. Attempting to declare a sublabel without
+    declaring a parent label will result in an error.</p>
 
     <p>Example:</p>
     <pre>namespace test
-    define length = 0x1000
+    define length 0x1000
     function:
     lda {length}
     jmp .prologue
@@ -246,7 +278,7 @@
     jmp function.prologue
 
     namespace global
-    define length = 0x2000
+    define length 0x2000
     lda {test::length}  //0x1000
     lda {length}  //0x2000
     jmp test::function.prologue
@@ -264,6 +296,10 @@
 
     <p>For instance, dw 0x1234 will write 0x34, and then 0x12, to the output
     file in lsb mode.</p>
+
+    <p>This really should not be used, unless an architecture can work in both
+    modes. For example, invalid code will be generated if <i>endian msb</i> is
+    used with the snes-cpu architecture.</p>
 
     <h4>incsrc "filename"</h4>
 
@@ -297,12 +333,14 @@
     specified base for future reference. Set the base to the same value as the
     origin to turn this functionality off again.</p>
 
-    <h4>enqueue { pc }; dequeue { pc }</h4>
+    <h4>pushpc; pullpc</h4>
 
-    <p>Saves and restores values on the stack. Right now, only the pc, or
-    program counter, is supported. This is useful for when you need to seek to
-    another location in the target file, and then restore the previous position
-    once finished.</p>
+    <p>Saves and restores values onto an internal stack. This is useful for when
+    you need to seek to another location in the target file, and then restore
+    the previous position once finished.</p>
+
+    <p>It is technically the origin that is being saved. The base is unaffected.
+    </p>
 
     <h4>align size</h4>
 
@@ -330,26 +368,18 @@
     dq writes 8-bytes at a time.</p>
 
     <p>These commands support one or more argument, and they also support string
-    arguments. Also note that define 'n' = value can redefine the values that
-    will be written when using string parameters to these directives.</p>
+    arguments.</p>
 
     <p>Example:</p>
-    <pre>define 'A' = 0x61  //ASCII code for 'a' = 0x61
-    define 'B' = 0x62  //ASCII code for 'b' = 0x62
-    define 'X' = 0x12345678
-    db "ABCDX",0x00  //writes 'abCD',0x78,0x00 in endian lsb mode
-    dd "XX"  //write 0x12345678, 0x12345678</pre>
+    <pre>db "Testing",0x00
+    dw 0x0123,0x4567</pre>
 
-    <h4>print ...</h4>
+    <h4>print "message"</h4>
 
-    <p>Accepts one or more arguments, and prints data to terminal during the
-    second pass of assembly. Accepts pc, origin, and strings of text. pc refers
-    to the base-adjusted origin, whereas origin refers to the raw file origin.
-    </p>
-
-    <p>Each print statement will also append a line-feed automatically.</p>
+    <p>Prints data to the terminal during the second pass of assembly. Each
+    print statement will also append a line-feed automatically.</p>
 
     <p>Example:</p>
-    <pre>print "PC is currently at: ", pc</pre>
+    <pre>print "PC is currently at: {pc}"</pre>
   </body>
 </html>

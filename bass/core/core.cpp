@@ -19,7 +19,7 @@ bool Bass::assemble(const string &filename) {
     for(unsigned n = 0; n < 256; n++) table[n] = n;
     macros.reset();
     activeNamespace = "global";
-    activeLabel = "global";
+    activeLabel = "#invalid";
     macroNestingCounter = 0;
     macroExpandCounter = 1;
     negativeLabelCounter = 1;
@@ -187,9 +187,10 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  //==========
-  //= define =
-  //==========
+  //===========
+  //= defines =
+  //===========
+
   if(block.wildcard("define ?* ?*")) {
     block.ltrim<1>("define ");
     lstring part;
@@ -199,7 +200,7 @@ bool Bass::assembleBlock(const string &block_) {
       return true;
     }
     if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
-    setLabel(part[0], eval(part[1]), true);
+    setMacro(part[0], lstring(), part[1]);
     return true;
   }
 
@@ -340,6 +341,7 @@ bool Bass::assembleBlock(const string &block_) {
   if(block.endswith(":") && !block.position(" ")) {
     block.rtrim<1>(":");
     if(block.beginswith(".")) {
+      if(activeLabel == "#invalid") error("sub-label without matching label");
       block = { activeLabel, block };
     } else {
       activeLabel = block;
@@ -372,6 +374,7 @@ bool Bass::assembleBlock(const string &block_) {
   if(block.wildcard("namespace ?*")) {
     block.ltrim<1>("namespace ");
     activeNamespace = block;
+    activeLabel = "#invalid";
     return true;
   }
 
@@ -428,15 +431,11 @@ void Bass::setMacro(const string &name_, const lstring &args, const string &valu
   macros.append({ name, args, value });
 }
 
-void Bass::setLabel(const string &name, unsigned offset, bool force) {
+void Bass::setLabel(const string &name, unsigned offset) {
+  //labels cannot be redeclared
   foreach(label, labels) {
     if(name == label.name) {
-      if(force == false) {
-        if(pass == 1) error({ "Label ", name, " has already been declared" });
-      } else {
-        label.offset = offset;
-        return;
-      }
+      if(pass == 1) error({ "Label ", name, " has already been declared" });
     }
   }
 
