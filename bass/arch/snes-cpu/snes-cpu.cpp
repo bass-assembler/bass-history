@@ -14,6 +14,7 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
   if(block[3] == '<') { block[3] = ' '; size = 1; }
   if(block[3] == '>') { block[3] = ' '; size = 2; }
   if(block[3] == '^') { block[3] = ' '; size = 3; }
+  block.replace("  ", " ");
 
   lstring part;
   part.split<1>(" ", block);

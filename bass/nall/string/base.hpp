@@ -27,7 +27,7 @@ namespace nall {
 
     inline bool readfile(const string&);
 
-    inline string& replace (const char*, const char*);
+    inline string& replace(const char*, const char*);
     inline string& qreplace(const char*, const char*);
 
     inline unsigned length() const;
@@ -37,7 +37,6 @@ namespace nall {
 
     inline bool wildcard(const char*) const;
     inline bool iwildcard(const char*) const;
-    inline lstring lwildcard(const char*) const;
 
     inline bool beginswith(const char*) const;
     inline bool ibeginswith(const char*) const;
@@ -52,9 +51,10 @@ namespace nall {
 
     template<unsigned limit = 0> inline string& ltrim(const char *key = " ");
     template<unsigned limit = 0> inline string& rtrim(const char *key = " ");
-    template<unsigned limit = 0> inline string& trim (const char *key = " ");
+    template<unsigned limit = 0> inline string& trim(const char *key = " ", const char *rkey = 0);
 
     inline optional<unsigned> position(const char *key) const;
+    inline optional<unsigned> iposition(const char *key) const;
     inline optional<unsigned> qposition(const char *key) const;
 
     inline operator const char*() const;
@@ -91,7 +91,7 @@ namespace nall {
     template<typename T> inline lstring& operator<<(T value);
 
     inline optional<unsigned> find(const char*) const;
-    template<unsigned limit = 0> inline void split (const char*, const char*);
+    template<unsigned limit = 0> inline void split(const char*, const char*);
     template<unsigned limit = 0> inline void qsplit(const char*, const char*);
 
     lstring();
@@ -101,14 +101,13 @@ namespace nall {
   //compare.hpp
   inline char chrlower(char c);
   inline char chrupper(char c);
-  inline int stricmp(const char *str1, const char *str2);
+  inline int istrcmp(const char *str1, const char *str2);
   inline bool wildcard(const char *str, const char *pattern);
   inline bool iwildcard(const char *str, const char *pattern);
-  inline lstring lwildcard(const char *str, const char *pattern);
-  inline bool strbegin (const char *str, const char *key);
-  inline bool stribegin(const char *str, const char *key);
-  inline bool strend (const char *str, const char *key);
-  inline bool striend(const char *str, const char *key);
+  inline bool strbegin(const char *str, const char *key);
+  inline bool istrbegin(const char *str, const char *key);
+  inline bool strend(const char *str, const char *key);
+  inline bool istrend(const char *str, const char *key);
 
   //convert.hpp
   inline char* strlower(char *str);
@@ -116,14 +115,14 @@ namespace nall {
   inline char* qstrlower(char *str);
   inline char* qstrupper(char *str);
   inline char* strtr(char *dest, const char *before, const char *after);
-  inline uintmax_t hex    (const char *str);
-  inline intmax_t  integer(const char *str);
+  inline uintmax_t hex(const char *str);
+  inline intmax_t integer(const char *str);
   inline uintmax_t decimal(const char *str);
-  inline uintmax_t binary (const char *str);
-  inline double    fp     (const char *str);
+  inline uintmax_t binary(const char *str);
+  inline double fp(const char *str);
 
   //math.hpp
-  inline bool strint (const char *str, int &result);
+  inline bool strint(const char *str, int &result);
   inline bool strmath(const char *str, int &result);
 
   //platform.hpp
@@ -137,12 +136,13 @@ namespace nall {
 
   //strpos.hpp
   inline optional<unsigned> strpos(const char *str, const char *key);
+  inline optional<unsigned> istrpos(const char *str, const char *key);
   inline optional<unsigned> qstrpos(const char *str, const char *key);
 
   //trim.hpp
   template<unsigned limit = 0> inline char* ltrim(char *str, const char *key = " ");
   template<unsigned limit = 0> inline char* rtrim(char *str, const char *key = " ");
-  template<unsigned limit = 0> inline char* trim (char *str, const char *key = " ");
+  template<unsigned limit = 0> inline char* trim(char *str, const char *key = " ", const char *rkey = 0);
 
   //utility.hpp
   inline unsigned strlcpy(string &dest, const char *src, unsigned length);
@@ -150,14 +150,12 @@ namespace nall {
   inline string substr(const char *src, unsigned start = 0, unsigned length = ~0u);
   inline string sha256(const uint8_t *data, unsigned size);
 
-  inline string integer(intmax_t value);
-  template<unsigned length = 0> inline string linteger(intmax_t value);
-  template<unsigned length = 0> inline string rinteger(intmax_t value);
-  inline string decimal(uintmax_t value);
-  template<unsigned length = 0> inline string ldecimal(uintmax_t value);
-  template<unsigned length = 0> inline string rdecimal(uintmax_t value);
-  template<unsigned length = 0> inline string hex(uintmax_t value);
-  template<unsigned length = 0> inline string binary(uintmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string integer(intmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string linteger(intmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string decimal(uintmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string ldecimal(uintmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string hex(uintmax_t value);
+  template<unsigned length = 0, char padding = ' '> inline string binary(uintmax_t value);
   inline unsigned fp(char *str, double value);
   inline string fp(double value);
 

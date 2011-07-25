@@ -39,33 +39,7 @@ string sha256(const uint8_t *data, unsigned size) {
 
 /* arithmetic <> string */
 
-string integer(intmax_t value) {
-  bool negative = value < 0;
-  if(negative) value = abs(value);
-
-  char buffer[64];
-  unsigned size = 0;
-
-  do {
-    unsigned n = value % 10;
-    buffer[size++] = '0' + n;
-    value /= 10;
-  } while(value);
-  buffer[size++] = negative ? '-' : '+';
-  buffer[size] = 0;
-
-  char result[size + 1];
-  memset(result, '0', size);
-  result[size] = 0;
-
-  for(signed x = size - 1, y = 0; x >= 0 && y < size; x--, y++) {
-    result[x] = buffer[y];
-  }
-
-  return (const char*)result;
-}
-
-template<unsigned length_> string linteger(intmax_t value) {
+template<unsigned length_, char padding> string integer(intmax_t value) {
   bool negative = value < 0;
   if(negative) value = abs(value);
 
@@ -82,34 +56,7 @@ template<unsigned length_> string linteger(intmax_t value) {
 
   unsigned length = (length_ == 0 ? size : length_);
   char result[length + 1];
-  memset(result, ' ', length);
-  result[length] = 0;
-
-  for(signed x = 0, y = size - 1; x < length && y >= 0; x++, y--) {
-    result[x] = buffer[y];
-  }
-
-  return (const char*)result;
-}
-
-template<unsigned length_> string rinteger(intmax_t value) {
-  bool negative = value < 0;
-  if(negative) value = abs(value);
-
-  char buffer[64];
-  unsigned size = 0;
-
-  do {
-    unsigned n = value % 10;
-    buffer[size++] = '0' + n;
-    value /= 10;
-  } while(value);
-  buffer[size++] = negative ? '-' : '+';
-  buffer[size] = 0;
-
-  unsigned length = (length_ == 0 ? size : length_);
-  char result[length + 1];
-  memset(result, ' ', length);
+  memset(result, padding, length);
   result[length] = 0;
 
   for(signed x = length - 1, y = 0; x >= 0 && y < size; x--, y++) {
@@ -119,7 +66,10 @@ template<unsigned length_> string rinteger(intmax_t value) {
   return (const char*)result;
 }
 
-string decimal(uintmax_t value) {
+template<unsigned length_, char padding> string linteger(intmax_t value) {
+  bool negative = value < 0;
+  if(negative) value = abs(value);
+
   char buffer[64];
   unsigned size = 0;
 
@@ -128,33 +78,12 @@ string decimal(uintmax_t value) {
     buffer[size++] = '0' + n;
     value /= 10;
   } while(value);
-  buffer[size] = 0;
-
-  char result[size + 1];
-  memset(result, '0', size);
-  result[size] = 0;
-
-  for(signed x = size - 1, y = 0; x >= 0 && y < size; x--, y++) {
-    result[x] = buffer[y];
-  }
-
-  return (const char*)result;
-}
-
-template<unsigned length_> string ldecimal(uintmax_t value) {
-  char buffer[64];
-  unsigned size = 0;
-
-  do {
-    unsigned n = value % 10;
-    buffer[size++] = '0' + n;
-    value /= 10;
-  } while(value);
+  buffer[size++] = negative ? '-' : '+';
   buffer[size] = 0;
 
   unsigned length = (length_ == 0 ? size : length_);
   char result[length + 1];
-  memset(result, ' ', length);
+  memset(result, padding, length);
   result[length] = 0;
 
   for(signed x = 0, y = size - 1; x < length && y >= 0; x++, y--) {
@@ -164,7 +93,7 @@ template<unsigned length_> string ldecimal(uintmax_t value) {
   return (const char*)result;
 }
 
-template<unsigned length_> string rdecimal(uintmax_t value) {
+template<unsigned length_, char padding> string decimal(uintmax_t value) {
   char buffer[64];
   unsigned size = 0;
 
@@ -177,7 +106,7 @@ template<unsigned length_> string rdecimal(uintmax_t value) {
 
   unsigned length = (length_ == 0 ? size : length_);
   char result[length + 1];
-  memset(result, ' ', length);
+  memset(result, padding, length);
   result[length] = 0;
 
   for(signed x = length - 1, y = 0; x >= 0 && y < size; x--, y++) {
@@ -187,7 +116,30 @@ template<unsigned length_> string rdecimal(uintmax_t value) {
   return (const char*)result;
 }
 
-template<unsigned length_> string hex(uintmax_t value) {
+template<unsigned length_, char padding> string ldecimal(uintmax_t value) {
+  char buffer[64];
+  unsigned size = 0;
+
+  do {
+    unsigned n = value % 10;
+    buffer[size++] = '0' + n;
+    value /= 10;
+  } while(value);
+  buffer[size] = 0;
+
+  unsigned length = (length_ == 0 ? size : length_);
+  char result[length + 1];
+  memset(result, padding, length);
+  result[length] = 0;
+
+  for(signed x = 0, y = size - 1; x < length && y >= 0; x++, y--) {
+    result[x] = buffer[y];
+  }
+
+  return (const char*)result;
+}
+
+template<unsigned length_, char padding> string hex(uintmax_t value) {
   char buffer[64];
   unsigned size = 0;
 
@@ -199,7 +151,7 @@ template<unsigned length_> string hex(uintmax_t value) {
 
   unsigned length = (length_ == 0 ? size : length_);
   char result[length + 1];
-  memset(result, '0', length);
+  memset(result, padding, length);
   result[length] = 0;
 
   for(signed x = length - 1, y = 0; x >= 0 && y < size; x--, y++) {
@@ -209,7 +161,7 @@ template<unsigned length_> string hex(uintmax_t value) {
   return (const char*)result;
 }
 
-template<unsigned length_> string binary(uintmax_t value) {
+template<unsigned length_, char padding> string binary(uintmax_t value) {
   char buffer[256];
   unsigned size = 0;
 
@@ -221,7 +173,7 @@ template<unsigned length_> string binary(uintmax_t value) {
 
   unsigned length = (length_ == 0 ? size : length_);
   char result[length + 1];
-  memset(result, '0', length);
+  memset(result, padding, length);
   result[length] = 0;
 
   for(signed x = length - 1, y = 0; x >= 0 && y < size; x--, y++) {
