@@ -3,6 +3,44 @@
 
 namespace nall {
 
+template<bool Insensitive>
+bool chrequal(char x, char y) {
+  if(Insensitive) return chrlower(x) == chrlower(y);
+  return x == y;
+}
+
+void quoteskip(char *&p) {
+  while(*p == '\'' || *p == '\"') {
+    char x = *p++;
+    while(*p && *p++ != x);
+  }
+}
+
+void quoteskip(const char *&p) {
+  while(*p == '\'' || *p == '\"') {
+    char x = *p++;
+    while(*p && *p++ != x);
+  }
+}
+
+void quotecopy(char *&p, char *&t) {
+  while(*p == '\'' || *p == '\"') {
+    char x = *p++;
+    *t++ = x;
+    while(*p && *p != x) *t++ = *p++;
+    *t++ = *p++;
+  }
+}
+
+void quotecopy(const char *&p, char *&t) {
+  while(*p == '\'' || *p == '\"') {
+    char x = *p++;
+    *t++ = x;
+    while(*p && *p != x) *t++ = *p++;
+    *t++ = *p++;
+  }
+}
+
 unsigned strlcpy(string &dest, const char *src, unsigned length) {
   dest.reserve(length);
   return strlcpy(dest(), src, length);

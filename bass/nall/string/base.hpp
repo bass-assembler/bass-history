@@ -22,13 +22,13 @@ namespace nall {
 
     template<typename... Args> inline string& assign(Args&&... args);
     template<typename... Args> inline string& append(Args&&... args);
-    inline string& assign_(const char*);
-    inline string& append_(const char*);
 
     inline bool readfile(const string&);
 
-    inline string& replace(const char*, const char*);
-    inline string& qreplace(const char*, const char*);
+    template<unsigned Limit = 0> inline string& replace(const char*, const char*);
+    template<unsigned Limit = 0> inline string& ireplace(const char*, const char*);
+    template<unsigned Limit = 0> inline string& qreplace(const char*, const char*);
+    template<unsigned Limit = 0> inline string& iqreplace(const char*, const char*);
 
     inline unsigned length() const;
 
@@ -56,6 +56,7 @@ namespace nall {
     inline optional<unsigned> position(const char *key) const;
     inline optional<unsigned> iposition(const char *key) const;
     inline optional<unsigned> qposition(const char *key) const;
+    inline optional<unsigned> iqposition(const char *key) const;
 
     inline operator const char*() const;
     inline char* operator()();
@@ -76,9 +77,15 @@ namespace nall {
     inline string(string&&);
     inline ~string();
 
+    //internal functions
+    inline string& assign_(const char*);
+    inline string& append_(const char*);
+
   protected:
     char *data;
     unsigned size;
+
+    template<unsigned Limit, bool Insensitive, bool Quoted> inline string& ureplace(const char*, const char*);
 
   #if defined(QSTRING_H)
   public:
@@ -91,11 +98,16 @@ namespace nall {
     template<typename T> inline lstring& operator<<(T value);
 
     inline optional<unsigned> find(const char*) const;
-    template<unsigned limit = 0> inline void split(const char*, const char*);
-    template<unsigned limit = 0> inline void qsplit(const char*, const char*);
+    template<unsigned Limit = 0> inline lstring& split(const char*, const char*);
+    template<unsigned Limit = 0> inline lstring& isplit(const char*, const char*);
+    template<unsigned Limit = 0> inline lstring& qsplit(const char*, const char*);
+    template<unsigned Limit = 0> inline lstring& iqsplit(const char*, const char*);
 
     lstring();
     lstring(std::initializer_list<string>);
+
+  protected:
+    template<unsigned Limit, bool Insensitive, bool Quoted> inline lstring& usplit(const char*, const char*);
   };
 
   //compare.hpp
@@ -138,6 +150,8 @@ namespace nall {
   inline optional<unsigned> strpos(const char *str, const char *key);
   inline optional<unsigned> istrpos(const char *str, const char *key);
   inline optional<unsigned> qstrpos(const char *str, const char *key);
+  inline optional<unsigned> iqstrpos(const char *str, const char *key);
+  template<bool Insensitive = false, bool Quoted = false> inline optional<unsigned> ustrpos(const char *str, const char *key);
 
   //trim.hpp
   template<unsigned limit = 0> inline char* ltrim(char *str, const char *key = " ");
@@ -145,6 +159,11 @@ namespace nall {
   template<unsigned limit = 0> inline char* trim(char *str, const char *key = " ", const char *rkey = 0);
 
   //utility.hpp
+  template<bool Insensitive> alwaysinline bool chrequal(char x, char y);
+  alwaysinline void quoteskip(char *&p);
+  alwaysinline void quoteskip(const char *&p);
+  alwaysinline void quotecopy(char *&p, char *&t);
+  alwaysinline void quotecopy(const char *&p, char *&t);
   inline unsigned strlcpy(string &dest, const char *src, unsigned length);
   inline unsigned strlcat(string &dest, const char *src, unsigned length);
   inline string substr(const char *src, unsigned start = 0, unsigned length = ~0u);

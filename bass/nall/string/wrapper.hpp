@@ -30,6 +30,7 @@ template<unsigned limit> string& string::trim(const char *key, const char *rkey)
 optional<unsigned> string::position(const char *key) const { return strpos(data, key); }
 optional<unsigned> string::iposition(const char *key) const { return istrpos(data, key); }
 optional<unsigned> string::qposition(const char *key) const { return qstrpos(data, key); }
+optional<unsigned> string::iqposition(const char *key) const { return iqstrpos(data, key); }
 
 }
 

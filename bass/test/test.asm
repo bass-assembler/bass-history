@@ -19,6 +19,7 @@ endmacro
 
 define 'A' 0x61
 define 'B' 0x62
+define ' ' 0x45
 
 org $8000; base $7ec000
   {all $20, 4}; {all $30, 4}
@@ -41,7 +42,7 @@ pullpc
   lda< #%11000011
   lda< #5 % %11
 
-  db "ABCD"
+  db "ABCD ABCD "
   dw $8000 + $2000
   incbin "include.bin", 0x0000, 0x0004
   incsrc "include.asm"

@@ -7,13 +7,15 @@
 
 namespace nall {
 
-optional<unsigned> strpos(const char *str, const char *key) {
+template<bool Insensitive, bool Quoted>
+optional<unsigned> ustrpos(const char *str, const char *key) {
   const char *base = str;
 
   while(*str) {
+    if(Quoted) quoteskip(str);
     for(unsigned n = 0;; n++) {
       if(key[n] == 0) return { true, (unsigned)(str - base) };
-      if(str[n] != key[n]) break;
+      if(!chrequal<Insensitive>(str[n], key[n])) break;
     }
     str++;
   }
@@ -21,39 +23,10 @@ optional<unsigned> strpos(const char *str, const char *key) {
   return { false, 0 };
 }
 
-optional<unsigned> istrpos(const char *str, const char *key) {
-  const char *base = str;
-
-  while(*str) {
-    for(unsigned n = 0;; n++) {
-      if(key[n] == 0) return { true, (unsigned)(str - base) };
-      if(chrlower(str[n]) != chrlower(key[n])) break;
-    }
-    str++;
-  }
-
-  return { false, 0 };
-}
-
-optional<unsigned> qstrpos(const char *str, const char *key) {
-  const char *base = str;
-
-  while(*str) {
-    if(*str == '\'' || *str == '\"') {
-      char x = *str++;
-      while(*str && *str++ != x);
-      continue;
-    }
-
-    for(unsigned n = 0;; n++) {
-      if(key[n] == 0) return { true, (unsigned)(str - base) };
-      if(str[n] != key[n]) break;
-    }
-    str++;
-  }
-
-  return { false, 0 };
-}
+optional<unsigned> strpos(const char *str, const char *key) { return ustrpos<false, false>(str, key); }
+optional<unsigned> istrpos(const char *str, const char *key) { return ustrpos<true, false>(str, key); }
+optional<unsigned> qstrpos(const char *str, const char *key) { return ustrpos<false, true>(str, key); }
+optional<unsigned> iqstrpos(const char *str, const char *key) { return ustrpos<true, true>(str, key); }
 
 }
 
