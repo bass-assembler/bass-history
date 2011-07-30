@@ -4,6 +4,8 @@ struct BassSnesCpu : public Bass {
   BassSnesCpu();
 
 protected:
+  int64_t eval(const string &s);
+
   enum Mapper : unsigned { None, LoROM, HiROM } mapper;
 
   enum Mode : unsigned {

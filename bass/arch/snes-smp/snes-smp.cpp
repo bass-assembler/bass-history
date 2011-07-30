@@ -1,27 +1,36 @@
+int64_t BassSnesSmp::eval(const string &s) {
+  if(s[0] == '<') return Bass::eval((const char*)s + 1);
+  if(s[0] == '>') return Bass::eval((const char*)s + 1);
+  if(s[0] == '^') return Bass::eval((const char*)s + 1);
+  return Bass::eval(s);
+}
+
 bool BassSnesSmp::assembleBlock(const string &block_) {
   string block = block_;
   if(Bass::assembleBlock(block) == true) return true;
 
-  signed relative, address, size = 0;
-  if(block[3] == '<') { block[3] = ' '; size = 1; }
-  if(block[3] == '>') { block[3] = ' '; size = 2; }
+  signed relative, address;
+  bool priority = false;
 
   lstring part, byte;
   part.split<1>(" ", block);
   string name = part[0], args = part[1];
 
-  #define isbyte() !( \
-    (size == 2 || args.wildcard("$????")) || \
-    (!o.priority && size != 1 && !args.wildcard("$??")) \
-  )
+  static auto isbyte = [&]() {
+    if(args.wildcard("$????")) return false;
+    if(!priority && args[0] != '<' && !args.wildcard("$??")) return false;
+    return true;
+  };
 
-  #define isword() !( \
-    (size == 1 || args.wildcard("$??")) || \
-    (!o.priority && size != 2 && !args.wildcard("$????")) \
-  )
+  static auto isword = [&]() {
+    if(args.wildcard("$??")) return false;
+    if(!priority && args[0] != '>' && !args.wildcard("$????")) return false;
+    return true;
+  };
 
   foreach(f, family) if(args.wildcard(f.pattern)) {
     foreach(o, f.opcode) if(name == o.name) {
+      priority = o.priority;
       switch(o.mode) {
       case Mode::Implied:
         write(o.prefix);
@@ -159,9 +168,6 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
       }
     }
   }
-
-  #undef isbyte
-  #undef isword
 
   return false;
 }

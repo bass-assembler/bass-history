@@ -3,6 +3,8 @@ struct BassSnesSmp : public Bass {
   BassSnesSmp();
 
 protected:
+  int64_t eval(const string &s);
+
   enum Mode : unsigned {
     Implied,
     Vector,

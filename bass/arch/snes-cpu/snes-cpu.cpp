@@ -1,3 +1,10 @@
+int64_t BassSnesCpu::eval(const string &s) {
+  if(s[0] == '<') return Bass::eval((const char*)s + 1);
+  if(s[0] == '>') return Bass::eval((const char*)s + 1);
+  if(s[0] == '^') return Bass::eval((const char*)s + 1);
+  return Bass::eval(s);
+}
+
 void BassSnesCpu::seek(unsigned offset) {
   switch(mapper) {
   case Mapper::LoROM: offset = ((offset & 0x7f0000) >> 1) | (offset & 0x7fff); break;
@@ -10,11 +17,8 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
   string block = block_;
   if(Bass::assembleBlock(block) == true) return true;
 
-  signed relative, repeat, size = 0;
-  if(block[3] == '<') { block[3] = ' '; size = 1; }
-  if(block[3] == '>') { block[3] = ' '; size = 2; }
-  if(block[3] == '^') { block[3] = ' '; size = 3; }
-  block.replace("  ", " ");
+  signed relative, repeat;
+  bool priority = false;
 
   lstring part;
   part.split<1>(" ", block);
@@ -27,23 +31,27 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
     error("invalid mapper ID");
   }
 
-  #define isbyte() !( \
-    (size == 2 || size == 3 || param.wildcard("$????") || param.wildcard("$??????")) || \
-    (!o.priority && size != 1 && !param.wildcard("$??")) \
-  )
+  static auto isbyte = [&]() {
+    if(param.wildcard("$????") || param.wildcard("$??????")) return false;
+    if(!priority && param[0] != '<' && !param.wildcard("$??")) return false;
+    return true;
+  };
 
-  #define isword() !( \
-    (size == 1 || size == 3 || param.wildcard("$??") || param.wildcard("$??????")) || \
-    (!o.priority && size != 2 && !param.wildcard("$????")) \
-  )
+  static auto isword = [&]() {
+    if(param.wildcard("$??") || param.wildcard("$??????")) return false;
+    if(!priority && param[0] != '>' && !param.wildcard("$????")) return false;
+    return true;
+  };
 
-  #define islong() !( \
-    (size == 1 || size == 2 || param.wildcard("$??") || param.wildcard("$????")) || \
-    (!o.priority && size != 3 && !param.wildcard("$??????")) \
-  )
+  static auto islong = [&]() {
+    if(param.wildcard("$??") || param.wildcard("$????")) return false;
+    if(!priority && param[0] != '^' && !param.wildcard("$??????")) return false;
+    return true;
+  };
 
   foreach(f, family) if(param.wildcard(f.pattern)) {
     foreach(o, f.opcode) if(name == o.name) {
+      priority = o.priority;
       switch(o.mode) {
       case Mode::Implied:
         write(o.prefix);
@@ -61,10 +69,8 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
       case Mode::ImmediateM:
       case Mode::ImmediateX:
         param.ltrim<1>("#");
-        if(size == 0 && param.wildcard("$??"  )) size = 1;
-        if(size == 0 && param.wildcard("$????")) size = 2;
         write(o.prefix);
-        write(eval(param), size == 1 ? 1 : 2);
+        write(eval(param), isword() ? 2 : 1);
         return true;
       case Mode::Direct:
         if(isbyte() == false) break;
@@ -171,7 +177,7 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
         write(eval(param), 3);
         return true;
       case Mode::Relative:
-        if(size == 1 || param.wildcard("$??")) {
+        if(param.wildcard("$??")) {
           relative = eval(param);
         } else {
           relative = eval(param) - (pc() + 2);
@@ -181,7 +187,7 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
         write(relative);
         return true;
       case Mode::RelativeLong:
-        if(size == 2 || param.wildcard("$????")) {
+        if(param.wildcard("$????")) {
           relative = eval(param);
         } else {
           relative = eval(param) - (pc() + 3);
@@ -200,10 +206,6 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
     }
   }
 
-  #undef isbyte
-  #undef isword
-  #undef islong
-
   return false;
 }
 
@@ -218,7 +220,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0x06, "asl *        ", 0, Mode::Direct },
     { 0x07, "ora [*]      ", 1, Mode::IndirectLong },
     { 0x08, "php          ", 1, Mode::Implied },
-    { 0x09, "ora #*       ", 1, Mode::ImmediateM },
+    { 0x09, "ora #*       ", 0, Mode::ImmediateM },
     { 0x0a, "asl          ", 1, Mode::Implied },
     { 0x0b, "phd          ", 1, Mode::Implied },
     { 0x0c, "tsb *        ", 1, Mode::Absolute },
@@ -252,7 +254,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0x26, "rol *        ", 0, Mode::Direct },
     { 0x27, "and [*]      ", 1, Mode::IndirectLong },
     { 0x28, "plp          ", 1, Mode::Implied },
-    { 0x29, "and #*       ", 1, Mode::ImmediateM },
+    { 0x29, "and #*       ", 0, Mode::ImmediateM },
     { 0x2a, "rol          ", 1, Mode::Implied },
     { 0x2b, "pld          ", 1, Mode::Implied },
     { 0x2c, "bit *        ", 1, Mode::Absolute },
@@ -286,7 +288,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0x46, "lsr *        ", 0, Mode::Direct },
     { 0x47, "eor [*]      ", 1, Mode::IndirectLong },
     { 0x48, "pha          ", 1, Mode::Implied },
-    { 0x49, "eor #*       ", 1, Mode::ImmediateM },
+    { 0x49, "eor #*       ", 0, Mode::ImmediateM },
     { 0x4a, "lsr          ", 1, Mode::Implied },
     { 0x4b, "phk          ", 1, Mode::Implied },
     { 0x4c, "jmp *        ", 1, Mode::Absolute },
@@ -320,7 +322,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0x66, "ror *        ", 0, Mode::Direct },
     { 0x67, "adc [*]      ", 1, Mode::IndirectLong },
     { 0x68, "pla          ", 1, Mode::Implied },
-    { 0x69, "adc #*       ", 1, Mode::ImmediateM },
+    { 0x69, "adc #*       ", 0, Mode::ImmediateM },
     { 0x6a, "ror          ", 1, Mode::Implied },
     { 0x6b, "rtl          ", 1, Mode::Implied },
     { 0x6c, "jmp (*)      ", 1, Mode::IndirectAbsolute },
@@ -354,7 +356,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0x86, "stx *        ", 0, Mode::Direct },
     { 0x87, "sta [*]      ", 1, Mode::IndirectLong },
     { 0x88, "dey          ", 1, Mode::Implied },
-    { 0x89, "bit #*       ", 1, Mode::ImmediateM },
+    { 0x89, "bit #*       ", 0, Mode::ImmediateM },
     { 0x8a, "txa          ", 1, Mode::Implied },
     { 0x8b, "phb          ", 1, Mode::Implied },
     { 0x8c, "sty *        ", 1, Mode::Absolute },
@@ -379,16 +381,16 @@ BassSnesCpu::BassSnesCpu() {
     { 0x9e, "stz *+x      ", 1, Mode::AbsoluteX },
     { 0x9f, "sta *+x      ", 1, Mode::LongX },
 
-    { 0xa0, "ldy #*       ", 1, Mode::ImmediateX },
+    { 0xa0, "ldy #*       ", 0, Mode::ImmediateX },
     { 0xa1, "lda (*+x)    ", 1, Mode::IndirectX },
-    { 0xa2, "ldx #*       ", 1, Mode::ImmediateX },
+    { 0xa2, "ldx #*       ", 0, Mode::ImmediateX },
     { 0xa3, "lda *+s      ", 1, Mode::DirectS },
     { 0xa4, "ldy *        ", 0, Mode::Direct },
     { 0xa5, "lda *        ", 0, Mode::Direct },
     { 0xa6, "ldx *        ", 0, Mode::Direct },
     { 0xa7, "lda [*]      ", 1, Mode::IndirectLong },
     { 0xa8, "tay          ", 1, Mode::Implied },
-    { 0xa9, "lda #*       ", 1, Mode::ImmediateM },
+    { 0xa9, "lda #*       ", 0, Mode::ImmediateM },
     { 0xaa, "tax          ", 1, Mode::Implied },
     { 0xab, "plb          ", 1, Mode::Implied },
     { 0xac, "ldy *        ", 1, Mode::Absolute },
@@ -413,7 +415,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0xbe, "ldx *+y      ", 1, Mode::AbsoluteY },
     { 0xbf, "lda *+x      ", 1, Mode::LongX },
 
-    { 0xc0, "cpy #*       ", 1, Mode::ImmediateX },
+    { 0xc0, "cpy #*       ", 0, Mode::ImmediateX },
     { 0xc1, "cmp (*+x)    ", 1, Mode::IndirectX },
     { 0xc2, "rep #*       ", 1, Mode::Immediate },
     { 0xc3, "cmp *+s      ", 1, Mode::DirectS },
@@ -422,7 +424,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0xc6, "dec *        ", 0, Mode::Direct },
     { 0xc7, "cmp [*]      ", 1, Mode::IndirectLong },
     { 0xc8, "iny          ", 1, Mode::Implied },
-    { 0xc9, "cmp #*       ", 1, Mode::ImmediateM },
+    { 0xc9, "cmp #*       ", 0, Mode::ImmediateM },
     { 0xca, "dex          ", 1, Mode::Implied },
     { 0xcb, "wai          ", 1, Mode::Implied },
     { 0xcc, "cpy *        ", 1, Mode::Absolute },
@@ -447,7 +449,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0xde, "dec *+x      ", 1, Mode::AbsoluteX },
     { 0xdf, "cmp *+x      ", 1, Mode::LongX },
 
-    { 0xe0, "cpx #*       ", 1, Mode::ImmediateX },
+    { 0xe0, "cpx #*       ", 0, Mode::ImmediateX },
     { 0xe1, "sbc (*+x)    ", 1, Mode::IndirectX },
     { 0xe2, "sep #*       ", 1, Mode::Immediate },
     { 0xe3, "sbc *+s      ", 1, Mode::DirectS },
@@ -456,7 +458,7 @@ BassSnesCpu::BassSnesCpu() {
     { 0xe6, "inc *        ", 0, Mode::Direct },
     { 0xe7, "sbc [*]      ", 1, Mode::IndirectLong },
     { 0xe8, "inx          ", 1, Mode::Implied },
-    { 0xe9, "sbc #*       ", 1, Mode::ImmediateM },
+    { 0xe9, "sbc #*       ", 0, Mode::ImmediateM },
     { 0xea, "nop          ", 1, Mode::Implied },
     { 0xeb, "xba          ", 1, Mode::Implied },
     { 0xec, "cpx *        ", 1, Mode::Absolute },

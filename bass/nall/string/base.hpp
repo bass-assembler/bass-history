@@ -8,8 +8,8 @@
 #include <nall/concept.hpp>
 #include <nall/function.hpp>
 #include <nall/stdint.hpp>
-#include <nall/utf8.hpp>
 #include <nall/vector.hpp>
+#include <nall/windows/utf8.hpp>
 
 namespace nall {
   class string;
@@ -173,8 +173,8 @@ namespace nall {
   template<unsigned length = 0, char padding = ' '> inline string linteger(intmax_t value);
   template<unsigned length = 0, char padding = ' '> inline string decimal(uintmax_t value);
   template<unsigned length = 0, char padding = ' '> inline string ldecimal(uintmax_t value);
-  template<unsigned length = 0, char padding = ' '> inline string hex(uintmax_t value);
-  template<unsigned length = 0, char padding = ' '> inline string binary(uintmax_t value);
+  template<unsigned length = 0, char padding = '0'> inline string hex(uintmax_t value);
+  template<unsigned length = 0, char padding = '0'> inline string binary(uintmax_t value);
   inline unsigned fp(char *str, double value);
   inline string fp(double value);
 
