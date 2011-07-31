@@ -258,6 +258,9 @@
     the - label, it will refer to the last definition of -. When referencing the
     + label, it will refer to the next definition of +.</p>
 
+    <p>You can seek backward or forward two +/- labels with ++ or --. You can
+    also seek backward or forward three +/- labels with +++ or ---.</p>
+
     <p>The default namespace is global. Attempting to declare a sublabel without
     declaring a parent label will result in an error.</p>
 
@@ -277,7 +280,13 @@
     lda {test::length}  //0x1000
     lda {length}  //0x2000
     jmp test::function.prologue
-    -; sta $2180; dex; beq +; dey; bra -; +; rts</pre>
+    -; sta $2180; dex; beq +; dey; bra -; +; rts
+
+    //all three bra's jump to $8000
+    org $8000
+    -; bra -
+    -; bra --
+    -; bra ---</pre>
 
     <h3>Directives</h3>
 

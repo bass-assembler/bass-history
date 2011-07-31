@@ -12,7 +12,7 @@ template<unsigned Limit, bool Insensitive, bool Quoted> lstring& lstring::usplit
 
   while(*p) {
     if(Limit) if(counter >= Limit) break;
-    if(Quoted) quoteskip(p);
+    if(quoteskip<Quoted>(p)) continue;
     for(unsigned n = 0;; n++) {
       if(key[n] == 0) {
         strlcpy(operator[](counter++), base, (unsigned)(p - base + 1));

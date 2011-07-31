@@ -9,36 +9,30 @@ bool chrequal(char x, char y) {
   return x == y;
 }
 
-void quoteskip(char *&p) {
+template<bool Quoted, typename T>
+bool quoteskip(T *&p) {
+  if(Quoted == false) return false;
+  if(*p != '\'' && *p != '\"') return false;
+
   while(*p == '\'' || *p == '\"') {
     char x = *p++;
     while(*p && *p++ != x);
   }
+  return true;
 }
 
-void quoteskip(const char *&p) {
-  while(*p == '\'' || *p == '\"') {
-    char x = *p++;
-    while(*p && *p++ != x);
-  }
-}
+template<bool Quoted, typename T>
+bool quotecopy(char *&t, T *&p) {
+  if(Quoted == false) return false;
+  if(*p != '\'' && *p != '\"') return false;
 
-void quotecopy(char *&p, char *&t) {
   while(*p == '\'' || *p == '\"') {
     char x = *p++;
     *t++ = x;
     while(*p && *p != x) *t++ = *p++;
     *t++ = *p++;
   }
-}
-
-void quotecopy(const char *&p, char *&t) {
-  while(*p == '\'' || *p == '\"') {
-    char x = *p++;
-    *t++ = x;
-    while(*p && *p != x) *t++ = *p++;
-    *t++ = *p++;
-  }
+  return true;
 }
 
 unsigned strlcpy(string &dest, const char *src, unsigned length) {

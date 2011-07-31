@@ -2,7 +2,7 @@ mapper lorom
 org $8000; fill $8000
 org $8000
 
-define size = -16
+define size -16
 
 db $01,$02
 seek -2

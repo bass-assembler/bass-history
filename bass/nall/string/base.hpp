@@ -160,10 +160,8 @@ namespace nall {
 
   //utility.hpp
   template<bool Insensitive> alwaysinline bool chrequal(char x, char y);
-  alwaysinline void quoteskip(char *&p);
-  alwaysinline void quoteskip(const char *&p);
-  alwaysinline void quotecopy(char *&p, char *&t);
-  alwaysinline void quotecopy(const char *&p, char *&t);
+  template<bool Quoted, typename T> alwaysinline bool quoteskip(T *&p);
+  template<bool Quoted, typename T> alwaysinline bool quotecopy(char *&t, T *&p);
   inline unsigned strlcpy(string &dest, const char *src, unsigned length);
   inline unsigned strlcat(string &dest, const char *src, unsigned length);
   inline string substr(const char *src, unsigned start = 0, unsigned length = ~0u);

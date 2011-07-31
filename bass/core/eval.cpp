@@ -1,18 +1,14 @@
 int64_t Bass::eval(const string &s) {
-  if(s == "+") {
-    string name = { "+", positiveLabelCounter + 0 };
+  int offset = 0;
+  if(s == "-") offset = -1; if(s == "--") offset = -2; if(s == "---") offset = -3;
+  if(s == "+") offset = +1; if(s == "++") offset = +2; if(s == "+++") offset = +3;
+  if(offset) {
+    string name = offset < 0
+    ? string("-", negativeLabelCounter + offset)
+    : string("+", positiveLabelCounter + offset - 1);
     foreach(label, labels) if(name == label.name) return label.offset;
     if(pass == 1) return pc();
-    warning("eval:unmatched + label");
-    return 0;
-  }
-
-  if(s == "-") {
-    string name = { "-", negativeLabelCounter - 1 };
-    foreach(label, labels) if(name == label.name) return label.offset;
-    if(pass == 1) return pc();
-    warning("eval:unmatched - label");
-    return 0;
+    error("eval:unmatched - label");
   }
 
   nall::eval_fallback = [this](const char *&s) -> int64_t {

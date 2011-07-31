@@ -12,7 +12,7 @@ string& string::ureplace(const char *key, const char *token) {
   unsigned counter = 0, keyLength = 0;
 
   while(*p) {
-    if(Quoted) quoteskip(p);
+    if(quoteskip<Quoted>(p)) continue;
     for(unsigned n = 0;; n++) {
       if(key[n] == 0) { counter++; p += n; keyLength = n; break; }
       if(!chrequal<Insensitive>(key[n], p[n])) { p++; break; }
@@ -30,7 +30,7 @@ string& string::ureplace(const char *key, const char *token) {
   char *o = data;
 
   while(*t && counter) {
-    if(Quoted) quotecopy(t, o);
+    if(quotecopy<Quoted>(o, t)) continue;
     for(unsigned n = 0;; n++) {
       if(key[n] == 0) { counter--; memcpy(o, token, tokenLength); t += keyLength; o += tokenLength; break; }
       if(!chrequal<Insensitive>(key[n], t[n])) { *o++ = *t++; break; }

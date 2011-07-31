@@ -12,9 +12,10 @@ optional<unsigned> ustrpos(const char *str, const char *key) {
   const char *base = str;
 
   while(*str) {
-    if(Quoted) quoteskip(str);
+    if(quoteskip<Quoted>(str)) continue;
     for(unsigned n = 0;; n++) {
       if(key[n] == 0) return { true, (unsigned)(str - base) };
+      if(str[n] == 0) return { false, 0 };
       if(!chrequal<Insensitive>(str[n], key[n])) break;
     }
     str++;
