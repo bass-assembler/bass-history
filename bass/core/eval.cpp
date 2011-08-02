@@ -1,16 +1,4 @@
 int64_t Bass::eval(const string &s) {
-  int offset = 0;
-  if(s == "-") offset = -1; if(s == "--") offset = -2; if(s == "---") offset = -3;
-  if(s == "+") offset = +1; if(s == "++") offset = +2; if(s == "+++") offset = +3;
-  if(offset) {
-    string name = offset < 0
-    ? string("-", negativeLabelCounter + offset)
-    : string("+", positiveLabelCounter + offset - 1);
-    foreach(label, labels) if(name == label.name) return label.offset;
-    if(pass == 1) return pc();
-    error("eval:unmatched - label");
-  }
-
   nall::eval_fallback = [this](const char *&s) -> int64_t {
     //hexadecimal
     if(*s == '$') {
@@ -43,17 +31,17 @@ int64_t Bass::eval(const string &s) {
       if(!name.position("::")) name = string(activeNamespace, "::", name);
       foreach(label, labels) if(name == label.name) return label.offset;
       if(pass == 1) return pc();  //labels may not be defined yet on first pass
-      throw "unknown label";
+      error({ "undefined label: ", name });
     }
 
-    throw "unknown token";
+    throw "unrecognized token";
   };
 
   try {
     const char *t = s;
     return nall::eval(t);
   } catch(const char *e) {
-    warning({ "eval:", e });
+    error({ e, ": ", s });
     return 0;
   }
 }
@@ -71,6 +59,25 @@ void Bass::evalMacros(string &line) {
         if(line[y] == '}') counter--;
         if(line[y] == '}' && counter == 0) {
           string name = substr(line, x + 1, y - x - 1);
+
+          //<intrinsics>
+          if(name == "$") {  //pc
+            line = string(substr(line, 0, x), "0x", hex(pc()), substr(line, y + 1));
+            return evalMacros(line);
+          }
+          if(name == "@") {  //origin
+            line = string(substr(line, 0, x), "0x", hex(origin), substr(line, y + 1));
+            return evalMacros(line);
+          }
+          if(name.wildcard("+*") || name.wildcard("-*")) {  //relative anonymous labels
+            signed offset = (name == "-" ? -1 : name == "+" ? +1 : integer(name));
+            if(offset == 0) error("invalid anonymous label index");
+            if(offset > 0) offset--;  //side-effect of positive labels not having been encountered yet
+            line = string(substr(line, 0, x), "anonymous::relative", relativeLabelCounter + offset, substr(line, y + 1));
+            return evalMacros(line);
+          }
+          //</intrinsics>
+
           if(!name.position("::")) name = { activeNamespace, "::", name };
 
           lstring header, args;

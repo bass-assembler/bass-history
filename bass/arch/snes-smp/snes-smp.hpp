@@ -45,4 +45,9 @@ protected:
   };
 
   linear_vector<Family> family;
+
+  //assembleBlock()
+  string block, name, args;
+  signed relative, address;
+  bool priority;
 };

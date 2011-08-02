@@ -6,23 +6,21 @@ int64_t BassSnesSmp::eval(const string &s) {
 }
 
 bool BassSnesSmp::assembleBlock(const string &block_) {
-  string block = block_;
-  if(Bass::assembleBlock(block) == true) return true;
-
-  signed relative, address;
-  bool priority = false;
+  if(Bass::assembleBlock(block_) == true) return true;
+  block = block_;
+  priority = false;
 
   lstring part, byte;
   part.split<1>(" ", block);
-  string name = part[0], args = part[1];
+  name = part[0], args = part[1];
 
-  static auto isbyte = [&]() {
+  auto isbyte = [this]() {
     if(args.wildcard("$????")) return false;
     if(!priority && args[0] != '<' && !args.wildcard("$??")) return false;
     return true;
   };
 
-  static auto isword = [&]() {
+  auto isword = [this]() {
     if(args.wildcard("$??")) return false;
     if(!priority && args[0] != '>' && !args.wildcard("$????")) return false;
     return true;

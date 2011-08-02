@@ -14,15 +14,13 @@ void BassSnesCpu::seek(unsigned offset) {
 }
 
 bool BassSnesCpu::assembleBlock(const string &block_) {
-  string block = block_;
-  if(Bass::assembleBlock(block) == true) return true;
-
-  signed relative, repeat;
-  bool priority = false;
+  if(Bass::assembleBlock(block_) == true) return true;
+  block = block_;
+  priority = false;
 
   lstring part;
   part.split<1>(" ", block);
-  string name = part[0], param = part[1];
+  name = part[0], param = part[1];
 
   if(name == "mapper") {
     if(param == "none ") { mapper = Mapper::None;  return true; }
@@ -31,19 +29,19 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
     error("invalid mapper ID");
   }
 
-  static auto isbyte = [&]() {
+  auto isbyte = [this]() {
     if(param.wildcard("$????") || param.wildcard("$??????")) return false;
     if(!priority && param[0] != '<' && !param.wildcard("$??")) return false;
     return true;
   };
 
-  static auto isword = [&]() {
+  auto isword = [this]() {
     if(param.wildcard("$??") || param.wildcard("$??????")) return false;
     if(!priority && param[0] != '>' && !param.wildcard("$????")) return false;
     return true;
   };
 
-  static auto islong = [&]() {
+  auto islong = [this]() {
     if(param.wildcard("$??") || param.wildcard("$????")) return false;
     if(!priority && param[0] != '^' && !param.wildcard("$??????")) return false;
     return true;

@@ -35,7 +35,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v03</h1>
+    <h1>bass v04.01</h1>
     Author: byuu<br>
     License: GPLv2<br>
     <br>
@@ -253,14 +253,6 @@
     <p>Sublabels must begin with . when being declared. When being referenced,
     the active label is implicitly added if one is not manually specified.</p>
 
-    <p>There are two special anonymous labels, + and -. Unlike named labels and
-    sublabels, these two can be redefined at any point in code. When referencing
-    the - label, it will refer to the last definition of -. When referencing the
-    + label, it will refer to the next definition of +.</p>
-
-    <p>You can seek backward or forward two +/- labels with ++ or --. You can
-    also seek backward or forward three +/- labels with +++ or ---.</p>
-
     <p>The default namespace is global. Attempting to declare a sublabel without
     declaring a parent label will result in an error.</p>
 
@@ -279,14 +271,71 @@
     define length 0x2000
     lda {test::length}  //0x1000
     lda {length}  //0x2000
-    jmp test::function.prologue
-    -; sta $2180; dex; beq +; dey; bra -; +; rts
+    jmp test::function.prologue</pre>
 
-    //all three bra's jump to $8000
-    org $8000
-    -; bra -
-    -; bra --
-    -; bra ---</pre>
+    <h3>Anonymous Labels</h3>
+
+    <p>Anonymous labels allow you create labels with no names, that are
+    referenced relative to where they were declared. Great for short loops.</p>
+
+    <p>Note that ~, - and + are all aliases to anonymous labels. They are
+    functionally identical. You may use them for semantic meaning if you like.
+    </p>
+
+    <pre>org $8000
+    above:  //all three branches go to above
+    -; bra {-1}
+    -; bra {-2}
+    -; bra {-3}
+
+    bra {+3}; +
+    bra {+2}; +
+    bra {+1}; +
+    below:  //all three branches go to below
+
+    //index value is optional: {-} == {-1}, {+} == {+1}
+    ~; sta $2180; dex; beq {+}; dey; bra {-}; ~; rts</pre>
+
+    <h3>Intrinsics</h3>
+
+    <p>Intrinsics are built-in macros that have special meanings.</p>
+
+    <h4>{$}</h4>
+
+    <p>Prints the current program counter value. This is equal to the
+    base-adjusted origin.</p>
+
+    <h4>{@}</h4>
+
+    <p>Prints the origin without base adjustment.</p>
+
+    <h4>{-}, {-n}, {+}, {+n}</h4>
+
+    <p>Anonymous labels. See section below for more information on their usage.
+    </p>
+
+    <h4>{#}</h4>
+
+    <p>Only valid inside of macros. This is used to allow the declaration of
+    labels that will not conflict when invoking the same macro more than once.
+    </p>
+
+    <p>The technical details should be completely transparent to bass users,
+    but if you're interested: {#} evaluates to a counter that represents the
+    number of times <i>any</i> macro has been decoded. This can be used as a
+    prefix or postfix to any labels inside of macros.</p>
+
+    <p>Example:</p>
+    <pre>macro waitForVblank
+    &nbsp;&nbsp;.loop{#}:
+    &nbsp;&nbsp;&nbsp;&nbsp;bit $4212
+    &nbsp;&nbsp;&nbsp;&nbsp;bpl .loop{#}
+    endmacro
+
+    main:
+    &nbsp;&nbsp;{waitForVblank}
+    &nbsp;&nbsp;...
+    &nbsp;&nbsp;{waitForVblank}</pre>
 
     <h3>Directives</h3>
 

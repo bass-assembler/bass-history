@@ -22,8 +22,7 @@ bool Bass::assemble(const string &filename) {
     activeLabel = "#invalid";
     macroNestingCounter = 0;
     macroExpandCounter = 1;
-    negativeLabelCounter = 1;
-    positiveLabelCounter = 1;
+    relativeLabelCounter = 1;
     conditionalState = Conditional::Matching;
     stackPC.reset();
     stackConditional.reset();
@@ -108,8 +107,6 @@ void Bass::assembleFile(const string &filename) {
 bool Bass::assembleBlock(const string &block_) {
   if(block_ == "") return true;
   string block = block_;
-
-  block.replace("{pc}", string("0x", hex(pc())));
 
   //================
   //= conditionals =
@@ -352,21 +349,12 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  //===========
-  //= + label =
-  //===========
-  if(block == "+") {
-    if(pass == 1) setLabel({ "+", positiveLabelCounter }, pc());
-    positiveLabelCounter++;
-    return true;
-  }
-
-  //===========
-  //= - label =
-  //===========
-  if(block == "-") {
-    if(pass == 1) setLabel({ "-", negativeLabelCounter }, pc());
-    negativeLabelCounter++;
+  //============================
+  //= relative anonymous label =
+  //============================
+  if(block == "~" || block == "-" || block == "+") {
+    if(pass == 1) setLabel({ "anonymous::relative", relativeLabelCounter }, pc());
+    relativeLabelCounter++;
     return true;
   }
 

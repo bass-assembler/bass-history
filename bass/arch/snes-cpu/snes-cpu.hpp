@@ -52,4 +52,9 @@ protected:
   };
 
   linear_vector<Family> family;
+
+  //assembleBlock()
+  string block, name, param;
+  signed relative, repeat;
+  bool priority;
 };

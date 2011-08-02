@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v03\n");
+    print("bass v04.01\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");

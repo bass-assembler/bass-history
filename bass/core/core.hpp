@@ -49,8 +49,7 @@ protected:
   string activeLabel;
   unsigned macroNestingCounter;
   unsigned macroExpandCounter;
-  unsigned negativeLabelCounter;
-  unsigned positiveLabelCounter;
+  unsigned relativeLabelCounter;
   enum class Conditional : unsigned { NotYetMatched, Matching, AlreadyMatched } conditionalState;
   stack<unsigned> stackPC;
   stack<Conditional> stackConditional;
