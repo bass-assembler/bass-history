@@ -29,7 +29,7 @@ int64_t Bass::eval(const string &s) {
       string name = substr(start, 0, s - start);
       if(name.beginswith(".")) name = string(activeLabel, name);
       if(!name.position("::")) name = string(activeNamespace, "::", name);
-      foreach(label, labels) if(name == label.name) return label.offset;
+      for(auto &label : labels) if(name == label.name) return label.offset;
       if(pass == 1) return pc();  //labels may not be defined yet on first pass
       error({ "undefined label: ", name });
     }
@@ -80,11 +80,10 @@ void Bass::evalMacros(string &line) {
 
           if(!name.position("::")) name = { activeNamespace, "::", name };
 
-          lstring header, args;
-          header.split<1>(" ", name);
-          if(header[1] != "") args.split(",", header[1]);
+          lstring header = name.split<1>(" "), args;
+          if(header(1, "") != "") args = header[1].split(",");
 
-          foreach(macro, macros) {
+          for(auto &macro : macros) {
             if(header[0] == macro.name && args.size() == macro.args.size()) {
               string result;
               evalParams(result, macro, args);
@@ -103,7 +102,8 @@ void Bass::evalMacros(string &line) {
 void Bass::evalParams(string &line, Bass::Macro &macro, lstring &args) {
   line = macro.value;
   line.replace("{#}", string("_", decimal(macroExpandCounter)));
-  foreach(arg, macro.args, n) {
-    line.replace(string("{", arg, "}"), args[n]);
+  unsigned counter = 0;
+  for(auto &arg : macro.args) {
+    line.replace(string("{", arg, "}"), args[counter++]);
   }
 }

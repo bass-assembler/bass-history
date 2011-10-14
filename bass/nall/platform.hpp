@@ -95,6 +95,7 @@
     wchar_t fn[_MAX_PATH] = L"";
     _wfullpath(fn, nall::utf16_t(filename), _MAX_PATH);
     strcpy(resolvedname, nall::utf8_t(fn));
+    for(unsigned n = 0; resolvedname[n]; n++) if(resolvedname[n] == '\\') resolvedname[n] = '/';
     return resolvedname;
   }
 
@@ -102,6 +103,9 @@
     wchar_t fp[_MAX_PATH] = L"";
     SHGetFolderPathW(0, CSIDL_APPDATA | CSIDL_FLAG_CREATE, 0, 0, fp);
     strcpy(path, nall::utf8_t(fp));
+    for(unsigned n = 0; path[n]; n++) if(path[n] == '\\') path[n] = '/';
+    unsigned length = strlen(path);
+    if(path[length] != '/') strcpy(path + length, "/");
     return path;
   }
 
@@ -109,6 +113,9 @@
     wchar_t fp[_MAX_PATH] = L"";
     _wgetcwd(fp, _MAX_PATH);
     strcpy(path, nall::utf8_t(fp));
+    for(unsigned n = 0; path[n]; n++) if(path[n] == '\\') path[n] = '/';
+    unsigned length = strlen(path);
+    if(path[length] != '/') strcpy(path + length, "/");
     return path;
   }
 #else
@@ -118,11 +125,16 @@
     *path = 0;
     struct passwd *userinfo = getpwuid(getuid());
     if(userinfo) strcpy(path, userinfo->pw_dir);
+    unsigned length = strlen(path);
+    if(path[length] != '/') strcpy(path + length, "/");
     return path;
   }
 
   inline char *getcwd(char *path) {
-    return getcwd(path, PATH_MAX);
+    auto unused = getcwd(path, PATH_MAX);
+    unsigned length = strlen(path);
+    if(path[length] != '/') strcpy(path + length, "/");
+    return path;
   }
 #endif
 

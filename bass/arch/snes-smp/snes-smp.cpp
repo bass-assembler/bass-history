@@ -10,9 +10,8 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
   block = block_;
   priority = false;
 
-  lstring part, byte;
-  part.split<1>(" ", block);
-  name = part[0], args = part[1];
+  lstring part = block.split<1>(" "), byte;
+  name = part[0], args = part(1, "");
 
   auto isbyte = [this]() {
     if(args.wildcard("$????")) return false;
@@ -26,8 +25,8 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
     return true;
   };
 
-  foreach(f, family) if(args.wildcard(f.pattern)) {
-    foreach(o, f.opcode) if(name == o.name) {
+  for(auto &f : family) if(args.wildcard(f.pattern)) {
+    for(auto &o : f.opcode) if(name == o.name) {
       priority = o.priority;
       switch(o.mode) {
       case Mode::Implied:
@@ -59,13 +58,13 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
         write(eval(args));
         return true;
       case Mode::DirectBit:
-        byte.split(".", args);
+        byte = args.split(".");
         write(o.prefix | (eval(byte[1]) << 5));
         write(eval(byte[0]));
         return true;
       case Mode::DirectBitRelative:
-        part.split(",", args);
-        byte.split(".", part[0]);
+        part = args.split(",");
+        byte = part[0].split(".");
         relative = eval(part[1]) - (pc() + 3);
         if(pass == 2 && (relative < -128 || relative > +127)) error("branch out of bounds");
         write(o.prefix | (eval(byte[1]) << 5));
@@ -85,20 +84,20 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
         write(eval(args));
         return true;
       case Mode::DirectImmediate:
-        part.split(",", args);
+        part = args.split(",");
         part[1].ltrim<1>("#");
         write(o.prefix);
         write(eval(part[1]));
         write(eval(part[0]));
         return true;
       case Mode::DirectDirect:
-        part.split(",", args);
+        part = args.split(",");
         write(o.prefix);
         write(eval(part[1]));
         write(eval(part[0]));
         return true;
       case Mode::DirectRelative:
-        part.split(",", args);
+        part = args.split(",");
         relative = eval(part[1]) - (pc() + 3);
         if(pass == 2 && (relative < -128 || relative > +127)) error("branch out of bounds");
         write(o.prefix);
@@ -106,7 +105,7 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
         write(relative);
         return true;
       case Mode::DirectXRelative:
-        part.split(",", args);
+        part = args.split(",");
         part[0].rtrim<1>("+x");
         relative = eval(part[1]) - (pc() + 3);
         if(pass == 2 && (relative < -128 || relative > +127)) error("branch out of bounds");
@@ -132,14 +131,14 @@ bool BassSnesSmp::assembleBlock(const string &block_) {
         write(eval(args), 2);
         return true;
       case Mode::AbsoluteBit:
-        byte.split(".", args);
+        byte = args.split(".");
         address = (eval(byte[1]) << 13) | (eval(byte[0]) & 0x1fff);
         write(o.prefix);
         write(address, 2);
         return true;
       case Mode::AbsoluteBitNot:
         args.ltrim<1>("!");
-        byte.split(".", args);
+        byte = args.split(".");
         address = (eval(byte[1]) << 13) | (eval(byte[0]) & 0x1fff);
         write(o.prefix);
         write(address, 2);
@@ -403,24 +402,23 @@ BassSnesSmp::BassSnesSmp() {
   };
 
   lstring patterns;
-  foreach(opcode, table) {
+  for(auto &opcode : table) {
     while(opcode.mnemonic.position("  ")) opcode.mnemonic.replace("  ", " ");
     opcode.mnemonic.replace("*", "?*");
     opcode.mnemonic.rtrim(" ");
-    lstring part;
-    part.split<1>(" ", opcode.mnemonic);
+    lstring part = opcode.mnemonic.split<1>(" ");
     opcode.name = part[0];
-    opcode.pattern = part[1];
+    opcode.pattern = part(1, "");
     if(!patterns.find(opcode.pattern)) patterns.append(opcode.pattern);
   }
 
-  foreach(x, patterns) {
-    foreach(y, patterns) {
+  for(auto &x : patterns) {
+    for(auto &y : patterns) {
       if(&x != &y && x.wildcard(y)) swap(x, y);
     }
   }
 
-  foreach(opcode, table) {
+  for(auto &opcode : table) {
     if(auto position = patterns.find(opcode.pattern)) {
       family[position()].pattern = opcode.pattern;
       family[position()].opcode.append(opcode);

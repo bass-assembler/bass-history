@@ -73,9 +73,8 @@ void Bass::assembleFile(const string &filename) {
   if(options.caseInsensitive) filedata.qlower();
   filedata.transform("\r\t", "  ");
 
-  lstring lines;
-  lines.split("\n", filedata);
-  foreach(line, lines) {
+  lstring lines = filedata.split("\n");
+  for(auto &line : lines) {
     blockNumber() = 1;
     if(auto position = line.position("//")) line[position()] = 0;  //strip comments
     while(auto position = line.qposition("  ")) line.qreplace("  ", " ");
@@ -84,8 +83,7 @@ void Bass::assembleFile(const string &filename) {
 
     while(true) {
       evalMacros(line);
-      lstring block;
-      block.qsplit<1>(";", line);
+      lstring block = line.qsplit<1>(";");
       line.ltrim<1>(string(block[0], ";"));
       block[0].trim(" ");
       if(assembleBlock(block[0]) == false) error({ "unknown command:", block[0] });
@@ -116,7 +114,7 @@ bool Bass::assembleBlock(const string &block_) {
     block.ltrim<1>("if ");
     stackConditional.push(conditionalState);
     conditionalState = eval(block) ? Conditional::Matching : Conditional::NotYetMatched;
-    foreach(item, stackConditional) {
+    for(auto &item : stackConditional) {
       if(item != Conditional::Matching) conditionalState = Conditional::AlreadyMatched;
     }
     return true;
@@ -174,9 +172,8 @@ bool Bass::assembleBlock(const string &block_) {
 
   if(block.beginswith("macro ")) {
     block.ltrim<1>("macro ");
-    lstring header, args;
-    header.split<2>(" ", block);  //header[0] = name, header[1] = params
-    if(header[1] != "") args.split(",", header[1]);
+    lstring header = block.split<2>(" "), args;  //header[0] = name, header[1] = params
+    if(header(1, "") != "") args = header[1].split(",");
     activeMacro.name = header[0];
     activeMacro.args = args;
     activeMacro.value = "";
@@ -196,8 +193,7 @@ bool Bass::assembleBlock(const string &block_) {
 
   if(block.wildcard("define ?* ?*")) {
     block.ltrim<1>("define ");
-    lstring part;
-    part.split<1>(" ", block);
+    lstring part = block.split<1>(" ");
     if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
     setMacro(part[0], lstring(), part[1]);
     return true;
@@ -224,15 +220,15 @@ bool Bass::assembleBlock(const string &block_) {
   //==========
   if(block.wildcard("incbin \"?*\"*")) {
     block.ltrim<1>("incbin ");
-    lstring part;
-    part.qsplit(",", block);
+    lstring part = block.qsplit(",");
     part[0].trim<1>("\"");
     file fp;
     if(fp.open({ dir(fileName()), part[0] }, file::mode::read) == false) {
       error({ "binary file ", part[0], " not found" });
     }
-    unsigned offset = part.size() >= 2 ? eval(part[1]) : 0u;
-    unsigned length = part.size() >= 3 ? eval(part[2]) : fp.size() - offset;
+    unsigned offset = 0, length = fp.size() - offset;
+    if(part.size() >= 2) offset = eval(part[1]);
+    if(part.size() >= 3) length = eval(part[2]);
     if(length > fp.size()) error({ "binary file ", part[0], " include length exceeds file size "});
     fp.seek(offset);
     for(unsigned n = 0; n < length; n++) write(fp.read());
@@ -293,10 +289,9 @@ bool Bass::assembleBlock(const string &block_) {
   //========
   if(block.wildcard("fill ?*")) {
     block.ltrim<1>("fill ");
-    lstring list;
-    list.split(",", block);
+    lstring list = block.split(",");
     unsigned length = eval(list[0]);
-    unsigned byte = list[1] == "" ? 0x00 : eval(list[1]);
+    unsigned byte = eval(list(1, "0x00"));
     while(length--) write(byte);
     return true;
   }
@@ -321,14 +316,13 @@ bool Bass::assembleBlock(const string &block_) {
   if(block.beginswith("dd ")) { block.ltrim<1>("dd "); size = 4; }
   if(block.beginswith("dq ")) { block.ltrim<1>("dq "); size = 8; }
   if(size != 0) {
-    lstring list;
-    list.qsplit(",", block);
-    foreach(item, list) {
+    lstring list = block.qsplit(",");
+    for(auto &item : list) {
       if(item.wildcard("\"*\"") == false) {
         write(eval(item), size);
       } else {
         item.trim<1>("\"");
-        foreach(n, item) write(table[n], size);
+        for(auto &n : item) write(table[n], size);
       }
     }
     return true;
@@ -411,7 +405,7 @@ void Bass::setMacro(const string &name_, const lstring &args, const string &valu
   string name = name_;
   if(!name.position("::")) name = { activeNamespace, "::", name };
 
-  foreach(macro, macros) {
+  for(auto &macro : macros) {
     if(name == macro.name) {
       macro.value = value;
       return;
@@ -423,7 +417,7 @@ void Bass::setMacro(const string &name_, const lstring &args, const string &valu
 
 void Bass::setLabel(const string &name, unsigned offset) {
   //labels cannot be redeclared
-  foreach(label, labels) {
+  for(auto &label : labels) {
     if(name == label.name) {
       if(pass == 1) error({ "Label ", name, " has already been declared" });
     }

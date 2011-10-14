@@ -5,8 +5,8 @@ namespace nall {
 
 class GameBoyCartridge {
 public:
-  string xml;
-  inline GameBoyCartridge(const uint8_t *data, unsigned size);
+  string markup;
+  inline GameBoyCartridge(uint8_t *data, unsigned size);
 
 //private:
   struct Information {
@@ -21,8 +21,8 @@ public:
   } info;
 };
 
-GameBoyCartridge::GameBoyCartridge(const uint8_t *romdata, unsigned romsize) {
-  xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+GameBoyCartridge::GameBoyCartridge(uint8_t *romdata, unsigned romsize) {
+  markup = "";
   if(romsize < 0x4000) return;
 
   info.mapper = "unknown";
@@ -33,6 +33,20 @@ GameBoyCartridge::GameBoyCartridge(const uint8_t *romdata, unsigned romsize) {
 
   info.romsize = 0;
   info.ramsize = 0;
+
+  unsigned base = romsize - 0x8000;
+  if(romdata[base + 0x0104] == 0xce && romdata[base + 0x0105] == 0xed
+  && romdata[base + 0x0106] == 0x66 && romdata[base + 0x0107] == 0x66
+  && romdata[base + 0x0108] == 0xcc && romdata[base + 0x0109] == 0x0d
+  && romdata[base + 0x0147] >= 0x0b && romdata[base + 0x0147] <= 0x0d
+  ) {
+    //MMM01 stores header at bottom of image
+    //flip this around for consistency with all other mappers
+    uint8_t header[0x8000];
+    memcpy(header, romdata + base, 0x8000);
+    memmove(romdata + 0x8000, romdata, romsize - 0x8000);
+    memcpy(romdata, header, 0x8000);
+  }
 
   switch(romdata[0x0147]) {
     case 0x00: info.mapper = "none";  break;
@@ -86,18 +100,15 @@ GameBoyCartridge::GameBoyCartridge(const uint8_t *romdata, unsigned romsize) {
 
   if(info.mapper == "MBC2") info.ramsize = 512;  //512 x 4-bit
 
-  xml.append("<cartridge mapper='", info.mapper, "'");
-  if(info.rtc) xml.append(" rtc='true'");
-  if(info.rumble) xml.append(" rumble='true'");
-  xml.append(">\n");
+  markup.append("cartridge mapper=", info.mapper);
+  if(info.rtc) markup.append(" rtc");
+  if(info.rumble) markup.append(" rumble");
+  markup.append("\n");
 
-  xml.append("  <rom size='", hex(romsize), "'/>\n");  //TODO: trust/check info.romsize?
+  markup.append("\t" "rom size=", hex(romsize), "\n");  //TODO: trust/check info.romsize?
 
   if(info.ramsize > 0)
-  xml.append("  <ram size='", hex(info.ramsize), "' battery='", info.battery, "'/>\n");
-
-  xml.append("</cartridge>\n");
-  xml.transform("'", "\"");
+  markup.append("\t" "ram size=", hex(info.ramsize), info.battery ? " non-volatile\n" : "\n");
 }
 
 }

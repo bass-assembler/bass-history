@@ -9,10 +9,8 @@ void BassSnesCpuCanonical::seek(unsigned offset) {
 bool BassSnesCpuCanonical::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
-  lstring part;
-  part.split<1>(" ", block);
-  string name   = part[0];
-  string arg    = part[1];
+  lstring part = block.split<1>(" ");
+  string name = part[0], arg = part(1, "");
   unsigned size = 0;
 
   if(name == "mapper") {
@@ -295,8 +293,7 @@ bool BassSnesCpuCanonical::assembleBlock(const string &block) {
   }
 
   if(arg.wildcard("?*,?*")) {
-    lstring bank;
-    bank.split(",", arg);
+    lstring bank = arg.split(",");
     if(name == "mvn") { write(0x54); write(eval(bank[1])); write(eval(bank[0])); return true; }
     if(name == "mvp") { write(0x44); write(eval(bank[1])); write(eval(bank[0])); return true; }
     return false;

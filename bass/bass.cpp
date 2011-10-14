@@ -1,6 +1,6 @@
 //bass
 //author: byuu
-//license: GPLv2
+//license: GPLv3
 
 #include "bass.hpp"
 #include "core/core.cpp"
@@ -16,6 +16,19 @@ int main(int argc, char **argv) {
   lstring inputFilename;
 
   Bass *arch = 0;
+
+  #if 0
+  char argv1[] = "bass";
+  char argv2[] = "-arch=snes-cpu";
+  char argv3[] = "-o";
+  char argv4[] = "test/test.bin";
+  char argv5[] = "test/snes-cpu.asm";
+  char *argvN[] = {
+    argv1, argv2, argv3, argv4, argv5, nullptr
+  };
+  argc = 5;
+  argv = (char**)argvN;
+  #endif
 
   for(unsigned n = 1; n < argc;) {
     if(0) {
@@ -50,7 +63,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v04.01\n");
+    print("bass v04.02\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -67,7 +80,7 @@ int main(int argc, char **argv) {
   }
 
   arch->open(outputFilename);
-  foreach(filename, inputFilename) arch->assemble(filename);
+  for(auto &filename : inputFilename) arch->assemble(filename);
   arch->close();
   delete arch;
 

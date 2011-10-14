@@ -3,16 +3,16 @@
 
 //dynamic linking support
 
-#include <nall/detect.hpp>
+#include <nall/intrinsics.hpp>
 #include <nall/stdint.hpp>
 #include <nall/string.hpp>
 #include <nall/utility.hpp>
 
 #if defined(PLATFORM_X) || defined(PLATFORM_OSX)
   #include <dlfcn.h>
-#elif defined(PLATFORM_WIN)
+#elif defined(PLATFORM_WINDOWS)
   #include <windows.h>
-  #include <nall/utf8.hpp>
+  #include <nall/windows/utf8.hpp>
 #endif
 
 namespace nall {
@@ -81,7 +81,7 @@ namespace nall {
     dlclose((void*)handle);
     handle = 0;
   }
-  #elif defined(PLATFORM_WIN)
+  #elif defined(PLATFORM_WINDOWS)
   inline bool library::open(const char *name, const char *path) {
     if(handle) close();
     string filepath(path, *path && !strend(path, "/") && !strend(path, "\\") ? "\\" : "", name, ".dll");

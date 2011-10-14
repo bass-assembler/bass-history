@@ -18,9 +18,8 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
   block = block_;
   priority = false;
 
-  lstring part;
-  part.split<1>(" ", block);
-  name = part[0], param = part[1];
+  lstring part = block.split<1>(" ");
+  name = part[0], param = part(1, "");
 
   if(name == "mapper") {
     if(param == "none ") { mapper = Mapper::None;  return true; }
@@ -47,8 +46,8 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
     return true;
   };
 
-  foreach(f, family) if(param.wildcard(f.pattern)) {
-    foreach(o, f.opcode) if(name == o.name) {
+  for(auto &f : family) if(param.wildcard(f.pattern)) {
+    for(auto &o : f.opcode) if(name == o.name) {
       priority = o.priority;
       switch(o.mode) {
       case Mode::Implied:
@@ -195,7 +194,7 @@ bool BassSnesCpu::assembleBlock(const string &block_) {
         write(relative, 2);
         return true;
       case Mode::BlockMove:
-        part.split<1>(",", param);
+        part = param.split<1>(",");
         write(o.prefix);
         write(eval(part[1]));
         write(eval(part[0]));
@@ -494,24 +493,23 @@ BassSnesCpu::BassSnesCpu() {
   }
 
   lstring patterns;
-  foreach(opcode, table) {
+  for(auto &opcode : table) {
     while(opcode.mnemonic.position("  ")) opcode.mnemonic.replace("  ", " ");
     opcode.mnemonic.replace("*", "?*");
     opcode.mnemonic.rtrim(" ");
-    lstring part;
-    part.split<1>(" ", opcode.mnemonic);
+    lstring part = opcode.mnemonic.split<1>(" ");
     opcode.name = part[0];
-    opcode.pattern = part[1];
+    opcode.pattern = part(1, "");
     if(!patterns.find(opcode.pattern)) patterns.append(opcode.pattern);
   }
 
-  foreach(x, patterns) {
-    foreach(y, patterns) {
+  for(auto &x : patterns) {
+    for(auto &y : patterns) {
       if(&x != &y && x.wildcard(y)) swap(x, y);
     }
   }
 
-  foreach(opcode, table) {
+  for(auto &opcode : table) {
     if(auto position = patterns.find(opcode.pattern)) {
       family[position()].pattern = opcode.pattern;
       family[position()].opcode.append(opcode);

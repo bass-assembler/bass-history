@@ -1,10 +1,8 @@
 bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
-  lstring part, list;
-  part.split<1>(" ", block);
-  string name = part[0];
-  string args = part[1];
+  lstring part = block.split<1>(" "), list;
+  string name = part[0], args = part(1, "");
 
   unsigned size = 0;
 
@@ -235,7 +233,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
 
   if(args.wildcard("c,!?*.?")) {
     args.ltrim<1>("c,!");
-    part.split<1>(".", args);
+    part = args.split<1>(".");
     unsigned data = (eval(part[1]) << 13) | (eval(part[0]) & 0x1fff);
     if(name == "or1" ) { write(0x2a); write(data, 2); return true; }
     if(name == "and1") { write(0x6a); write(data, 2); return true; }
@@ -244,7 +242,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
 
   if(args.wildcard("c,?*.?")) {
     args.ltrim<1>("c,");
-    part.split<1>(".", args);
+    part = args.split<1>(".");
     unsigned data = (eval(part[1]) << 13) | (eval(part[0]) & 0x1fff);
     if(name == "or1" ) { write(0x0a); write(data, 2); return true; }
     if(name == "and1") { write(0x4a); write(data, 2); return true; }
@@ -256,7 +254,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
 
   if(args.wildcard("?*.?,c")) {
     args.rtrim<1>(",c");
-    part.split<1>(".", args);
+    part = args.split<1>(".");
     unsigned data = (eval(part[1]) << 13) | (eval(part[0]) & 0x1fff);
     if(name == "mov1") { write(0xca); write(data, 2); return true; }
     return false;
@@ -339,8 +337,8 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   }
 
   if(args.wildcard("?*.?,?*")) {
-    part.split<1>(",", args);
-    list.split<1>(".", part[0]);
+    part = args.split<1>(",");
+    list = part[0].split<1>(".");
     signed relative = eval(part[1]) - (pc() + 3);
     if(relative < -128 || relative > 127) error("branch out of bounds");
     if(name == "bbs1") { write(0x03 | (eval(list[1]) << 5)); write(eval(list[0])); write(relative); return true; }
@@ -349,7 +347,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   }
 
   if(args.wildcard("?*,#?*")) {
-    part.split<1>(",", args);
+    part = args.split<1>(",");
     part[1].ltrim<1>("#");
     if(name == "or" ) { write(0x18); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "and") { write(0x38); write(eval(part[1])); write(eval(part[0])); return true; }
@@ -362,7 +360,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   }
 
   if(args.wildcard("?*+x,?*")) {
-    part.split<1>(",", args);
+    part = args.split<1>(",");
     part[0].rtrim<1>("+x");
     signed relative = eval(part[1]) - (pc() + 2);
     if(relative < -128 || relative > 127) error("branch out of bounds");
@@ -371,7 +369,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   }
 
   if(args.wildcard("?*,?*")) {
-    part.split<1>(",", args);
+    part = args.split<1>(",");
     if(name == "or" ) { write(0x09); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "and") { write(0x29); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "eor") { write(0x49); write(eval(part[1])); write(eval(part[0])); return true; }
@@ -432,7 +430,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   }
 
   if(args.wildcard("?*.?")) {
-    part.split<1>(".", args);
+    part = args.split<1>(".");
     if(name == "set1") { write(0x02 | (eval(part[1]) << 5)); write(eval(part[0])); return true; }
     if(name == "clr1") { write(0x12 | (eval(part[1]) << 5)); write(eval(part[0])); return true; }
     return false;
