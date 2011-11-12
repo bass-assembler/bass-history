@@ -128,8 +128,6 @@ namespace nall {
   inline char chrlower(char c);
   inline char chrupper(char c);
   inline int istrcmp(const char *str1, const char *str2);
-  inline bool wildcard(const char *str, const char *pattern);
-  inline bool iwildcard(const char *str, const char *pattern);
   inline bool strbegin(const char *str, const char *key);
   inline bool istrbegin(const char *str, const char *key);
   inline bool strend(const char *str, const char *key);
@@ -176,6 +174,9 @@ namespace nall {
   inline string substr(const char *src, unsigned start = 0, unsigned length = ~0u);
   inline string sha256(const uint8_t *data, unsigned size);
 
+  inline char* integer(char *result, intmax_t value);
+  inline char* decimal(char *result, uintmax_t value);
+
   template<unsigned length = 0, char padding = ' '> inline string integer(intmax_t value);
   template<unsigned length = 0, char padding = ' '> inline string linteger(intmax_t value);
   template<unsigned length = 0, char padding = ' '> inline string decimal(uintmax_t value);
@@ -187,6 +188,10 @@ namespace nall {
 
   //variadic.hpp
   template<typename... Args> inline void print(Args&&... args);
+
+  //wildcard.hpp
+  inline bool wildcard(const char *str, const char *pattern);
+  inline bool iwildcard(const char *str, const char *pattern);
 };
 
 #endif

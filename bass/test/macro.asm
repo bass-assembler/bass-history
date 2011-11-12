@@ -20,10 +20,10 @@ main:
   db "ABCD"
   jml main
 
-if {pc} >= 0x8040
-  error "Out of space! PC = {pc}"
-elseif {pc} >= 0x8020
-  warning "Almost out of space! PC = {pc}"
+if {$} >= 0x8040
+  error "Out of space! PC = {$}"
+elseif {$} >= 0x8020
+  warning "Almost out of space! PC = {$}"
 endif
 
 macro m1 x

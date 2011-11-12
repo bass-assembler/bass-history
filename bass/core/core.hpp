@@ -10,6 +10,7 @@ struct Bass {
   } options;
 
 protected:
+  virtual void initialize(unsigned pass);
   void warning(const string &s);
   void error(const string &s);
   unsigned pc() const;
@@ -42,8 +43,8 @@ protected:
   unsigned origin;
   signed base;
   uint64_t table[256];
-  linear_vector<Macro> macros;
-  linear_vector<Label> labels;
+  vector<Macro> macros;
+  vector<Label> labels;
   Macro activeMacro;
   string activeNamespace;
   string activeLabel;

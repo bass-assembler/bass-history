@@ -47,6 +47,9 @@ Bass::Bass() {
 
 //internal
 
+void Bass::initialize(unsigned pass) {
+}
+
 void Bass::warning(const string &s) {
   print("[bass warning] ", fileName(), ":", lineNumber(), ":", blockNumber(), ":\n> ", s, "\n");
 }

@@ -4,9 +4,9 @@ org $8000
 
 _0x:
   brk #$55
-  ora ($55+x)
+  ora ($55,x)
   cop #$55
-  ora $55+s
+  ora $55,s
   tsb $55
   ora $55
   asl $55
@@ -22,27 +22,27 @@ _0x:
 
 _1x:
   bpl _1x
-  ora ($55)+y
+  ora ($55),y
   ora ($55)
-  ora ($55+s)+y
+  ora ($55,s),y
   trb $55
-  ora $55+x
-  asl $55+x
-  ora [$55]+y
+  ora $55,x
+  asl $55,x
+  ora [$55],y
   clc
-  ora $55aa+y
+  ora $55aa,y
   inc
   tcs
   trb $55aa
-  ora $55aa+x
-  asl $55aa+x
-  ora $55aaff+x
+  ora $55aa,x
+  asl $55aa,x
+  ora $55aaff,x
 
 _2x:
   jsr $55aa
-  and ($55+x)
+  and ($55,x)
   jsl $55aaff
-  and $55+s
+  and $55,s
   bit $55
   and $55
   rol $55
@@ -58,27 +58,27 @@ _2x:
 
 _3x:
   bmi _3x
-  and ($55)+y
+  and ($55),y
   and ($55)
-  and ($55+s)+y
-  bit $55+x
-  and $55+x
-  rol $55+x
-  and [$55]+y
+  and ($55,s),y
+  bit $55,x
+  and $55,x
+  rol $55,x
+  and [$55],y
   sec
-  and $55aa+y
+  and $55aa,y
   dec
   tsc
-  bit $55aa+x
-  and $55aa+x
-  rol $55aa+x
-  and $55aaff+x
+  bit $55aa,x
+  and $55aa,x
+  rol $55aa,x
+  and $55aaff,x
 
 _4x:
   rti
-  eor ($55+x)
+  eor ($55,x)
   wdm #$55
-  eor $55+s
+  eor $55,s
   mvp $55,$aa
   eor $55
   lsr $55
@@ -94,27 +94,27 @@ _4x:
 
 _5x:
   bvc _5x
-  eor ($55)+y
+  eor ($55),y
   eor ($55)
-  eor ($55+s)+y
+  eor ($55,s),y
   mvn $55,$aa
-  eor $55+x
-  lsr $55+x
-  eor [$55]+y
+  eor $55,x
+  lsr $55,x
+  eor [$55],y
   cli
-  eor $55aa+y
+  eor $55aa,y
   phy
   tcd
   jml $55aaff
-  eor $55aa+x
-  lsr $55aa+x
-  eor $55aaff+x
+  eor $55aa,x
+  lsr $55aa,x
+  eor $55aaff,x
 
 _6x:
   rts
-  adc ($55+x)
+  adc ($55,x)
   per $55aa
-  adc $55+s
+  adc $55,s
   stz $55
   adc $55
   ror $55
@@ -130,27 +130,27 @@ _6x:
 
 _7x:
   bvs _7x
-  adc ($55)+y
+  adc ($55),y
   adc ($55)
-  adc ($55+s)+y
-  stz $55+x
-  adc $55+x
-  ror $55+x
-  adc [$55]+y
+  adc ($55,s),y
+  stz $55,x
+  adc $55,x
+  ror $55,x
+  adc [$55],y
   sei
-  adc $55aa+y
+  adc $55aa,y
   ply
   tdc
-  jmp ($55aa+x)
-  adc $55aa+x
-  ror $55aa+x
-  adc $55aaff+x
+  jmp ($55aa,x)
+  adc $55aa,x
+  ror $55aa,x
+  adc $55aaff,x
 
 _8x:
   bra _8x
-  sta ($55+x)
+  sta ($55,x)
   brl _8x
-  sta $55+s
+  sta $55,s
   sty $55
   sta $55
   stx $55
@@ -166,27 +166,27 @@ _8x:
 
 _9x:
   bcc _9x
-  sta ($55)+y
+  sta ($55),y
   sta ($55)
-  sta ($55+s)+y
-  sty $55+x
-  sta $55+x
-  stx $55+y
-  sta [$55]+y
+  sta ($55,s),y
+  sty $55,x
+  sta $55,x
+  stx $55,y
+  sta [$55],y
   tya
-  sta $55aa+y
+  sta $55aa,y
   txs
   txy
   stz $55aa
-  sta $55aa+x
-  stz $55aa+x
-  sta $55aaff+x
+  sta $55aa,x
+  stz $55aa,x
+  sta $55aaff,x
 
 _ax:
   ldy #$55
-  lda ($55+x)
+  lda ($55,x)
   ldx #$55
-  lda $55+s
+  lda $55,s
   ldy $55
   lda $55
   ldx $55
@@ -202,27 +202,27 @@ _ax:
 
 _bx:
   bcs _bx
-  lda ($55)+y
+  lda ($55),y
   lda ($55)
-  lda ($55+s)+y
-  ldy $55+x
-  lda $55+x
-  ldx $55+y
-  lda [$55]+y
+  lda ($55,s),y
+  ldy $55,x
+  lda $55,x
+  ldx $55,y
+  lda [$55],y
   clv
-  lda $55aa+y
+  lda $55aa,y
   tsx
   tyx
-  ldy $55aa+x
-  lda $55aa+x
-  ldx $55aa+y
-  lda $55aaff+x
+  ldy $55aa,x
+  lda $55aa,x
+  ldx $55aa,y
+  lda $55aaff,x
 
 _cx:
   cpy #$55
-  cmp ($55+x)
+  cmp ($55,x)
   rep #$55
-  cmp $55+s
+  cmp $55,s
   cpy $55
   cmp $55
   dec $55
@@ -238,27 +238,27 @@ _cx:
 
 _dx:
   bne _dx
-  cmp ($55)+y
+  cmp ($55),y
   cmp ($55)
-  cmp ($55+s)+y
+  cmp ($55,s),y
   pei ($55)
-  cmp $55+x
-  dec $55+x
-  cmp [$55]+y
+  cmp $55,x
+  dec $55,x
+  cmp [$55],y
   cld
-  cmp $55aa+y
+  cmp $55aa,y
   phx
   stp
   jmp [$55aa]
-  cmp $55aa+x
-  dec $55aa+x
-  cmp $55aaff+x
+  cmp $55aa,x
+  dec $55aa,x
+  cmp $55aaff,x
 
 _ex:
   cpx #$55
-  sbc ($55+x)
+  sbc ($55,x)
   sep #$55
-  sbc $55+s
+  sbc $55,s
   cpx $55
   sbc $55
   inc $55
@@ -274,21 +274,21 @@ _ex:
 
 _fx:
   beq _fx
-  sbc ($55)+y
+  sbc ($55),y
   sbc ($55)
-  sbc ($55+s)+y
+  sbc ($55,s),y
   pea $55aa
-  sbc $55+x
-  inc $55+x
-  sbc [$55]+y
+  sbc $55,x
+  inc $55,x
+  sbc [$55],y
   sed
-  sbc $55aa+y
+  sbc $55aa,y
   plx
   xce
-  jsr ($55aa+x)
-  sbc $55aa+x
-  inc $55aa+x
-  sbc $55aaff+x
+  jsr ($55aa,x)
+  sbc $55aa,x
+  inc $55aa,x
+  sbc $55aaff,x
 
 _xx:
   asl #4

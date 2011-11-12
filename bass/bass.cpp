@@ -4,8 +4,8 @@
 
 #include "bass.hpp"
 #include "core/core.cpp"
+#include "arch/table/table.cpp"
 #include "arch/snes-cpu/snes-cpu.cpp"
-#include "arch/snes-cpu-canonical/snes-cpu-canonical.cpp"
 #include "arch/snes-smp/snes-smp.cpp"
 #include "arch/snes-smp-canonical/snes-smp-canonical.cpp"
 
@@ -19,10 +19,10 @@ int main(int argc, char **argv) {
 
   #if 0
   char argv1[] = "bass";
-  char argv2[] = "-arch=snes-cpu";
+  char argv2[] = "-arch=table";
   char argv3[] = "-o";
-  char argv4[] = "test/test.bin";
-  char argv5[] = "test/snes-cpu.asm";
+  char argv4[] = "test/test2.bin";
+  char argv5[] = "test/test.asm";
   char *argvN[] = {
     argv1, argv2, argv3, argv4, argv5, nullptr
   };
@@ -32,11 +32,11 @@ int main(int argc, char **argv) {
 
   for(unsigned n = 1; n < argc;) {
     if(0) {
+    } else if(!arch && cstring{argv[n]} == "-arch=table") {
+      arch = new BassTable;
+      n++;
     } else if(!arch && !strcmp(argv[n], "-arch=snes-cpu")) {
       arch = new BassSnesCpu;
-      n++;
-    } else if(!arch && !strcmp(argv[n], "-arch=snes-cpu-canonical")) {
-      arch = new BassSnesCpuCanonical;
       n++;
     } else if(!arch && !strcmp(argv[n], "-arch=snes-smp")) {
       arch = new BassSnesSmp;
@@ -63,12 +63,12 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v04.02\n");
+    print("bass v04.04\n");
     print("author: byuu\n");
-    print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
+    print("usage: bass (-arch=(arch)) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
+    print("  table\n");
     print("  snes-cpu\n");
-    print("  snes-cpu-canonical\n");
     print("  snes-smp\n");
     print("  snes-smp-canonical\n");
     print("\n");
@@ -88,4 +88,3 @@ int main(int argc, char **argv) {
 }
 
 #endif
-

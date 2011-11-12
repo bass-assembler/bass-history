@@ -1,11 +1,10 @@
 struct BassSnesCpu : public Bass {
+  int64_t eval(const string &s);
   void seek(unsigned offset);
   bool assembleBlock(const string &block);
   BassSnesCpu();
 
 protected:
-  int64_t eval(const string &s);
-
   enum Mapper : unsigned { None, LoROM, HiROM } mapper;
 
   enum Mode : unsigned {
@@ -48,13 +47,8 @@ protected:
 
   struct Family {
     string pattern;
-    linear_vector<Opcode> opcode;
+    vector<Opcode> opcode;
   };
 
-  linear_vector<Family> family;
-
-  //assembleBlock()
-  string block, name, param;
-  signed relative, repeat;
-  bool priority;
+  vector<Family> family;
 };
