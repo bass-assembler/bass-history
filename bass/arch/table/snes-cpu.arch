@@ -1,3 +1,5 @@
+arch(snes_cpu) = R"(
+
 asl            ;$0a
 clc            ;$18
 cld            ;$d8
@@ -49,17 +51,17 @@ wai            ;$cb
 xba            ;$eb
 xce            ;$fb
 
-asl #*08       ;$0a *a:$0a
-dec #*08       ;$3a *a:$3a
-dex #*08       ;$ca *a:$ca
-dey #*08       ;$88 *a:$88
-inc #*08       ;$1a *a:$1a
-inx #*08       ;$e8 *a:$e8
-iny #*08       ;$c8 *a:$c8
-lsr #*08       ;$4a *a:$4a
-nop #*08       ;$ea *a:$ea
-rol #*08       ;$2a *a:$2a
-ror #*08       ;$6a *a:$6a
+asl #*08       ;*a:$0a
+dec #*08       ;*a:$3a
+dex #*08       ;*a:$ca
+dey #*08       ;*a:$88
+inc #*08       ;*a:$1a
+inx #*08       ;*a:$e8
+iny #*08       ;*a:$c8
+lsr #*08       ;*a:$4a
+nop #*08       ;*a:$ea
+rol #*08       ;*a:$2a
+ror #*08       ;*a:$6a
 
 ora #*16       ;$09 =a
 ora #*08       ;$09 =a
@@ -290,8 +292,8 @@ bcs *08        ;$b0 +2a
 bne *08        ;$d0 +2a
 beq *08        ;$f0 +2a
 
-mvp *08,*08    ;$44 =b =a
-mvn *08,*08    ;$54 =b =a
+mvp *08=*08    ;$44 =a =b
+mvn *08=*08    ;$54 =a =b
 
 pea *16        ;$f4 =a
 pei (*08)      ;$d4 =a
@@ -309,3 +311,5 @@ tsb *08        ;$04 =a
 brk #*08       ;$00 =a
 cop #*08       ;$02 =a
 wdm #*08       ;$42 =a
+
+)";

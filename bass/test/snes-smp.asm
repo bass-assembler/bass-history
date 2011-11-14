@@ -1,4 +1,4 @@
-org $0000; fill $10000
+org $0000; fill $8000
 
 org $0000; base $8000
 
@@ -13,7 +13,7 @@ _0x:
   ora ($55+x)
   ora #$55
   ori $55,$aa
-  ori $55aa.0
+  ori $15aa.2
   asl $55
   asl $55aa
   php
@@ -49,7 +49,7 @@ _2x:
   and ($55+x)
   and #$55
   and $55,$aa
-  ori !$55aa.0
+  ori !$15aa.2
   rol $55
   rol $55aa
   pha
@@ -85,7 +85,7 @@ _4x:
   eor ($55+x)
   eor #$55
   eor $55,$aa
-  and $55aa.0
+  and $15aa.2
   lsr $55
   lsr $55aa
   phx
@@ -121,7 +121,7 @@ _6x:
   cmp ($55+x)
   cmp #$55
   cmp $55,$aa
-  and !$55aa.0
+  and !$15aa.2
   ror $55
   ror $55aa
   phy
@@ -157,7 +157,7 @@ _8x:
   adc ($55+x)
   adc #$55
   adc $55,$aa
-  eor $55aa.0
+  eor $15aa.2
   dec $55
   dec $55aa
   ldy #$55
@@ -193,7 +193,7 @@ _ax:
   sbc ($55+x)
   sbc #$55
   sbc $55,$aa
-  ldi $55aa.0
+  ldi $15aa.2
   inc $55
   inc $55aa
   cpy #$55
@@ -229,7 +229,7 @@ _cx:
   sta ($55+x)
   cpx #$55
   stx $55aa
-  sti $55aa.0
+  sti $15aa.2
   sty $55
   sty $55aa
   ldx #$55
@@ -265,7 +265,7 @@ _ex:
   lda ($55+x)
   lda #$55
   ldx $55aa
-  not $55aa.0
+  not $15aa.2
   ldy $55
   ldy $55aa
   not

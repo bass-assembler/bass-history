@@ -1,3 +1,8 @@
+#define arch(name) static string Arch_##name
+#include "snes-cpu.arch"
+#include "snes-smp.arch"
+#undef arch
+
 void BassTable::initialize(unsigned pass) {
   bitval = 0;
   bitpos = 0;
@@ -7,14 +12,20 @@ bool BassTable::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   if(block.beginswith("arch ")) {
-    string filename = substr(block, 5).trim<1>("\""), data;
-    if(data.readfile(filename) == false) error({ "arch: file \"", filename, "\" not found" });
+    string name = substr(block, 5), data;
+    if(0);
+    else if(name == "snes.cpu") data = Arch_snes_cpu;
+    else if(name == "snes.smp") data = Arch_snes_smp;
+    else {
+      name.trim<1>("\""), data;
+      if(data.readfile(name) == false) error({ "arch: file \"", name, "\" not found" });
+    }
     table.reset();
     parseTable(data);
     return true;
   }
 
-  unsigned pc = this->pc(), data;
+  unsigned pc = this->pc();
 
   for(auto &opcode : table) {
     if(tokenize(block, opcode.pattern) == false) continue;
@@ -24,29 +35,38 @@ bool BassTable::assembleBlock(const string &block) {
     if(args.size() != opcode.number.size()) continue;
 
     bool mismatch = false;
-    for(unsigned n = 0; n < opcode.number.size(); n++) {
-      unsigned bits = bitLength(args[n]);
-      if(bits && bits != opcode.number[n].bits) { mismatch = true; break; }
+    for(auto &format : opcode.format) {
+      if(format.type != Format::Type::Absolute) continue;
+      if(format.match == Format::Match::Weak) continue;
+      unsigned bits = bitLength(args[format.argument]);
+      if(bits != opcode.number[format.argument].bits) {
+        if(bits == 0 && format.match == Format::Match::Strong) continue;
+        mismatch = true;
+        break;
+      }
     }
     if(mismatch) continue;
 
     for(auto &format : opcode.format) {
       switch(format.type) {
-      case Format::Type::Static:
-        writeBits(format.data, 8);
-        break;
-      case Format::Type::Absolute:
-        data = eval(args[format.data]);
-        writeBits(data, opcode.number[format.data].bits);
-        break;
-      case Format::Type::Relative:
-        data = eval(args[format.data]) - (pc + format.displacement);
-        writeBits(data, opcode.number[format.data].bits);
-        break;
-      case Format::Type::Repeat:
-        data = eval(args[format.data]);
-        for(unsigned n = 0; n < data - 1; n++) writeBits(format.displacement, opcode.number[format.data].bits);
-        break;
+      case Format::Type::Static: {
+        writeBits(format.data, format.bits);
+      } break;
+      case Format::Type::Absolute: {
+        unsigned data = eval(args[format.argument]);
+        writeBits(data, opcode.number[format.argument].bits);
+      } break;
+      case Format::Type::Relative: {
+        signed data = eval(args[format.argument]) - (pc + format.displacement);
+        unsigned bits = opcode.number[format.argument].bits;
+        signed min = -(1 << (bits - 1)), max = +(1 << (bits - 1)) - 1;
+        if(data < min || data > max) error("branch out of bounds");
+        writeBits(data, opcode.number[format.argument].bits);
+      } break;
+      case Format::Type::Repeat: {
+        unsigned data = eval(args[format.argument]);
+        for(unsigned n = 0; n < data; n++) writeBits(format.data, opcode.number[format.argument].bits);
+      } break;
       }
     }
 
@@ -56,7 +76,7 @@ bool BassTable::assembleBlock(const string &block) {
   return false;
 }
 
-unsigned BassTable::bitLength(string &text) {
+unsigned BassTable::bitLength(string &text) const {
   auto hexLength = [&](const char *p) -> unsigned {
     unsigned length = 0;
     while(*p) {
@@ -70,7 +90,7 @@ unsigned BassTable::bitLength(string &text) {
   auto binLength = [&](const char *p) -> unsigned {
     unsigned length = 0;
     while(*p) {
-      if(*p == '0' || *p == '1') { p++; length++; continue; }
+      if(*p == '0' || *p == '1') { p++; length += 1; continue; }
       return 0;
     }
     return length;
@@ -153,23 +173,56 @@ void BassTable::assembleTableRHS(Opcode &opcode, const string &text) {
   lstring list = text.split(" ");
   for(auto &item : list) {
     if(item[0] == '$' && item.length() == 3) {
-      opcode.format.append({ Format::Type::Static, (unsigned)hex((const char*)item + 1) });
+      Format format = { Format::Type::Static };
+      format.data = hex((const char*)item + 1);
+      format.bits = (item.length() - 1) * 4;
+      opcode.format.append(format);
+    }
+
+    if(item[0] == '%') {
+      Format format = { Format::Type::Static };
+      format.data = binary((const char*)item + 1);
+      format.bits = (item.length() - 1);
+      opcode.format.append(format);
+    }
+
+    if(item[0] == '!') {
+      Format format = { Format::Type::Absolute, Format::Match::Exact };
+      format.argument = item[1] - 'a';
+      opcode.format.append(format);
     }
 
     if(item[0] == '=') {
-      opcode.format.append({ Format::Type::Absolute, item[1] - 'a' });
+      Format format = { Format::Type::Absolute, Format::Match::Strong };
+      format.argument = item[1] - 'a';
+      opcode.format.append(format);
+    }
+
+    if(item[0] == '~') {
+      Format format = { Format::Type::Absolute, Format::Match::Weak };
+      format.argument = item[1] - 'a';
+      opcode.format.append(format);
     }
 
     if(item[0] == '+') {
-      opcode.format.append({ Format::Type::Relative, item[2] - 'a', +(item[1] - '0') });
+      Format format = { Format::Type::Relative };
+      format.argument = item[2] - 'a';
+      format.displacement = +(item[1] - '0');
+      opcode.format.append(format);
     }
 
     if(item[0] == '-') {
-      opcode.format.append({ Format::Type::Relative, item[2] - 'a', -(item[1] - '0') });
+      Format format = { Format::Type::Relative };
+      format.argument = item[2] - 'a';
+      format.displacement = -(item[1] - '0');
+      opcode.format.append(format);
     }
 
     if(item[0] == '*') {
-      opcode.format.append({ Format::Type::Repeat, item[1] - 'a', (unsigned)hex((const char*)item + 3) });
+      Format format = { Format::Type::Repeat };
+      format.argument = item[1] - 'a';
+      format.data = hex((const char*)item + 3);
+      opcode.format.append(format);
     }
   }
 }

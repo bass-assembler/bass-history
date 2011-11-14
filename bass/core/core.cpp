@@ -13,6 +13,7 @@ bool Bass::open(const string &filename) {
 
 bool Bass::assemble(const string &filename) {
   for(pass = 1; pass <= 2; pass++) {
+    initialize(pass);
     endian = Endian::LSB;
     origin = 0;
     base = 0;
