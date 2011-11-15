@@ -1,3 +1,6 @@
+//note: this file uses a deprecated architecture
+//it will not assemble, but is left to demonstrate functionality
+
 mapper lorom
 org $8000; fill $8000
 

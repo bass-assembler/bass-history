@@ -35,7 +35,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v04.02</h1>
+    <h1>bass v05</h1>
     Author: byuu<br>
     License: GPLv2<br>
     <br>
@@ -47,21 +47,9 @@
     values are supported:</p>
 
     <pre>
-    snes-cpu
-    snes-cpu-canonical
-    snes-smp
+    table
     snes-smp-canonical
     </pre>
-
-    <p>snes-cpu targets the WDC 65816 CPU. snes-cpu-canonical targets the same,
-    but utilizes the traditional mnemonics for this processor. The primary
-    difference is that snes-cpu utilizes &lt;, &gt; and ^ for sizing, and uses
-    + for indexing.</p>
-
-    <p>snes-smp targets the Sony SPC700 CPU. snes-smp-canonical targets the
-    same, but utilizes the traditional mnemonics for this processor. Like
-    snes-cpu, new mnemonics are used for sizing. All mnemonics have also been
-    updated to match the syntax of snes-cpu.</p>
 
     <h4>Options</h4>
     <p>You may specify any desired options. At this time, the following values
@@ -74,7 +62,8 @@
 
     <p><i>-case-insenstive</i> will treat all input as lowercase. This will
     allow typing directives and opcodes in capital letters, but has the downside
-    of making labels, defines and macros case-insensitive as well.</p>
+    of making labels, defines and macros case-insensitive as well. Text inside
+    quotes (eg strings) will remain case-sensitive.</p>
 
     <p><i>-overwrite</i> will always create a new output file, specified by the
     -o flag. Without this flag, bass will act in its traditional form and apply
@@ -112,11 +101,6 @@
     the longest form is always chosen unless you specify a shorter form
     explicitly.</p>
 
-    <p>Take for example the x86 jmp command. If the target label is only four
-    bytes away, this can be encoded as a short jump. But since bass does not
-    know this, the long jump, which takes three additional bytes, will be chosen
-    instead, unless you specify that the jump should be short.</p>
-
     <p>Other assemblers can avoid this and perform this optimization by being
     N-pass assemblers. That is, they continuously re-evaluate the source over
     and over to keep trying to optimize and reposition code. Furthermore, this
@@ -131,21 +115,21 @@
     <p>Multiple directives and opcodes can be specified on the same line by
     using the semicolon block-separator. Example:</p>
 
-    <pre>clc; adc #$20; ret  //add #$20 and return</pre>
+    <pre>clc; adc #$20; rts  //add #$20 and return</pre>
 
     <p>Signed decimal values can be expressed directly. Hexadecimal values must
     be prefixed with either 0x or $. Binary values must be prefixed with either
     0b or %. Octal values must be prefixed with 0.</p>
 
     <p>The math parser supports full C/C++ operator precedence, ternary
-    expressions and conditional statements, and grouping. Math parsing can be
-    used just about anywhere. Example:</p>
+    expressions, conditional statements, and grouping. Math parsing can be used
+    just about anywhere. Example:</p>
 
     <pre>org (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
     jmp (table+0x20,x)</pre>
 
     <p>Internally, architectures will search for a valid opcode. In this case,
-    <i>jmp (?*,x)</i>. Once found, it will remove "jmp (" from the left-hand
+    <i>jmp (*,x)</i>. Once found, it will remove "jmp (" from the left-hand
     side, and ",x)" from the right-hand side. Anything left will be evaluated by
     the math parser.</p>
 
@@ -215,9 +199,9 @@
     <p>Example:</p>
     <pre>endian lsb
     define 'A' 0x12345678
-    db "A"  //write 0x78
-    dw "A"  //write 0x5678
-    dd "A"  //writes 0x12345678"</pre>
+    db "A"  //writes 0x78
+    dw "A"  //writes 0x5678
+    dd "A"  //writes 0x12345678</pre>
 
     <h3>Conditional Assembly</h3>
 
@@ -253,8 +237,8 @@
     <p>Sublabels must begin with . when being declared. When being referenced,
     the active label is implicitly added if one is not manually specified.</p>
 
-    <p>The default namespace is global. Attempting to declare a sublabel without
-    declaring a parent label will result in an error.</p>
+    <p>The default namespace is named <i>global</i>. Attempting to declare a
+    sublabel without declaring a parent label will result in an error.</p>
 
     <p>Example:</p>
     <pre>namespace test
@@ -311,7 +295,7 @@
 
     <h4>{-}, {-n}, {+}, {+n}</h4>
 
-    <p>Anonymous labels. See section below for more information on their usage.
+    <p>Anonymous labels. See section above for more information on their usage.
     </p>
 
     <h4>{#}</h4>
@@ -351,8 +335,7 @@
     file in lsb mode.</p>
 
     <p>This really should not be used, unless an architecture can work in both
-    modes. For example, invalid code will be generated if <i>endian msb</i> is
-    used with the snes-cpu architecture.</p>
+    modes.</p>
 
     <h4>incsrc "filename"</h4>
 
@@ -373,9 +356,7 @@
     <h4>org offset</h4>
 
     <p>Specify the output file's origin. That is to say, the location in the
-    file that data will be written to. This may optionally be transformed by
-    specific architectures, such as snes-cpu, based upon the memory map layout
-    of the given system.</p>
+    file that data will be written to.</p>
 
     <h4>base offset</h4>
 
@@ -420,8 +401,8 @@
     2-bytes at a time; dl writes 3-bytes at a time; dd writes 4-bytes at time;
     dq writes 8-bytes at a time.</p>
 
-    <p>These commands support one or more argument, and they also support string
-    arguments.</p>
+    <p>These commands support one or more arguments, and they also support
+    string arguments.</p>
 
     <p>Example:</p>
     <pre>db "Testing",0x00
@@ -434,5 +415,22 @@
 
     <p>Example:</p>
     <pre>print "PC is currently at: {$}"</pre>
+
+    <h4>warning "message"</h4>
+
+    <p>Prints a warning message to the terminal. Useful to combine with
+    conditional code.</p>
+
+    <h4>error "message"</h4>
+
+    <p>Prints an error message to the terminal and aborts the assembly process.
+    Useful to combine with conditional code.</p>
+
+    <p>Example:</p>
+    <pre>org 0x0000
+    incbin "script.bin"
+    if {$} >= 0x8000
+    &nbsp;&nbsp;error "script too large (> 32KB)"
+    endif</pre>
   </body>
 </html>

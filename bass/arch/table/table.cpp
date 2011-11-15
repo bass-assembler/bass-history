@@ -6,23 +6,36 @@
 void BassTable::initialize(unsigned pass) {
   bitval = 0;
   bitpos = 0;
+  table.reset();
 }
 
 bool BassTable::assembleBlock(const string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
-  if(block.beginswith("arch ")) {
-    string name = substr(block, 5), data;
-    if(0);
-    else if(name == "snes.cpu") data = Arch_snes_cpu;
-    else if(name == "snes.smp") data = Arch_snes_smp;
-    else {
-      name.trim<1>("\""), data;
-      if(data.readfile(name) == false) error({ "arch: file \"", name, "\" not found" });
+  if(block.beginswith("arch")) {
+    if(block.beginswith("arch ")) {
+      string name = substr(block, 5), data;
+      if(0);
+      else if(name == "snes.cpu") data = Arch_snes_cpu;
+      else if(name == "snes.smp") data = Arch_snes_smp;
+      else {
+        name.trim<1>("\"");
+        name = { dir(fileName()), name };
+        if(data.readfile(name) == false) error({ "arch: file \"", name, "\" not found" });
+      }
+      table.reset();
+      parseTable(data);
+      return true;
+    } else if(block == "arch.reset") {
+      table.reset();
+      return true;
+    } else if(block.wildcard("arch.append \"*\"")) {
+      string data = block;
+      data.ltrim<1>("arch.append ");
+      data.trim<1>("\"");
+      parseTable(data);
+      return true;
     }
-    table.reset();
-    parseTable(data);
-    return true;
   }
 
   unsigned pc = this->pc();

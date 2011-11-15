@@ -80,7 +80,7 @@ void Bass::assembleFile(const string &filename) {
   lstring lines = filedata.split("\n");
   for(auto &line : lines) {
     blockNumber() = 1;
-    if(auto position = line.position("//")) line[position()] = 0;  //strip comments
+    if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
     while(auto position = line.qposition("  ")) line.qreplace("  ", " ");
     line.qreplace(", ", ",");
     line.trim(" ");
@@ -369,7 +369,7 @@ bool Bass::assembleBlock(const string &block_) {
   //=========
   //= print =
   //=========
-  if(block.wildcard("print \"?*\"")) {
+  if(block.wildcard("print \"*\"")) {
     if(pass == 2) {
       block.ltrim<1>("print ");
       block.trim<1>("\"");
@@ -381,7 +381,7 @@ bool Bass::assembleBlock(const string &block_) {
   //===========
   //= warning =
   //===========
-  if(block.wildcard("warning \"?*\"")) {
+  if(block.wildcard("warning \"*\"")) {
     if(pass == 2) {
       block.ltrim<1>("warning ");
       block.trim<1>("\"");
@@ -393,7 +393,7 @@ bool Bass::assembleBlock(const string &block_) {
   //=========
   //= error =
   //=========
-  if(block.wildcard("error \"?*\"")) {
+  if(block.wildcard("error \"*\"")) {
     if(pass == 2) {
       block.ltrim<1>("error ");
       block.trim<1>("\"");
