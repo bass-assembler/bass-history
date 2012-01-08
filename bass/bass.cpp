@@ -28,6 +28,8 @@ int main(int argc, char **argv) {
   argv = (char**)argvN;
   #endif
 
+  bool benchmark = false;
+
   for(unsigned n = 1; n < argc;) {
     if(0) {
     } else if(!arch && cstring{argv[n]} == "-arch=table") {
@@ -42,6 +44,9 @@ int main(int argc, char **argv) {
     } else if(!strcmp(argv[n], "-overwrite")) {
       if(arch) arch->options.overwrite = true;
       n++;
+    } else if(!strcmp(argv[n], "-benchmark")) {
+      benchmark = true;
+      n++;
     } else if(!strcmp(argv[n], "-o") && n + 1 < argc) {
       outputFilename = argv[n + 1];
       n += 2;
@@ -55,7 +60,7 @@ int main(int argc, char **argv) {
   }
 
   if(!arch || outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v05\n");
+    print("bass v05.02\n");
     print("author: byuu\n");
     print("usage: bass -arch=(arch) [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -65,14 +70,20 @@ int main(int argc, char **argv) {
     print("supported options:\n");
     print("  -case-insensitive\n");
     print("  -overwrite\n");
+    print("  -benchmark\n");
     print("\n");
     return 0;
   }
+
+  clock_t startTime = clock();
 
   arch->open(outputFilename);
   for(auto &filename : inputFilename) arch->assemble(filename);
   arch->close();
   delete arch;
+
+  clock_t endTime = clock();
+  if(benchmark) print("Assembled in ", (endTime - startTime) / (double)CLOCKS_PER_SEC, " seconds.\n");
 
   return 0;
 }

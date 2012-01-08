@@ -23,6 +23,7 @@ namespace nall {
 
   struct string {
     inline void reserve(unsigned);
+    inline bool empty() const;
 
     template<typename... Args> inline string& assign(Args&&... args);
     template<typename... Args> inline string& append(Args&&... args);
@@ -35,6 +36,7 @@ namespace nall {
     template<unsigned Limit = 0> inline string& iqreplace(const char*, const char*);
 
     inline unsigned length() const;
+    inline unsigned capacity() const;
 
     template<unsigned Limit = 0> inline lstring split(const char*) const;
     template<unsigned Limit = 0> inline lstring isplit(const char*) const;
@@ -150,6 +152,9 @@ namespace nall {
   inline string currentpath();
 
   //strl.hpp
+  inline bool strbcpy(char *dest, const char *src, unsigned length);
+  inline bool strbcat(char *dest, const char *src, unsigned length);
+
   inline unsigned strlcpy(char *dest, const char *src, unsigned length);
   inline unsigned strlcat(char *dest, const char *src, unsigned length);
 
@@ -183,8 +188,8 @@ namespace nall {
   template<unsigned length = 0, char padding = ' '> inline string ldecimal(uintmax_t value);
   template<unsigned length = 0, char padding = '0'> inline string hex(uintmax_t value);
   template<unsigned length = 0, char padding = '0'> inline string binary(uintmax_t value);
-  inline unsigned fp(char *str, double value);
-  inline string fp(double value);
+  inline unsigned fp(char *str, long double value);
+  inline string fp(long double value);
 
   //variadic.hpp
   template<typename... Args> inline void print(Args&&... args);

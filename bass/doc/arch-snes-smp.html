@@ -1,0 +1,559 @@
+<html>
+  <head>
+    <title>bass :: arch :: snes.smp</title>
+    <link href="style.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1>arch snes.smp</h1><br>
+
+    <p>This is an assembler for the Sony SPC700 CPU, used by the SNES as the
+    S-SMP sound CPU.</p>
+
+    <h3>Registers</h3>
+
+    <pre>
+    a: accumulator
+    x: x-index
+    y: y-index
+    s: stack pointer
+    p: processor status flags
+    pc: program counter
+    ya: y+a (y = high 8-bits, a = low 8-bits)
+    </pre>
+
+    <h4>Stack Pointer</h4>
+    <p>Although the stack pointer is 8-bits, its effective address is OR'ed with
+    $100, making the effective range $100-$1ff.</p>
+
+    <h3>Processor Status Flags</h3>
+
+    <pre>
+    n: negative
+    v: overflow
+    p: page
+    b: break
+    h: half-overflow
+    i: interrupt
+    z: zero
+    c: carry
+    </pre>
+
+    <h4>Negative</h4>
+    <p>Set to the highest bit of math results: 0 = positive, 1 = negative.</p>
+
+    <h4>Overflow</h4>
+    <p>Set when an addition or subtraction changes the sign.</p>
+
+    <h4>Page</h4>
+    <p>Controls direct page indexing. 0 = $000-0ff, 1 = $100-1ff.</p>
+
+    <h4>Break</h4>
+    <p>Set when the BRK instruction is executed.</p>
+
+    <h4>Half-Overflow</h4>
+    <p>Similar to overflow, but operates on 4-bit nibbles.</p>
+
+    <h4>Interrupt</h4>
+    <p>Disable interrupt flag: 0 = allow interrupts, 1 = disallow interrupts.
+    </p>
+
+    <h4>Zero</h4>
+    <p>Set when a math result is zero.</p>
+
+    <h4>Carry</h4>
+    <p>Set when a math result carries.</p>
+
+    <h4>Interrupt Caveat</h4>
+    <p>Note that the SNES S-SMP does not have an interrupt generator. As such,
+    the utility of the B and I flags is quite limited.</p>
+
+    <h3>adc - Add with Carry</h3>
+
+    <h4>Modes</h4>
+
+    <pre>
+    84: adc dp
+    85: adc addr
+    86: adc (x)
+    87: adc (dp,x)
+    88: adc #const
+    89: adc dp=dp
+    94: adc dp,x
+    95: adc addr,x
+    96: adc addr,y
+    97: adc (dp),y
+    98: adc dp=#const
+    99: adc (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 adc(uint8 x, uint8 y) {
+    &nbsp;&nbsp;signed r = x + y + p.c;
+    &nbsp;&nbsp;p.n = r & 0x80;
+    &nbsp;&nbsp;p.v = ~(x ^ y) & (x ^ r) & 0x80;
+    &nbsp;&nbsp;p.h = (x ^ y ^ r) & 0x10;
+    &nbsp;&nbsp;p.z = (uint8)r == 0;
+    &nbsp;&nbsp;p.c = r > 0xff;
+    &nbsp;&nbsp;return r;
+    }
+    </pre>
+
+    <h3>and - Bitwise AND</h3>
+
+    <h4>Modes</h4>
+
+    <pre>
+    24: and dp
+    25: and addr
+    26: and (x)
+    27: and (dp,x)
+    28: and #const
+    29: and dp=dp
+    34: and dp,x
+    35: and addr,x
+    36: and addr,y
+    37: and (dp),y
+    38: and dp=#const
+    39: and (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 and(uint8 x, uint8 y) {
+    &nbsp;&nbsp;x &= y;
+    &nbsp;&nbsp;p.n = x & 0x80;
+    &nbsp;&nbsp;p.z = x == 0;
+    &nbsp;&nbsp;return x;
+    }
+    </pre>
+
+    <h4>Modes</h4>
+
+    <pre>
+    4a: and &nbsp;$15aa:2
+    6a: and !$15aa:2
+    </pre>
+
+    <h3>cmp - Compare</h3>
+
+    <h4>Modes</h4>
+
+    <pre>
+    64: cmp dp
+    65: cmp addr
+    66: cmp (x)
+    67: cmp (dp,x)
+    68: cmp #const
+    69: cmp dp=dp
+    74: cmp dp,x
+    75: cmp addr,x
+    76: cmp addr,y
+    77: cmp (dp),y
+    78: cmp dp=#const
+    79: cmp (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 cmp(uint8 x, uint8 y) {
+    &nbsp;&nbsp;signed r = x - y;
+    &nbsp;&nbsp;p.n = r & 0x80;
+    &nbsp;&nbsp;p.z = (uint8)r == 0;
+    &nbsp;&nbsp;p.c = r >= 0;
+    &nbsp;&nbsp;return x;
+    }
+    </pre>
+
+    <h3>eor - Bitwose Exclusive OR</h3>
+
+    <h4>Modes</h4>
+
+    <pre>
+    44: eor dp
+    45: eor addr
+    46: eor (x)
+    47: eor (dp,x)
+    48: eor #const
+    49: eor dp=dp
+    54: eor dp,x
+    55: eor addr,x
+    56: eor addr,y
+    57: eor (dp),y
+    58: eor dp=#const
+    59: eor (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 eor(uint8 x, uint8 y) {
+    &nbsp;&nbsp;x ^= y;
+    &nbsp;&nbsp;regs.p.n = x & 0x80;
+    &nbsp;&nbsp;regs.p.z = x == 0;
+    &nbsp;&nbsp;return x;
+    }
+    </pre>
+
+    <h4>Modes</h4>
+
+    <pre>
+    8a: eor $15aa:2
+    </pre>
+
+    <h3>or - Bitwise OR</h4>
+
+    <h4>Modes</h4>
+
+    <pre>
+    04: ora dp
+    05: ora addr
+    06: ora (x)
+    07: ora (dp,x)
+    08: ora #const
+    09: orr dp=dp
+    14: ora dp,x
+    15: ora addr,x
+    16: ora addr,y
+    17: ora (dp),y
+    18: orr dp=#const
+    19: orr (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 or(uint8 x, uint8 y) {
+    &nbsp;&nbsp;x |= y;
+    &nbsp;&nbsp;p.n = x & 0x80;
+    &nbsp;&nbsp;p.z = x == 0;
+    &nbsp;&nbsp;return x;
+    }
+    </pre>
+
+    <h4>Modes</h4>
+
+    <pre>
+    0a: orc &nbsp;$15aa:2
+    2a: orc !$15aa:2
+    </pre>
+
+    <h3>sbc - Subtract with Carry</h3>
+
+    <h4>Modes</h4>
+
+    <pre>
+    a4: sbc dp
+    a5: sbc addr
+    a6: sbc (x)
+    a7: sbc (dp,x)
+    a8: sbc #const
+    a9: sbc dp=dp
+    b4: sbc dp,x
+    b5: sbc addr,x
+    b6: sbc addr,y
+    b7: sbc (dp),y
+    b8: sbc dp=#const
+    b9: sbc (x)=(y)
+    </pre>
+
+    <h4>Implementation</h4>
+
+    <pre>
+    uint8 sbc(uint8 x, uint8 y) {
+    &nbsp;&nbsp;signed r = x - y - !regs.p.c;
+    &nbsp;&nbsp;p.n = r & 0x80;
+    &nbsp;&nbsp;p.v = (x ^ y) & (x ^ r) & 0x80;
+    &nbsp;&nbsp;p.h = !((x ^ y ^ r) & 0x10);
+    &nbsp;&nbsp;p.z = (uint8)r == 0;
+    &nbsp;&nbsp;p.c = r >= 0;
+    &nbsp;&nbsp;return r;
+    }
+    </pre>
+
+    <h3>Ordinal Instruction Set</h3>
+
+    <div style="float: left;"><pre>
+    00: nop
+    01: jst 0
+    02: set $55:0
+    03: bbs $55:0=label
+    04: ora $55
+    05: ora $55aa
+    06: ora (x)
+    07: ora ($55,x)
+    08: ora #$55
+    09: orr $55=$aa
+    0a: orc $15aa:2
+    0b: asl $55
+    0c: asl $55aa
+    0d: php
+    0e: tsb $55aa
+    0f: brk
+    -------------------------
+    10: bpl label
+    11: jst 1
+    12: clr $55:0
+    13: bbc $55:0=label
+    14: ora $55,x
+    15: ora $55aa,x
+    16: ora $55aa,y
+    17: ora ($55),y
+    18: orr $55=#$aa
+    19: orr (x)=(y)
+    1a: dew $55
+    1b: asl $55,x
+    1c: asl
+    1d: dex
+    1e: cpx $55aa
+    1f: jmp ($55aa,x)
+    -------------------------
+    20: clp
+    21: jst 2
+    22: set $55:1
+    23: bbs $55:1=label
+    24: and $55
+    25: and $55aa
+    26: and (x)
+    27: and ($55,x)
+    28: and #$55
+    29: and $55=$aa
+    2a: orc !$15aa:2
+    2b: rol $55
+    2c: rol $55aa
+    2d: pha
+    2e: bne $55=label
+    2f: bra label
+    -------------------------
+    30: bmi label
+    31: jst 3
+    32: clr $55:1
+    33: bbc $55:1=label
+    34: and $55,x
+    35: and $55aa,x
+    36: and $55aa,y
+    37: and ($55),y
+    38: and $55=#$aa
+    39: and (x)=(y)
+    3a: inw $55
+    3b: rol $55,x
+    3c: rol
+    3d: inx
+    3e: cpx $55
+    3f: jsr $55aa
+    </pre></div>
+
+    <div style="float: left;"><pre>
+    40: sep
+    41: jst 4
+    42: set $55:2
+    43: bbs $55:2=label
+    44: eor $55
+    45: eor $55aa
+    46: eor (x)
+    47: eor ($55,x)
+    48: eor #$55
+    49: eor $55=$aa
+    4a: and $15aa:2
+    4b: lsr $55
+    4c: lsr $55aa
+    4d: phx
+    4e: trb $55aa
+    4f: jsp $55
+    -------------------------
+    50: bvc label
+    51: jst 5
+    52: clr $55:2
+    53: bbc $55:2=label
+    54: eor $55,x
+    55: eor $55aa,x
+    56: eor $55aa,y
+    57: eor ($55),y
+    58: eor $55=#$aa
+    59: eor (x)=(y)
+    5a: cpw $55
+    5b: lsr $55,x
+    5c: lsr
+    5d: tax
+    5e: cpy $55aa
+    5f: jmp $55aa
+    -------------------------
+    60: clc
+    61: jst 6
+    62: set $55:3
+    63: bbs $55:3=label
+    64: cmp $55
+    65: cmp $55aa
+    66: cmp (x)
+    67: cmp ($55,x)
+    68: cmp #$55
+    69: cmp $55=$aa
+    6a: and !$15aa:2
+    6b: ror $55
+    6c: ror $55aa
+    6d: phy
+    6e: bne --$55=label
+    6f: rts
+    -------------------------
+    70: bvs label
+    71: jst 7
+    72: clr $55:3
+    73: bbc $55:3=label
+    74: cmp $55,x
+    75: cmp $55aa,x
+    76: cmp $55aa,y
+    77: cmp ($55),y
+    78: cmp $55=#$aa
+    79: cmp (x)=(y)
+    7a: adw $55
+    7b: ror $55,x
+    7c: ror
+    7d: txa
+    7e: cpy $55
+    7f: rti
+    </pre></div>
+
+    <div style="float: left;"><pre>
+    80: sec
+    81: jst 8
+    82: set $55:4
+    83: bbs $55:4=label
+    84: adc $55
+    85: adc $55aa
+    86: adc (x)
+    87: adc ($55,x)
+    88: adc #$55
+    89: adc $55=$aa
+    8a: eor $15aa:2
+    8b: dec $55
+    8c: dec $55aa
+    8d: ldy #$55
+    8e: plp
+    8f: str $55=#$aa
+    -------------------------
+    90: bcc label
+    91: jst 9
+    92: clr $55:4
+    93: bbc $55:4=label
+    94: adc $55,x
+    95: adc $55aa,x
+    96: adc $55aa,y
+    97: adc ($55),y
+    98: adc $55=#$aa
+    99: adc (x)=(y)
+    9a: sbw $55
+    9b: dec $55,x
+    9c: dec
+    9d: tsx
+    9e: div
+    9f: xcn
+    -------------------------
+    a0: sei
+    a1: jst 10
+    a2: set $55:5
+    a3: bbs $55:5=label
+    a4: sbc $55
+    a5: sbc $55aa
+    a6: sbc (x)
+    a7: sbc ($55,x)
+    a8: sbc #$55
+    a9: sbc $55=$aa
+    aa: ldc $15aa:2
+    ab: inc $55
+    ac: inc $55aa
+    ad: cpy #$55
+    ae: pla
+    af: sta (x++)
+    -------------------------
+    b0: bcs label
+    b1: jst 11
+    b2: clr $55:5
+    b3: bbc $55:5=label
+    b4: sbc $55,x
+    b5: sbc $55aa,x
+    b6: sbc $55aa,y
+    b7: sbc ($55),y
+    b8: sbc $55=#$aa
+    b9: sbc (x)=(y)
+    ba: ldw $55
+    bb: inc $55,x
+    bc: inc
+    bd: txs
+    be: das
+    bf: lda (x++)
+    </pre></div>
+
+    <div style="float: left;"><pre>
+    c0: cli
+    c1: jst 12
+    c2: set $55:6
+    c3: bbs $55:6=label
+    c4: sta $55
+    c5: sta $55aa
+    c6: sta (x)
+    c7: sta ($55,x)
+    c8: cpx #$55
+    c9: stx $55aa
+    ca: stc $15aa:2
+    cb: sty $55
+    cc: sty $55aa
+    cd: ldx #$55
+    ce: plx
+    cf: mul
+    -------------------------
+    d0: bne label
+    d1: jst 13
+    d2: clr $55:6
+    d3: bbc $55:6=label
+    d4: sta $55,x
+    d5: sta $55aa,x
+    d6: sta $55aa,y
+    d7: sta ($55),y
+    d8: stx $55
+    d9: stx $55,y
+    da: stw $55
+    db: sty $55,x
+    dc: dey
+    dd: tya
+    de: bne $55,x=label
+    df: daa
+    -------------------------
+    e0: clv
+    e1: jst 14
+    e2: set $55:7
+    e3: bbs $55:7=label
+    e4: lda $55
+    e5: lda $55aa
+    e6: lda (x)
+    e7: lda ($55,x)
+    e8: lda #$55
+    e9: ldx $55aa
+    ea: not $15aa:2
+    eb: ldy $55
+    ec: ldy $55aa
+    ed: cmc
+    ee: ply
+    ef: wai
+    -------------------------
+    f0: beq label
+    f1: jst 15
+    f2: clr $55:7
+    f3: bbc $55:7=label
+    f4: lda $55,x
+    f5: lda $55aa,x
+    f6: lda $55aa,y
+    f7: lda ($55),y
+    f8: ldx $55
+    f9: ldx $55,y
+    fa: str $55=$aa
+    fb: ldy $55,x
+    fc: iny
+    fd: tay
+    fe: bne --y=label
+    ff: stp
+    </pre></div>
+  </body>
+</html>

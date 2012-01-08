@@ -57,7 +57,7 @@ namespace nall {
 
     void prepend(const T& data) {
       append(data);
-      for(unsigned n = objectsize - 1; n; n--) swap(pool[n], pool[n - 1]);
+      for(unsigned n = objectsize - 1; n; n--) std::swap(pool[n], pool[n - 1]);
     }
 
     void remove(unsigned index, unsigned count = 1) {

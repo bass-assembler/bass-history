@@ -1,5 +1,5 @@
 int64_t Bass::eval(const string &s) {
-  nall::eval_fallback = [this](const char *&s) -> int64_t {
+  fixedpoint::eval_fallback = [this](const char *&s) -> int64_t {
     //hexadecimal
     if(*s == '$') {
       s++;
@@ -39,7 +39,7 @@ int64_t Bass::eval(const string &s) {
 
   try {
     const char *t = s;
-    return nall::eval(t);
+    return fixedpoint::eval(t);
   } catch(const char *e) {
     error({ e, ": ", s });
     return 0;

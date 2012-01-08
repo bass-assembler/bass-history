@@ -55,10 +55,10 @@ jmp *16          ;$5f =a
 jsr *16          ;$3f =a
 jsp *08          ;$4f =a
 
+bne --y=*08      ;$fe +2a
+bne --*08=*08    ;$6e =a +3b
 bne *08,x=*08    ;$de =a +3b
 bne *08=*08      ;$2e =a +3b
-bnz y=*08        ;$fe +2a
-bnz *08=*08      ;$6e =a +3b
 
 bra *08          ;$2f +2a
 bpl *08          ;$10 +2a
@@ -169,7 +169,7 @@ sbc *16          ;$a5 =a
 sbc *08          ;$a4 =a
 
 sta (x)          ;$c6
-sta (x)+         ;$af
+sta (x++)        ;$af
 sta (*08,x)      ;$c7 =a
 sta (*08),y      ;$d7 =a
 str *08=#*08     ;$8f =b =a
@@ -189,7 +189,7 @@ sty *16          ;$cc =a
 sty *08          ;$cb =a
 
 lda (x)          ;$e6
-lda (x)+         ;$bf
+lda (x++)        ;$bf
 lda (*08,x)      ;$e7 =a
 lda (*08),y      ;$f7 =a
 lda #*08         ;$e8 =a

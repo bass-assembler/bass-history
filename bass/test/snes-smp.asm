@@ -126,7 +126,7 @@ bank6x:
   ror $55
   ror $55aa
   phy
-  bnz $55=bank6x
+  bne --$55=bank6x
   rts
 
 bank7x:
@@ -199,7 +199,7 @@ bankax:
   inc $55aa
   cpy #$55
   pla
-  sta (x)+
+  sta (x++)
 
 bankbx:
   bcs bankbx
@@ -217,7 +217,7 @@ bankbx:
   inc
   txs
   das
-  lda (x)+
+  lda (x++)
 
 bankcx:
   cli
@@ -288,6 +288,6 @@ bankfx:
   ldy $55,x
   iny
   tay
-  bnz y=bankfx
+  bne --y=bankfx
   stp
 

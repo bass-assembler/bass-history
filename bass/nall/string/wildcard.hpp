@@ -42,7 +42,7 @@ bool iwildcard(const char *s, const char *p) {
   return !*p;
 }
 
-bool tokenize(const char *s, const char *p) {
+inline bool tokenize(const char *s, const char *p) {
   while(*s) {
     if(*p == '*') {
       while(*s) if(tokenize(s++, p + 1)) return true;
@@ -54,7 +54,7 @@ bool tokenize(const char *s, const char *p) {
   return !*p;
 }
 
-bool tokenize(lstring &list, const char *s, const char *p) {
+inline bool tokenize(lstring &list, const char *s, const char *p) {
   while(*s) {
     if(*p == '*') {
       const char *b = s;

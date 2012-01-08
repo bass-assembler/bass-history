@@ -1,38 +1,7 @@
 <html>
   <head>
     <title>bass user manual</title>
-    <style type="text/css">
-      body {
-        background: #fff;
-        color: #000;
-        font-family: arial, helvetica;
-        font-size: 0.9em;
-      }
-
-      h1,h2,h3,h4 {
-        margin: 0em;
-      }
-
-      h3 {
-        background: #eee;
-        margin-bottom: 0.25em;
-        padding: 0.25em;
-      }
-
-      h4 {
-        border-bottom: 2px solid #eee;
-        margin-bottom: 0.25em;
-      }
-
-      p {
-        margin: 0em;
-        margin-bottom: 1em;
-      }
-
-      pre {
-        white-space: pre-line;
-      }
-    </style>
+    <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
     <h1>bass v05</h1>
@@ -58,6 +27,7 @@
     <pre>
     -case-insensitive
     -overwrite
+    -benchmark
     </pre>
 
     <p><i>-case-insenstive</i> will treat all input as lowercase. This will
@@ -68,6 +38,9 @@
     <p><i>-overwrite</i> will always create a new output file, specified by the
     -o flag. Without this flag, bass will act in its traditional form and apply
     the assembly source code as a patch onto the existing file.</p>
+
+    <p><i>-benchmark</i> will print the number of seconds that the assembler
+    runs for.</p>
 
     <h4>File Specifiers</h4>
     <p>Specify the target output file by preceeding it with -o. Specify one or

@@ -2,6 +2,21 @@
 
 namespace nall {
 
+//strbcpy, strbcat created by byuu
+
+bool strbcpy(char *target, const char *source, unsigned length) {
+  if(length) {
+    while(--length && *source) *target++ = *source++;
+    *target = 0;
+  }
+  return !*source;
+}
+
+bool strbcat(char *target, const char *source, unsigned length) {
+  unsigned offset = strlen(target);
+  return strbcpy(target + offset, source, length - offset);
+}
+
 //strlcpy, strlcat based on OpenBSD implementation by Todd C. Miller
 
 //return = strlen(src)
