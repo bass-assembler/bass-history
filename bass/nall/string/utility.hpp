@@ -34,25 +34,16 @@ bool quotecopy(char *&t, T *&p) {
   return true;
 }
 
-unsigned strlcpy(string &dest, const char *src, unsigned length) {
-  dest.reserve(length);
-  return strlcpy(dest(), src, length);
-}
-
-unsigned strlcat(string &dest, const char *src, unsigned length) {
-  dest.reserve(length);
-  return strlcat(dest(), src, length);
-}
-
 string substr(const char *src, unsigned start, unsigned length) {
   string dest;
-  dest.reserve(length + 1);
   if(length == ~0u) {
     //copy entire string
+    dest.reserve(strlen(src + start) + 1);
     strcpy(dest(), src + start);
   } else {
     //copy partial string
-    strbcpy(dest(), src + start, length + 1);
+    dest.reserve(length + 1);
+    strmcpy(dest(), src + start, length + 1);
   }
   return dest;
 }

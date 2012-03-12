@@ -21,6 +21,8 @@ protected:
   virtual void seek(unsigned offset);
   virtual void write(uint64_t data, unsigned length = 1);
 
+  enum class Condition : unsigned { NotYetMatched, Matching, AlreadyMatched };
+
   struct Macro {
     string name;
     lstring args;
@@ -35,7 +37,7 @@ protected:
   //eval.cpp
   int64_t eval(const string &s);
   void evalMacros(string &line);
-  void evalParams(string &line, Bass::Macro &macro, lstring &args);
+  void evalParams(string &line, Macro &macro, lstring &args);
 
   file output;
   enum class Endian : bool { LSB, MSB } endian;
@@ -48,13 +50,16 @@ protected:
   Macro activeMacro;
   string activeNamespace;
   string activeLabel;
-  unsigned macroNestingCounter;
+  unsigned macroDepth;
   unsigned macroExpandCounter;
   unsigned relativeLabelCounter;
-  enum class Conditional : unsigned { NotYetMatched, Matching, AlreadyMatched } conditionalState;
-  stack<unsigned> stackPC;
-  stack<Conditional> stackConditional;
-  stack<string> fileName;
-  stack<unsigned> lineNumber;
-  stack<unsigned> blockNumber;
+  Condition condition;
+  vector<Condition> conditionStack;
+  vector<unsigned> pcStack;
+  vector<string> fileName;
+  vector<unsigned> lineNumber;
+  vector<unsigned> blockNumber;
+
+public:
+  vector<Macro> defaultMacros;
 };

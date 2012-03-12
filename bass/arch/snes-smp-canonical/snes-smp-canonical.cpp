@@ -52,6 +52,8 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
     args.ltrim<1>("ya,");
     if(name == "cmpw") { write(0x5a); write(eval(args)); return true; }
     if(name == "addw") { write(0x7a); write(eval(args)); return true; }
+    if(name == "subw") { write(0x9a); write(eval(args)); return true; }
+    if(name == "movw") { write(0xba); write(eval(args)); return true; }
     return false;
   }
 
@@ -225,9 +227,9 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
       if(name == "mov") { write(0xec); write(eval(args), 2); return true; }
     }
     //
-    signed relative = eval(args) - (pc() + 1);
+    signed relative = eval(args) - (pc() + 2);
     if(relative < -128 || relative > 127) error("branch out of bounds");
-    if(name == "dbnz") { write(0xfe); write(eval(args)); return true; }
+    if(name == "dbnz") { write(0xfe); write(relative); return true; }
     return false;
   }
 
@@ -362,7 +364,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
   if(args.wildcard("?*+x,?*")) {
     part = args.split<1>(",");
     part[0].rtrim<1>("+x");
-    signed relative = eval(part[1]) - (pc() + 2);
+    signed relative = eval(part[1]) - (pc() + 3);
     if(relative < -128 || relative > 127) error("branch out of bounds");
     if(name == "cbne") { write(0xde); write(eval(part[0])); write(relative); return true; }
     return false;
@@ -378,7 +380,7 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
     if(name == "sbc") { write(0xa9); write(eval(part[1])); write(eval(part[0])); return true; }
     if(name == "mov") { write(0xfa); write(eval(part[1])); write(eval(part[0])); return true; }
     //
-    signed relative = eval(part[1]) - (pc() + 2);
+    signed relative = eval(part[1]) - (pc() + 3);
     if(relative < -128 || relative > 127) error("branch out of bounds");
     if(name == "cbne") { write(0x2e); write(eval(part[0])); write(relative); return true; }
     if(name == "dbnz") { write(0x6e); write(eval(part[0])); write(relative); return true; }
@@ -483,8 +485,6 @@ bool BassSnesSmpCanonical::assembleBlock(const string &block) {
       if(name == "decw" ) { write(0x1a); write(eval(args)); return true; }
       if(name == "incw" ) { write(0x3a); write(eval(args)); return true; }
       if(name == "pcall") { write(0x4f); write(eval(args)); return true; }
-      if(name == "subw" ) { write(0x9a); write(eval(args)); return true; }
-      if(name == "movw" ) { write(0xba); write(eval(args)); return true; }
       //
       signed relative = eval(args) - (pc() + 2);
       if(relative < -128 || relative > 127) error("branch out of bounds");

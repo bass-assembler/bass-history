@@ -87,7 +87,9 @@ void Bass::evalMacros(string &line) {
             if(header[0] == macro.name && args.size() == macro.args.size()) {
               string result;
               evalParams(result, macro, args);
-              line = string(substr(line, 0, x), result, substr(line, y + 1));
+              string ldata = substr(line, 0, x);
+              string rdata = substr(line, y + 1);
+              line = { ldata, result, rdata };
               macroExpandCounter++;
               return evalMacros(line);
             }

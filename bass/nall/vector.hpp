@@ -8,6 +8,7 @@
 #include <utility>
 #include <nall/algorithm.hpp>
 #include <nall/bit.hpp>
+#include <nall/sort.hpp>
 #include <nall/utility.hpp>
 
 namespace nall {
@@ -55,16 +56,51 @@ namespace nall {
       new(pool + objectsize++) T(data);
     }
 
-    void prepend(const T& data) {
+    void insert(unsigned position, const T& data) {
       append(data);
-      for(unsigned n = objectsize - 1; n; n--) std::swap(pool[n], pool[n - 1]);
+      for(signed n = size() - 1; n > position; n--) pool[n] = pool[n - 1];
+      pool[position] = data;
     }
 
-    void remove(unsigned index, unsigned count = 1) {
-      for(unsigned n = index; count + n < objectsize; n++) {
-        pool[n] = pool[count + n];
-      }
+    void prepend(const T& data) {
+      insert(0, data);
+    }
+
+    void remove(unsigned index = ~0u, unsigned count = 1) {
+      if(index == ~0) index = objectsize ? objectsize - 1 : 0;
+      for(unsigned n = index; count + n < objectsize; n++) pool[n] = pool[count + n];
       objectsize = (count + index >= objectsize) ? index : objectsize - count;
+    }
+
+    T take(unsigned index = ~0u) {
+      if(index == ~0) index = objectsize ? objectsize - 1 : 0;
+      if(index >= objectsize) throw exception_out_of_bounds();
+      T item = pool[index];
+      remove(index);
+      return item;
+    }
+
+    void sort() {
+      nall::sort(pool, objectsize);
+    }
+
+    template<typename Comparator> void sort(const Comparator &lessthan) {
+      nall::sort(pool, objectsize, lessthan);
+    }
+
+    optional<unsigned> find(const T& data) {
+      for(unsigned n = 0; n < size(); n++) if(pool[n] == data) return { true, n };
+      return { false, 0u };
+    }
+
+    T& first() {
+      if(objectsize == 0) throw exception_out_of_bounds();
+      return pool[0];
+    }
+
+    T& last() {
+      if(objectsize == 0) throw exception_out_of_bounds();
+      return pool[objectsize - 1];
     }
 
     //access
@@ -75,6 +111,12 @@ namespace nall {
 
     inline const T& operator[](unsigned position) const {
       if(position >= objectsize) throw exception_out_of_bounds();
+      return pool[position];
+    }
+
+    inline T& operator()(unsigned position) {
+      if(position >= poolsize) reserve(position + 1);
+      while(position >= objectsize) append(T());
       return pool[position];
     }
 
@@ -138,6 +180,8 @@ namespace nall {
   //if objects hold memory address references to themselves (introspection), a
   //valid copy constructor will be needed to keep pointers valid.
 
+  #define NALL_DEPRECATED
+  #if defined(NALL_DEPRECATED)
   template<typename T> struct linear_vector {
   protected:
     T *pool;
@@ -409,6 +453,7 @@ namespace nall {
     const iterator begin() const { return iterator(*this, 0); }
     const iterator end() const { return iterator(*this, objectsize); }
   };
+  #endif
 }
 
 #endif

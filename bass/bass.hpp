@@ -1,5 +1,4 @@
 #include <nall/file.hpp>
-#include <nall/stack.hpp>
 #include <nall/stdint.hpp>
 #include <nall/string.hpp>
 #include <nall/vector.hpp>

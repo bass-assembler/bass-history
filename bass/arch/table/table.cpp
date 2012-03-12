@@ -20,7 +20,7 @@ bool BassTable::assembleBlock(const string &block) {
       else if(name == "snes.smp") data = Arch_snes_smp;
       else {
         name.trim<1>("\"");
-        name = { dir(fileName()), name };
+        name = { dir(fileName.last()), name };
         if(data.readfile(name) == false) error({ "arch: file \"", name, "\" not found" });
       }
       table.reset();

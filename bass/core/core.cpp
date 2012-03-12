@@ -19,15 +19,16 @@ bool Bass::assemble(const string &filename) {
     base = 0;
     for(unsigned n = 0; n < 256; n++) table[n] = n;
     macros.reset();
+    for(auto &macro : defaultMacros) macros.append(macro);
     activeNamespace = "global";
     activeLabel = "#invalid";
-    macroNestingCounter = 0;
+    macroDepth = 0;
     macroExpandCounter = 1;
     relativeLabelCounter = 1;
-    conditionalState = Conditional::Matching;
-    stackPC.reset();
-    stackConditional.reset();
-    stackConditional.push(conditionalState);
+    condition = Condition::Matching;
+    conditionStack.reset();
+    conditionStack.append(condition);
+    pcStack.reset();
     try {
       assembleFile(filename);
     } catch(const char*) {
@@ -52,11 +53,11 @@ void Bass::initialize(unsigned pass) {
 }
 
 void Bass::warning(const string &s) {
-  print("[bass warning] ", fileName(), ":", lineNumber(), ":", blockNumber(), ":\n> ", s, "\n");
+  print("[bass warning] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
 }
 
 void Bass::error(const string &s) {
-  print("[bass error] ", fileName(), ":", lineNumber(), ":", blockNumber(), ":\n> ", s, "\n");
+  print("[bass error] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
   throw "";
 }
 
@@ -65,9 +66,9 @@ unsigned Bass::pc() const {
 }
 
 void Bass::assembleFile(const string &filename) {
-  fileName.push(filename);
-  lineNumber.push(1);
-  blockNumber.push(1);
+  fileName.append(filename);
+  lineNumber.append(1);
+  blockNumber.append(1);
 
   string filedata;
   if(filedata.readfile(filename) == false) {
@@ -79,7 +80,7 @@ void Bass::assembleFile(const string &filename) {
 
   lstring lines = filedata.split("\n");
   for(auto &line : lines) {
-    blockNumber() = 1;
+    blockNumber.last() = 1;
     if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
     while(auto position = line.qposition("  ")) line.qreplace("  ", " ");
     line.qreplace(", ", ",");
@@ -91,19 +92,19 @@ void Bass::assembleFile(const string &filename) {
       line.ltrim<1>(string(block[0], ";"));
       block[0].trim(" ");
       if(assembleBlock(block[0]) == false) error({ "unknown command:", block[0] });
-      blockNumber()++;
+      blockNumber.last()++;
       if(block.size() == 1) break;
     }
 
-    lineNumber()++;
+    lineNumber.last()++;
   }
 
-  if(stackConditional.size() != 1) error("if without matching endif");
-  if(macroNestingCounter) error("macro without matching endmacro");
+  if(conditionStack.size() != 1) error("if without matching endif");
+  if(macroDepth) error("macro without matching endmacro");
 
-  fileName.pull();
-  lineNumber.pull();
-  blockNumber.pull();
+  fileName.remove();
+  lineNumber.remove();
+  blockNumber.remove();
 }
 
 bool Bass::assembleBlock(const string &block_) {
@@ -114,43 +115,45 @@ bool Bass::assembleBlock(const string &block_) {
   //= conditionals =
   //================
 
-  if(block.wildcard("if ?*")) {
-    block.ltrim<1>("if ");
-    stackConditional.push(conditionalState);
-    conditionalState = eval(block) ? Conditional::Matching : Conditional::NotYetMatched;
-    for(auto &item : stackConditional) {
-      if(item != Conditional::Matching) conditionalState = Conditional::AlreadyMatched;
-    }
-    return true;
-  }
-
-  if(block.wildcard("elseif ?*")) {
-    if(conditionalState != Conditional::NotYetMatched) {
-      conditionalState = Conditional::AlreadyMatched;
+  if(macroDepth == 0) {
+    if(block.wildcard("if ?*")) {
+      block.ltrim<1>("if ");
+      conditionStack.append(condition);
+      condition = eval(block) ? Condition::Matching : Condition::NotYetMatched;
+      for(auto &item : conditionStack) {
+        if(item != Condition::Matching) condition = Condition::AlreadyMatched;
+      }
       return true;
     }
-    block.ltrim<1>("elseif ");
-    conditionalState = eval(block) ? Conditional::Matching : Conditional::NotYetMatched;
-    return true;
-  }
 
-  if(block == "else") {
-    if(conditionalState != Conditional::NotYetMatched) {
-      conditionalState = Conditional::AlreadyMatched;
+    if(block.wildcard("elseif ?*")) {
+      if(condition != Condition::NotYetMatched) {
+        condition = Condition::AlreadyMatched;
+        return true;
+      }
+      block.ltrim<1>("elseif ");
+      condition = eval(block) ? Condition::Matching : Condition::NotYetMatched;
       return true;
     }
-    conditionalState = Conditional::Matching;
-    return true;
-  }
 
-  if(block == "endif") {
-    conditionalState = stackConditional.pull();
-    if(stackConditional.size() == 0) error("endif without matching if");
-    return true;
-  }
+    if(block == "else") {
+      if(condition != Condition::NotYetMatched) {
+        condition = Condition::AlreadyMatched;
+        return true;
+      }
+      condition = Condition::Matching;
+      return true;
+    }
 
-  if(conditionalState != Conditional::Matching) {
-    return true;
+    if(block == "endif") {
+      condition = conditionStack.take();
+      if(conditionStack.size() == 0) error("endif without matching if");
+      return true;
+    }
+
+    if(condition != Condition::Matching) {
+      return true;
+    }
   }
 
   //==========
@@ -158,8 +161,8 @@ bool Bass::assembleBlock(const string &block_) {
   //==========
 
   if(block == "endmacro") {
-    if(macroNestingCounter == 0) error("endmacro without matching macro");
-    if(--macroNestingCounter) {
+    if(macroDepth == 0) error("endmacro without matching macro");
+    if(--macroDepth) {
       activeMacro.value.append(block, "; ");
       return true;
     }
@@ -168,8 +171,10 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  if(macroNestingCounter) {
-    if(block.beginswith("macro ")) macroNestingCounter++;
+  if(macroDepth) {
+    if(block.beginswith("macro ")) {
+      macroDepth++;
+    }
     activeMacro.value.append(block, "; ");
     return true;
   }
@@ -181,7 +186,7 @@ bool Bass::assembleBlock(const string &block_) {
     activeMacro.name = header[0];
     activeMacro.args = args;
     activeMacro.value = "";
-    macroNestingCounter++;
+    macroDepth++;
     return true;
   }
 
@@ -215,7 +220,7 @@ bool Bass::assembleBlock(const string &block_) {
   if(block.wildcard("incsrc \"?*\"")) {
     block.ltrim<1>("incsrc ");
     block.trim<1>("\"");
-    assembleFile({ dir(fileName()), block });
+    assembleFile({ dir(fileName.last()), block });
     return true;
   }
 
@@ -227,7 +232,7 @@ bool Bass::assembleBlock(const string &block_) {
     lstring part = block.qsplit(",");
     part[0].trim<1>("\"");
     file fp;
-    if(fp.open({ dir(fileName()), part[0] }, file::mode::read) == false) {
+    if(fp.open({ dir(fileName.last()), part[0] }, file::mode::read) == false) {
       error({ "binary file ", part[0], " not found" });
     }
     unsigned offset = 0, length = fp.size() - offset;
@@ -263,7 +268,7 @@ bool Bass::assembleBlock(const string &block_) {
   //= pushpc =
   //==========
   if(block == "pushpc") {
-    stackPC.push(origin);
+    pcStack.append(origin);
     return true;
   }
 
@@ -271,8 +276,8 @@ bool Bass::assembleBlock(const string &block_) {
   //= pullpc =
   //==========
   if(block == "pullpc") {
-    if(stackPC.size() == 0) error("stack is empty");
-    origin = stackPC.pull();
+    if(pcStack.size() == 0) error("PC stack is empty");
+    origin = pcStack.take();
     seek(origin);
     return true;
   }
