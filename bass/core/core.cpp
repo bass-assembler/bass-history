@@ -99,8 +99,10 @@ void Bass::assembleFile(const string &filename) {
     lineNumber.last()++;
   }
 
-  if(conditionStack.size() != 1) error("if without matching endif");
-  if(macroDepth) error("macro without matching endmacro");
+  if(fileName.size() == 1) {
+    if(conditionStack.size() != 1) error("if without matching endif");
+    if(macroDepth) error("macro without matching endmacro");
+  }
 
   fileName.remove();
   lineNumber.remove();
@@ -150,10 +152,10 @@ bool Bass::assembleBlock(const string &block_) {
       if(conditionStack.size() == 0) error("endif without matching if");
       return true;
     }
+  }
 
-    if(condition != Condition::Matching) {
-      return true;
-    }
+  if(condition != Condition::Matching) {
+    return true;
   }
 
   //==========
@@ -194,7 +196,7 @@ bool Bass::assembleBlock(const string &block_) {
   //= defines =
   //===========
 
-  if(block.wildcard("define '?*' ?*")) {
+  if(block.wildcard("define '?' ?*")) {
     block.ltrim<1>("define ");
     table[block[1]] = eval((const char*)block + 3);
     return true;
@@ -205,6 +207,14 @@ bool Bass::assembleBlock(const string &block_) {
     lstring part = block.split<1>(" ");
     if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
     setMacro(part[0], lstring(), part[1]);
+    return true;
+  }
+
+  if(block.wildcard("eval ?* ?*")) {
+    block.ltrim<1>("eval ");
+    lstring part = block.split<1>(" ");
+    if(!part[0].position("::")) part[0] = { activeNamespace, "::", part[0] };
+    setMacro(part[0], lstring(), eval(part[1]));
     return true;
   }
 

@@ -124,7 +124,7 @@
 
     <p>Example:</p>
     <pre>macro add n; clc; adc {n}; endmacro
-    macro waitForVblank; -; bit $4212; bpl -; endmacro
+    macro waitForVblank; -; bit $4212; bpl {-}; endmacro
     macro fill length, index
     &nbsp;&nbsp;ldy #{length}
     &nbsp;&nbsp;loop{#}:
@@ -185,6 +185,17 @@
     db "A"  //writes 0x78
     dw "A"  //writes 0x5678
     dd "A"  //writes 0x12345678</pre>
+
+    <h3>Evaluations</h3>
+
+    <p>Evaluations are parsed defines, useful namely for meta programming.</p>
+
+    <p>Example:</p>
+    <pre>define counter 1
+    define counter {counter}+1
+    print "{counter}"  //prints 1+1
+    eval counter {counter}+1
+    print "{counter}"  //prints 3</pre>
 
     <h3>Conditional Assembly</h3>
 

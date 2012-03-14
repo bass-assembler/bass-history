@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   if(outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v06\n");
+    print("bass v06.01\n");
     print("author: byuu\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
     print("supported archs:\n");

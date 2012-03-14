@@ -1,5 +1,5 @@
 application := bass
-flags := -std=gnu++0x -I. -O3 -fomit-frame-pointer -DBASS_BINARY
+flags := -std=gnu++0x -I. -DBASS_BINARY -O3 -fomit-frame-pointer
 link := -s
 
 all: $(application).o
