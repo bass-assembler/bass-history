@@ -47,6 +47,9 @@ int64_t Bass::eval(const string &s) {
 }
 
 void Bass::evalMacros(string &line) {
+  //do not evaluate macros inside of macros
+  if(macroDepth) return;
+
   //only evaluate macros from the first block
   unsigned length = line.length();
   if(auto p = line.qposition(";")) length = p();

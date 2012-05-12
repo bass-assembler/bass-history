@@ -1,16 +1,12 @@
 arch snes.cpu
 
-define flag 1
-
 org $0000; fill $8000
 org $0000
 
-macro test
-  if {flag}
-    db $12,$34
-  else
-    db $56,$78
-  endif
+macro usart_read serial
+  lda {serial}
+  -; beq {-}
 endmacro
 
-{test}
+usart1_readb:
+  {usart_read $16}
