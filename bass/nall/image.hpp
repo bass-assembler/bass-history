@@ -24,6 +24,14 @@ struct image {
     uint64_t mask;
     unsigned depth;
     unsigned shift;
+
+    inline bool operator==(const Channel &source) {
+      return mask == source.mask && depth == source.depth && shift == source.shift;
+    }
+
+    inline bool operator!=(const Channel &source) {
+      return !operator==(source);
+    }
   } alpha, red, green, blue;
 
   typedef double (*interpolation)(double, double, double, double, double);
@@ -31,11 +39,16 @@ struct image {
   static inline unsigned bitShift(uint64_t color);
   static inline uint64_t normalize(uint64_t color, unsigned sourceDepth, unsigned targetDepth);
 
+  inline bool operator==(const image &source);
+  inline bool operator!=(const image &source);
+
   inline image& operator=(const image &source);
   inline image& operator=(image &&source);
   inline image(const image &source);
   inline image(image &&source);
   inline image(bool endian, unsigned depth, uint64_t alphaMask, uint64_t redMask, uint64_t greenMask, uint64_t blueMask);
+  inline image(const string &filename);
+  inline image(const uint8_t *data, unsigned size);
   inline image();
   inline ~image();
 
@@ -43,6 +56,7 @@ struct image {
   inline void write(uint8_t *data, uint64_t value) const;
 
   inline void free();
+  inline bool empty() const;
   inline void allocate(unsigned width, unsigned height);
   inline void clear(uint64_t color);
   inline bool load(const string &filename);
@@ -86,6 +100,26 @@ uint64_t image::normalize(uint64_t color, unsigned sourceDepth, unsigned targetD
 
 //public
 
+bool image::operator==(const image &source) {
+  if(width != source.width) return false;
+  if(height != source.height) return false;
+  if(pitch != source.pitch) return false;
+
+  if(endian != source.endian) return false;
+  if(stride != source.stride) return false;
+
+  if(alpha != source.alpha) return false;
+  if(red != source.red) return false;
+  if(green != source.green) return false;
+  if(blue != source.blue) return false;
+
+  return memcmp(data, source.data, width * height * stride) == 0;
+}
+
+bool image::operator!=(const image &source) {
+  return !operator==(source);
+}
+
 image& image::operator=(const image &source) {
   free();
 
@@ -107,6 +141,8 @@ image& image::operator=(const image &source) {
 }
 
 image& image::operator=(image &&source) {
+  free();
+
   width = source.width;
   height = source.height;
   pitch = source.pitch;
@@ -144,6 +180,38 @@ image::image(bool endian, unsigned depth, uint64_t alphaMask, uint64_t redMask, 
   red.depth = bitDepth(red.mask), red.shift = bitShift(red.mask);
   green.depth = bitDepth(green.mask), green.shift = bitShift(green.mask);
   blue.depth = bitDepth(blue.mask), blue.shift = bitShift(blue.mask);
+}
+
+image::image(const string &filename) : data(nullptr) {
+  width = 0, height = 0, pitch = 0;
+
+  this->endian = 0;
+  this->depth = 32;
+  this->stride = 4;
+
+  alpha.mask = 255u << 24, red.mask = 255u << 16, green.mask = 255u << 8, blue.mask = 255u << 0;
+  alpha.depth = bitDepth(alpha.mask), alpha.shift = bitShift(alpha.mask);
+  red.depth = bitDepth(red.mask), red.shift = bitShift(red.mask);
+  green.depth = bitDepth(green.mask), green.shift = bitShift(green.mask);
+  blue.depth = bitDepth(blue.mask), blue.shift = bitShift(blue.mask);
+
+  load(filename);
+}
+
+image::image(const uint8_t *data, unsigned size) : data(nullptr) {
+  width = 0, height = 0, pitch = 0;
+
+  this->endian = 0;
+  this->depth = 32;
+  this->stride = 4;
+
+  alpha.mask = 255u << 24, red.mask = 255u << 16, green.mask = 255u << 8, blue.mask = 255u << 0;
+  alpha.depth = bitDepth(alpha.mask), alpha.shift = bitShift(alpha.mask);
+  red.depth = bitDepth(red.mask), red.shift = bitShift(red.mask);
+  green.depth = bitDepth(green.mask), green.shift = bitShift(green.mask);
+  blue.depth = bitDepth(blue.mask), blue.shift = bitShift(blue.mask);
+
+  loadPNG(data, size);
 }
 
 image::image() : data(nullptr) {
@@ -185,6 +253,12 @@ void image::write(uint8_t *data, uint64_t value) const {
 void image::free() {
   if(data) delete[] data;
   data = nullptr;
+}
+
+bool image::empty() const {
+  if(data == nullptr) return true;
+  if(width == 0 || height == 0) return true;
+  return false;
 }
 
 void image::allocate(unsigned width, unsigned height) {

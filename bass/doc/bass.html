@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v07</h1>
+    <h1>bass v08</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -256,9 +256,16 @@
     <p>Anonymous labels allow you create labels with no names, that are
     referenced relative to where they were declared. Great for short loops.</p>
 
-    <p>Note that ~, - and + are all aliases to anonymous labels. They are
-    functionally identical. You may use them for semantic meaning if you like.
-    </p>
+    <p>Declare a block with - to create a label meant to be jumped back to, and
+    declare a block with + to create a label meant to be jumped forward to.
+    These act as if you declared a new label, only you can reuse - or + as many
+    times as you like.</p>
+
+    <p>To reference the label (eg to jump to it), use {-} or {+}. To reference
+    more than one label backward or forward, use {-n} or {+n}, where n is the
+    number of labels to seek by. A value of 0 for n is invalid.</p>
+
+    <p>Example:</p>
 
     <pre>org $8000
     above:  //all three branches go to above
@@ -272,7 +279,7 @@
     below:  //all three branches go to below
 
     //index value is optional: {-} == {-1}, {+} == {+1}
-    ~; sta $2180; dex; beq {+}; dey; bra {-}; ~; rts</pre>
+    -; sta $2180; dex; beq {+}; dey; bra {-}; +; rts</pre>
 
     <h3>Intrinsics</h3>
 

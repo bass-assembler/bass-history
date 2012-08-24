@@ -1,0 +1,251 @@
+<html>
+  <head>
+    <title>bass user manual - arch::table</title>
+    <link href="style.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1>arch::table</h1>
+    <br>
+
+    <h3>Overview</h3>
+    <p>arch::table is a table-based assembler module. It allows you to create
+    your own instruction set definitions, and it also comes bundled with some
+    popular choices. It is the preferred way to use bass, unless an architecture
+    is too complicated, in which case a custom module would be needed.</p>
+
+    <p>arch::table is also the default arch target, if one is not specified on
+    the command-line.</p>
+
+    <h3>Importing an arch</h3>
+    <p>In your source file, you can use <i>arch target</i> to free the current
+    arch, and load in a new one dynamically. This gives the table assembler one
+    very powerful advantage over custom modules: you can swap them out in the
+    middle of a file. Great for platforms with multiple processors.</p>
+
+    <p>You can specify the name of a built-in architecture, or you can use
+    quotes around the name to load your own arch from a file.</p>
+
+    <h4>Examples</h4>
+    <pre>
+    arch snes.cpu  //use SNES CPU arch (built-in)
+    arch snes.smp  //use SNES SMP arch (built-in)
+    arch "superfx.arch"  //load a custom arch from a file
+    </pre>
+
+    <h3>Modifying the arch table dynamically</h3>
+    <p>Perhaps the most interesting feature in all of bass: you can add
+    individual rules dynamically as the assembly process runs. This means you
+    can take advantage of bass intrinsics like defines and macros to rapidly
+    build instruction sets. I wouldn't recommend that, as it will have to be
+    parsed every time you assemble. It's not exactly slow or anything, but it's
+    wasted overhead compared to a pure .arch file. Still, in a pinch, it's a
+    neat way to add your own pseudo-instructions, or use an alternate syntax for
+    something that you're more comfortable with.</p>
+
+    <h4>Examples</h4>
+    <pre>
+    arch.reset  //erases all rules
+    arch.append "rule"  //adds a new rule to the bottom of the rule list
+    </pre>
+
+    <h3>.arch rule format</h3>
+    <p>Standalone .arch files can be used to declare complete instruction sets.
+    </p>
+
+    <p>Each line represents one parsing rule. Each rule has two parts: the left
+    side defines the pattern to match, and the right side defines how to encode
+    that into the binary output. The rules are separated by a semicolon.</p>
+
+    <p>For each encountered statement, the rules list is parsed from first to
+    last. The first matched rule is what is ultimately used. As such, you will
+    want the most complex rules first.</p>
+
+    <p>The left-hand side supports wildcards that include the desired bit-counts
+    of each argument (indexed from a-z on the right-hand side.)</p>
+
+    <p>The right-hand side has symbols that dictate how to transform the value
+    provided (be it absolute, an exact match, a fixed value, relative, etc.)
+    </p>
+
+    <p>The encoding rules are specified in bit-lengths, rather than
+    byte-lengths. The output stream from arch::table writes one bit at a time.
+    </p>
+
+    <p>Lines can be empty, or you can have comment lines which start with //.
+    And technically, any line without a semicolon will be skipped the parser,
+    but you should only rely on this for the C++11 raw string literal header
+    and footer. Example:</p>
+
+    <pre>
+    arch(snes_cpu) = R"(
+
+    ... (rules here)
+
+    )";
+    </pre>
+
+    <p>The first and last line are special: they allow us to #include the .arch
+    file directly into compiled binaries of bass for use as internal archs. The
+    archs that come with bass have these. If you are loading your own files, you
+    obviously do not need these lines.</p>
+
+    <h3>Bit-length matching</h3>
+    <p>On some architectures, different encodings are used for otherwise similar
+    instructions to handle larger bit lengths. For example, on the SNES CPU,
+    there is lda $00 and lda $0000. The former is a two-byte opcode, and the
+    latter a three-byte opcode. The way to tell them apart is to know how many
+    bits are in the expression. But what if you encountered lda label? bass
+    needs a way to specify the number of bits required.</p>
+
+    <p>The first way to do this is platform-specific extensions. For instance,
+    lda.b label for a byte index; and lda.w label for a word index.</p>
+
+    <p>The second way is to detect the length from the argument. $00 is
+    obviously 8-bit, and $0000 is obviously 16-bit. For hexadecimal, we can
+    detect the length as "number of characters * 4", as there are four bits per
+    character here. For binary, the length is equal to "number of characters",
+    since only two possible encodings are allowed per character here.</p>
+
+    <p>But when we get into expressions, this doesn't work. For instance,
+    lda label or lda $00+2. So the third and final way is a built-in set of
+    intrinsic length specifiers that appear at the left of arguments.</p>
+
+    <p>Finally, if all of these fails, bass notes the size of the argument as
+    zero, which basically means unknown.</p>
+
+    <p>The left-hand side can specify the desired bits in the argument matching
+    by way of *08 for 8-bit, *16 for 16-bit, etc. You specify each argument you
+    want as *, followed by two decimal numbers to indicate the desired length.
+    On the right-hand side, each argument is referenced from a-z as the *
+    characters appear on the left-hand side.</p>
+
+    <h4>Size prefixes</h4>
+    <pre>
+    <  8-bit
+    >  16-bit
+    ^  24-bit
+    ?  32-bit
+    :  64-bit
+    </pre>
+
+    <h4>Example</h4>
+    <pre>
+    lda <label    //lda 8-bit
+    lda >label+2  //lda 16-bit
+    lda #>0       //lda #16-bit
+    </pre>
+
+    <h3>Rule matching</h3>
+    <p>On the right-hand side of the table rules, we can specify how to match
+    values. There are multiple rule types for flexibility.</p>
+
+    <h4>Rule prefixes</h4>
+    <pre>
+    $  static value (hex)
+    %  static value (binary)
+    !  absolute (exact)
+    =  absolute (strong)
+    ~  absolute (weak)
+    +  relative (branch forward)
+    -  relative (branch backward)
+    *  repeat
+    </pre>
+
+    <h4>static value (hex)</h4>
+    <p>This can be used to write fixed data. This would typically be how you
+    encode an instruction mnemonic prefix. For instance, $a9 will write said
+    byte to the file.</p>
+
+    <h4>static value (binary)</h4>
+    <p>The same thing here, except the value is specified in binary instead.</p>
+
+    <h4>absolute (exact)</h4>
+    <p>This rule will only be matched if the size is an exact match. If the size
+    could not be detected automatically, this rule will never be matched.</p>
+
+    <h4>absolute (strong)</h4>
+    <p>This rule will match if the detected size is an exact match, <i>or</i> if
+    no size was detected. It is considered strong because it will reject
+    detected sizes that do not match.</p>
+
+    <h4>absolute (weak)</h4>
+    <p>This rule will match anything. Useful as a final rule in a set.</p>
+
+    <h4>relative</h4>
+    <p>This rule will allow you to encode the written value as the distance
+    between the current program counter (base address) and destination of the
+    expression. In other words, it encodes relative distances for things like
+    short branches. It takes a number as well to specify the displacement. For
+    instance, on the SNES CPU, bra -2 jumps back to itself, because the CPU does
+    not compute the target until after the instruction has been fetched. Since
+    the instruction is two bytes long, we write +2a for this rule. That says to
+    add 2 to the base address of where the opcode started (and the a specifies
+    to use the first argument.)</p>
+
+    <h4>repeat</h4>
+    <p>This rule allows you to repeatedly write a static value however many
+    times the argument asks for. For instance, asl #*08 will read in an 8-bit
+    value. Followed with the rule *a:$0a, it will write $0a however many times
+    is specified in the argument.</p>
+
+    <h3>Putting it all together with real examples</h3>
+    <p>Table assemblers are nuanced beasts. Examples are usually the best way to
+    learn. You will also learn a lot from experimenting with your own rules.</p>
+
+    <h4>Example rules</h4>
+    <pre>
+    lda #*16       ;$a9 =a
+    lda #*08       ;$a9 =a
+    lda *08,s      ;$a3 =a
+    lda (*08,s),y  ;$b3 =a
+    lda (*08,x)    ;$a1 =a
+    lda (*08),y    ;$b1 =a
+    lda [*08],y    ;$b7 =a
+    lda (*08)      ;$b2 =a
+    lda [*08]      ;$a7 =a
+    lda *16,y      ;$b9 =a
+    lda *24,x      ;$bf =a
+    lda *16,x      ;$bd =a
+    lda *08,x      ;$b5 =a
+    lda *24        ;$af =a
+    lda *16        ;$ad =a
+    lda *08        ;$a5 =a
+    </pre>
+
+    <p>So here we've encoded all types of lda instructions on the SNES CPU. The
+    first rule matches "lda #*", where * is specified as 16-bit. The rule writes
+    $a9 for the opcode mnemonic, and a strong match on the value. It is
+    immediately followed by an 8-bit version. The effect of this is that if the
+    size is not detected, for instance lda #0, it will default to 16-bit mode.
+    So 8-bit mode effectively must have its bit-length detected in order to be
+    encoded into the file.</p>
+
+    <pre>
+    asl #*08       ;*a:$0a
+    dec #*08       ;*a:$3a
+    dex #*08       ;*a:$ca
+    dey #*08       ;*a:$88
+    inc #*08       ;*a:$1a
+    inx #*08       ;*a:$e8
+    iny #*08       ;*a:$c8
+    lsr #*08       ;*a:$4a
+    nop #*08       ;*a:$ea
+    rol #*08       ;*a:$2a
+    ror #*08       ;*a:$6a
+    </pre>
+
+    <p>When a processor lacks simple things like "shift by 4 places", you have
+    to type out "shift; shift; shift; shift", which is annoyingly verbose. These
+    repetition rules help us. asl #4 will write the opcode mnemonic $0a four
+    times for us.</p>
+
+    <pre>
+    mvp *08=*08    ;$44 =a =b
+    mvn *08=*08    ;$54 =a =b
+    </pre>
+
+    <p>Here we have a two-argument example. mvn $01,$02 will be written as
+    $44,$01,$02 to the output file. You could reverse the order in the rule to
+    write b first, if you needed to for your particular instruction.</p>
+  </body>
+</html>

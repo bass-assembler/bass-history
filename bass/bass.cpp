@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   if(outputFilename == "" || inputFilename.size() < 1) {
-    print("bass v07\n");
+    print("bass v08\n");
     print("author: byuu\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -78,20 +78,21 @@ int main(int argc, char **argv) {
     print("  -overwrite\n");
     print("  -benchmark\n");
     print("\n");
-    return 0;
+    return EXIT_FAILURE;
   }
 
   clock_t startTime = clock();
 
+  bool success = true;
   arch->open(outputFilename);
-  for(auto &filename : inputFilename) arch->assemble(filename);
+  for(auto &filename : inputFilename) success &= arch->assemble(filename);
   arch->close();
   delete arch;
 
   clock_t endTime = clock();
   if(benchmark) print("Assembled in ", (endTime - startTime) / (double)CLOCKS_PER_SEC, " seconds.\n");
 
-  return 0;
+  return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 #endif

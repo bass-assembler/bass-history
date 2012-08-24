@@ -21,7 +21,7 @@ bool BassTable::assembleBlock(const string &block) {
       else {
         name.trim<1>("\"");
         name = { dir(fileName.last()), name };
-        if(data.readfile(name) == false) error({ "arch: file \"", name, "\" not found" });
+        if(data.readfile(name) == false) error({"arch: file \"", name, "\" not found"});
       }
       table.reset();
       parseTable(data);
@@ -49,13 +49,16 @@ bool BassTable::assembleBlock(const string &block) {
 
     bool mismatch = false;
     for(auto &format : opcode.format) {
-      if(format.type != Format::Type::Absolute) continue;
-      if(format.match == Format::Match::Weak) continue;
-      unsigned bits = bitLength(args[format.argument]);
-      if(bits != opcode.number[format.argument].bits) {
-        if(bits == 0 && format.match == Format::Match::Strong) continue;
-        mismatch = true;
-        break;
+      if(format.type == Format::Type::Absolute) {
+        if(format.match != Format::Match::Weak) {
+          unsigned bits = bitLength(args[format.argument]);
+          if(bits != opcode.number[format.argument].bits) {
+            if(format.match == Format::Match::Exact || bits != 0) {
+              mismatch = true;
+              break;
+            }
+          }
+        }
       }
     }
     if(mismatch) continue;
@@ -113,7 +116,7 @@ unsigned BassTable::bitLength(string &text) const {
   if(text[0] == '>') { text[0] = ' '; return 16; }
   if(text[0] == '^') { text[0] = ' '; return 24; }
   if(text[0] == '?') { text[0] = ' '; return 32; }
-  if(text[0] == '!') { text[0] = ' '; return 64; }
+  if(text[0] == ':') { text[0] = ' '; return 64; }
   if(text[0] == '%') return binLength((const char*)text + 1);
   if(text[0] == '$') return hexLength((const char*)text + 1);
   if(text[0] == '0' && text[1] == 'b') return binLength((const char*)text + 2);
@@ -136,6 +139,7 @@ void BassTable::writeBits(uint64_t data, unsigned length) {
 bool BassTable::parseTable(const string &text) {
   lstring lines = text.split("\n");
   for(auto &line : lines) {
+    if(auto position = line.position("//")) line[position()] = 0;  //remove comments
     lstring part = line.split<1>(";");
     if(part.size() != 2) continue;
 
@@ -163,13 +167,13 @@ void BassTable::assembleTableLHS(Opcode &opcode, const string &text) {
 
   while(text[offset]) {
     unsigned size = length();
-    opcode.prefix.append({ substr(text, offset, size), size });
+    opcode.prefix.append({substr(text, offset, size), size});
     offset += size;
 
     if(text[offset] != '*') continue;
     unsigned bits = 10 * (text[offset + 1] - '0');
     bits += text[offset + 2] - '0';
-    opcode.number.append({ bits });
+    opcode.number.append({bits});
     offset += 3;
   }
 
@@ -186,53 +190,53 @@ void BassTable::assembleTableRHS(Opcode &opcode, const string &text) {
   lstring list = text.split(" ");
   for(auto &item : list) {
     if(item[0] == '$' && item.length() == 3) {
-      Format format = { Format::Type::Static };
+      Format format = {Format::Type::Static};
       format.data = hex((const char*)item + 1);
       format.bits = (item.length() - 1) * 4;
       opcode.format.append(format);
     }
 
     if(item[0] == '%') {
-      Format format = { Format::Type::Static };
+      Format format = {Format::Type::Static};
       format.data = binary((const char*)item + 1);
       format.bits = (item.length() - 1);
       opcode.format.append(format);
     }
 
     if(item[0] == '!') {
-      Format format = { Format::Type::Absolute, Format::Match::Exact };
+      Format format = {Format::Type::Absolute, Format::Match::Exact};
       format.argument = item[1] - 'a';
       opcode.format.append(format);
     }
 
     if(item[0] == '=') {
-      Format format = { Format::Type::Absolute, Format::Match::Strong };
+      Format format = {Format::Type::Absolute, Format::Match::Strong};
       format.argument = item[1] - 'a';
       opcode.format.append(format);
     }
 
     if(item[0] == '~') {
-      Format format = { Format::Type::Absolute, Format::Match::Weak };
+      Format format = {Format::Type::Absolute, Format::Match::Weak};
       format.argument = item[1] - 'a';
       opcode.format.append(format);
     }
 
     if(item[0] == '+') {
-      Format format = { Format::Type::Relative };
+      Format format = {Format::Type::Relative};
       format.argument = item[2] - 'a';
       format.displacement = +(item[1] - '0');
       opcode.format.append(format);
     }
 
     if(item[0] == '-') {
-      Format format = { Format::Type::Relative };
+      Format format = {Format::Type::Relative};
       format.argument = item[2] - 'a';
       format.displacement = -(item[1] - '0');
       opcode.format.append(format);
     }
 
     if(item[0] == '*') {
-      Format format = { Format::Type::Repeat };
+      Format format = {Format::Type::Repeat};
       format.argument = item[1] - 'a';
       format.data = hex((const char*)item + 3);
       opcode.format.append(format);

@@ -1,10 +1,12 @@
-#ifndef NALL_GAMEBOY_CARTRIDGE_HPP
-#define NALL_GAMEBOY_CARTRIDGE_HPP
+#ifndef NALL_EMULATION_GAME_BOY_HPP
+#define NALL_EMULATION_GAME_BOY_HPP
+
+#include <nall/sha256.hpp>
+#include <nall/string.hpp>
 
 namespace nall {
 
-class GameBoyCartridge {
-public:
+struct GameBoyCartridge {
   string markup;
   inline GameBoyCartridge(uint8_t *data, unsigned size);
 
@@ -18,6 +20,9 @@ public:
 
     unsigned romsize;
     unsigned ramsize;
+
+    bool cgb;
+    bool cgbonly;
   } info;
 };
 
@@ -47,6 +52,9 @@ GameBoyCartridge::GameBoyCartridge(uint8_t *romdata, unsigned romsize) {
     memmove(romdata + 0x8000, romdata, romsize - 0x8000);
     memcpy(romdata, header, 0x8000);
   }
+
+  info.cgb     = (romdata[0x0143] & 0x80) == 0x80;
+  info.cgbonly = (romdata[0x0143] & 0xc0) == 0xc0;
 
   switch(romdata[0x0147]) {
     case 0x00: info.mapper = "none";  break;
@@ -100,26 +108,13 @@ GameBoyCartridge::GameBoyCartridge(uint8_t *romdata, unsigned romsize) {
 
   if(info.mapper == "MBC2") info.ramsize = 512;  //512 x 4-bit
 
-  markup.append(
-    "<?xml version='1.0' encoding='UTF-8'?>\n",
-    "<cartridge mapper='", info.mapper, "' rtc='", info.rtc, "' rumble='", info.rumble, "'>\n",
-    "  <rom size='0x", hex(romsize), "'/>\n");
-  if(info.ramsize > 0) markup.append(
-    "  <ram size='0x", hex(info.ramsize), "' battery='", info.battery, "'/>\n");
-  markup.append(
-    "</cartridge>\n");
-
-/*
-  markup.append("cartridge mapper=", info.mapper);
-  if(info.rtc) markup.append(" rtc");
-  if(info.rumble) markup.append(" rumble");
-  markup.append("\n");
-
-  markup.append("\t" "rom size=", hex(romsize), "\n");  //TODO: trust/check info.romsize?
-
-  if(info.ramsize > 0)
-  markup.append("\t" "ram size=", hex(info.ramsize), info.battery ? " non-volatile\n" : "\n");
-*/
+  markup = "<?xml version='1.0' encoding='UTF-8'?>\n";
+  markup.append("<cartridge>\n");
+  markup.append("  <board type='", info.mapper, "'/>\n");
+  markup.append("  <rom name='program.rom' size='0x", hex(romsize), "'/>\n");
+  if(info.ramsize > 0) markup.append("  <ram name='save.ram' size='0x", hex(info.ramsize), "'/>\n");
+  markup.append("</cartridge>\n");
+  markup.transform("'", "\"");
 }
 
 }

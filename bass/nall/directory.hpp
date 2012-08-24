@@ -1,6 +1,7 @@
 #ifndef NALL_DIRECTORY_HPP
 #define NALL_DIRECTORY_HPP
 
+#include <nall/file.hpp>
 #include <nall/intrinsics.hpp>
 #include <nall/sort.hpp>
 #include <nall/string.hpp>
@@ -17,6 +18,8 @@
 namespace nall {
 
 struct directory {
+  static bool create(const string &pathname, unsigned permissions = 0755);  //recursive
+  static bool remove(const string &pathname);  //recursive
   static bool exists(const string &pathname);
   static lstring folders(const string &pathname, const string &pattern = "*");
   static lstring files(const string &pathname, const string &pattern = "*");
@@ -24,8 +27,30 @@ struct directory {
 };
 
 #if defined(PLATFORM_WINDOWS)
+  inline bool directory::create(const string &pathname, unsigned permissions) {
+    string path;
+    lstring list = string{pathname}.transform("\\", "/").rtrim<1>("/").split("/");
+    bool result = true;
+    for(auto &part : list) {
+      path.append(part, "/");
+      result &= (_wmkdir(utf16_t(path)) == 0);
+    }
+    return result;
+  }
+
+  inline bool directory::remove(const string &pathname) {
+    lstring list = directory::contents(pathname);
+    for(auto &name : list) {
+      if(name.endswith("/")) directory::remove({pathname, name});
+      else file::remove({pathname, name});
+    }
+    return _wrmdir(utf16_t(pathname)) == 0;
+  }
+
   inline bool directory::exists(const string &pathname) {
-    DWORD result = GetFileAttributes(utf16_t(pathname));
+    string name = pathname;
+    name.trim<1>("\"");
+    DWORD result = GetFileAttributes(utf16_t(name));
     if(result == INVALID_FILE_ATTRIBUTES) return false;
     return (result & FILE_ATTRIBUTE_DIRECTORY);
   }
@@ -94,6 +119,26 @@ struct directory {
     return folders;
   }
 #else
+  inline bool directory::create(const string &pathname, unsigned permissions) {
+    string path;
+    lstring list = string{pathname}.rtrim<1>("/").split("/");
+    bool result = true;
+    for(auto &part : list) {
+      path.append(part, "/");
+      result &= (mkdir(path, permissions) == 0);
+    }
+    return result;
+  }
+
+  inline bool directory::remove(const string &pathname) {
+    lstring list = directory::contents(pathname);
+    for(auto &name : list) {
+      if(name.endswith("/")) directory::remove({pathname, name});
+      else file::remove({pathname, name});
+    }
+    return rmdir(pathname) == 0;
+  }
+
   inline bool directory::exists(const string &pathname) {
     DIR *dp = opendir(pathname);
     if(!dp) return false;

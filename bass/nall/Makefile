@@ -19,6 +19,9 @@ ifeq ($(platform),)
   ifeq ($(uname),)
     platform := win
     delete = del $(subst /,\,$1)
+  else ifneq ($(findstring Windows,$(uname)),)
+    platform := win
+    delete = del $(subst /,\,$1)
   else ifneq ($(findstring CYGWIN,$(uname)),)
     platform := win
     delete = del $(subst /,\,$1)
@@ -35,9 +38,9 @@ ifeq ($(compiler),)
   ifeq ($(platform),win)
     compiler := gcc
   else ifeq ($(platform),osx)
-    compiler := gcc-mp-4.6
+    compiler := gcc-mp-4.7
   else
-    compiler := gcc-4.6
+    compiler := gcc-4.7
   endif
 endif
 

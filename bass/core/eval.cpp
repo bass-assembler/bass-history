@@ -41,13 +41,13 @@ int64_t Bass::eval(const string &s) {
     const char *t = s;
     return fixedpoint::eval(t);
   } catch(const char *e) {
-    error({ e, ": ", s });
+    error({e, ": ", s});
     return 0;
   }
 }
 
 void Bass::evalMacros(string &line) {
-  //do not evaluate macros inside of macros
+  //do not evaluate macros inside of functions or macros
   if(macroDepth) return;
 
   //only evaluate macros from the first block
@@ -60,39 +60,49 @@ void Bass::evalMacros(string &line) {
       for(unsigned y = x + 1; y < length; y++) {
         if(line[y] == '{') counter++;
         if(line[y] == '}') counter--;
+
         if(line[y] == '}' && counter == 0) {
           string name = substr(line, x + 1, y - x - 1);
 
           //<intrinsics>
           if(name == "$") {  //pc
-            line = string(substr(line, 0, x), "0x", hex(pc()), substr(line, y + 1));
+            line = {substr(line, 0, x), "0x", hex(pc()), substr(line, y + 1)};
             return evalMacros(line);
           }
+
           if(name == "@") {  //origin
-            line = string(substr(line, 0, x), "0x", hex(origin), substr(line, y + 1));
+            line = {substr(line, 0, x), "0x", hex(origin), substr(line, y + 1)};
             return evalMacros(line);
           }
-          if(name.wildcard("+*") || name.wildcard("-*")) {  //relative anonymous labels
-            signed offset = (name == "-" ? -1 : name == "+" ? +1 : integer(name));
-            if(offset == 0) error("invalid anonymous label index");
-            if(offset > 0) offset--;  //side-effect of positive labels not having been encountered yet
-            line = string(substr(line, 0, x), "anonymous::relative", relativeLabelCounter + offset, substr(line, y + 1));
+
+          if(name.wildcard("-*")) {  //anonymous last label
+            signed offset = (name == "-" ? -1 : integer(name));
+            if(offset >= 0) error("invalid anonymous label index");
+            line = {substr(line, 0, x), "anonymous::relativeLast", lastLabelCounter + offset - 0, substr(line, y + 1)};
+            return evalMacros(line);
+          }
+
+          if(name.wildcard("+*")) {  //anonymous next label
+            signed offset = (name == "+" ? +1 : integer(name));
+            if(offset <= 0) error("invalid anonymous label index");
+            line = {substr(line, 0, x), "anonymous::relativeNext", nextLabelCounter + offset - 1, substr(line, y + 1)};
             return evalMacros(line);
           }
           //</intrinsics>
 
-          if(!name.position("::")) name = { activeNamespace, "::", name };
-
-          lstring header = name.split<1>(" "), args;
-          if(header(1, "") != "") args = header[1].split(",");
+          lstring part = name.split<1>(" "), args;
+          name = part(0);
+          if(!name.position("::")) name = {activeNamespace, "::", name};
+          if(!part(1).empty()) args = part(1).qsplit(",");
+          for(auto &arg : args) arg.trim();
 
           for(auto &macro : macros) {
-            if(header[0] == macro.name && args.size() == macro.args.size()) {
+            if(name == macro.name && args.size() == macro.args.size()) {
               string result;
               evalParams(result, macro, args);
               string ldata = substr(line, 0, x);
               string rdata = substr(line, y + 1);
-              line = { ldata, result, rdata };
+              line = {ldata, result, rdata};
               macroExpandCounter++;
               return evalMacros(line);
             }

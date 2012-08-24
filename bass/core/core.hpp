@@ -52,7 +52,8 @@ protected:
   string activeLabel;
   unsigned macroDepth;
   unsigned macroExpandCounter;
-  unsigned relativeLabelCounter;
+  unsigned lastLabelCounter;
+  unsigned nextLabelCounter;
   Condition condition;
   vector<Condition> conditionStack;
   vector<unsigned> pcStack;
