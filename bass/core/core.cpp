@@ -198,11 +198,11 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  if(block.wildcard("define ?* ?*")) {
+  if(block.wildcard("define ?*")) {
     block.ltrim<1>("define ");
     lstring part = block.split<1>(" ");
     if(!part[0].position("::")) part[0] = {activeNamespace, "::", part[0]};
-    setMacro(part[0], lstring(), part[1]);
+    setMacro(part[0], lstring(), part(1));
     return true;
   }
 

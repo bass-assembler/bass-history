@@ -88,6 +88,20 @@ void Bass::evalMacros(string &line) {
             line = {substr(line, 0, x), "anonymous::relativeNext", nextLabelCounter + offset - 1, substr(line, y + 1)};
             return evalMacros(line);
           }
+
+          if(name.wildcard("defined ?*")) {  //definition test
+            name.ltrim<1>("defined ");
+            if(!name.position("::")) name = {activeNamespace, "::", name};
+            unsigned found = 0;
+            for(auto &macro : macros) {
+              if(macro.name == name) {
+                found = 1;
+                break;
+              }
+            }
+            line = {substr(line, 0, x), found, substr(line, y + 1)};
+            return evalMacros(line);
+          }
           //</intrinsics>
 
           lstring part = name.split<1>(" "), args;

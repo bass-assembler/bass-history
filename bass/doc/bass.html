@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v08</h1>
+    <h1>bass v08.01</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -168,6 +168,16 @@
     define offset $7e4000
     lda {offset}+8  //lda $7e4008</pre>
 
+    <p>A value is not required for a define. If one is not provided, its value
+    will be set to being blank. This is primarily useful with the if {defined}
+    syntax described below for conditional assembly.</p>
+
+    <p>Example:</p>
+    <pre>
+    define x
+    lda #${x}00  //evaluates to lda #$00
+    </pre>
+
     <p>Defines also allow redefinition of the ASCII table for strings. This
     functionality can be used to create translation tables.</p>
 
@@ -321,6 +331,20 @@
     &nbsp;&nbsp;{waitForVblank}
     &nbsp;&nbsp;...
     &nbsp;&nbsp;{waitForVblank}</pre>
+
+    <h4>{defined ...}</h4>
+
+    <p>Tests whether a define or macro exists that matches the specified name.
+    Evaluates to 1 if it exists, or 0 if it does not.</p>
+
+    <p>Example:</p>
+    <pre>
+    define x
+    if {defined x}; db $01; endif  //evaluates to "if 1"
+    if {defined x} || {defined y}; db $02; endif  //evaluates to "if 1 || 0"
+    if {defined y}; db $03; endif  //evaluates to "if 0"
+    //net effect: $01, $02 is written to file; $03 is not
+    </pre>
 
     <h3>Directives</h3>
 
