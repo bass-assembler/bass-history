@@ -29,7 +29,8 @@ bool Bass::assemble(const string &filename) {
     condition = Condition::Matching;
     conditionStack.reset();
     conditionStack.append(condition);
-    pcStack.reset();
+    originStack.reset();
+    baseStack.reset();
     try {
       assembleFile(filename);
     } catch(const char*) {
@@ -251,9 +252,19 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  //=======
-  //= org =
-  //=======
+  //==========
+  //= origin =
+  //==========
+  if(block.wildcard("origin ?*")) {
+    block.ltrim<1>("origin ");
+    origin = eval(block);
+    seek(origin);
+    return true;
+   }
+
+  //================
+  //= origin alias =
+  //================
   if(block.wildcard("org ?*")) {
     block.ltrim<1>("org ");
     origin = eval(block);
@@ -270,21 +281,42 @@ bool Bass::assembleBlock(const string &block_) {
     return true;
   }
 
-  //==========
-  //= pushpc =
-  //==========
-  if(block == "pushpc") {
-    pcStack.append(origin);
+  //========
+  //= push =
+  //========
+  if(block.wildcard("push ?*")) {
+    block.ltrim<1>("push ");
+    lstring list = block.split(",");
+    for(auto &item : list) {
+      if(item == "origin") {
+        originStack.append(origin);
+      } else if(item == "base") {
+        baseStack.append(base);
+      } else {
+        error({"unrecognized push argument: ", item});
+      }
+    }
     return true;
   }
 
-  //==========
-  //= pullpc =
-  //==========
-  if(block == "pullpc") {
-    if(pcStack.size() == 0) error("PC stack is empty");
-    origin = pcStack.take();
-    seek(origin);
+  //========
+  //= pull =
+  //========
+  if(block.wildcard("pull ?*")) {
+    block.ltrim<1>("pull ");
+    lstring list = block.split(",");
+    for(auto &item : list) {
+      if(item == "origin") {
+        if(originStack.size() == 0) error("origin stack is empty");
+        origin = originStack.take();
+        seek(origin);
+      } else if(item == "base") {
+        if(baseStack.size() == 0) error("base stack is empty");
+        base = baseStack.take();
+      } else {
+        error({"unrecognized pull argument: ", item});
+      }
+    }
     return true;
   }
 

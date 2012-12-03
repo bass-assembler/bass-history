@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   char argv2[] = "-o";
   char argv3[] = "test/test.bin";
   char argv4[] = "test/test.asm";
-  char *argvN[] = { argv1, argv2, argv3, argv4, nullptr };
+  char *argvN[] = {argv1, argv2, argv3, argv4, nullptr};
   argc = 4;
   argv = (char**)argvN;
   #endif
@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   if(outputFilename.empty() || inputFilename.size() < 1) {
-    print("bass v08.01\n");
+    print("bass v09\n");
     print("author: byuu\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
     print("supported archs:\n");

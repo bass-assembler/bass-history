@@ -56,7 +56,8 @@ protected:
   unsigned nextLabelCounter;
   Condition condition;
   vector<Condition> conditionStack;
-  vector<unsigned> pcStack;
+  vector<unsigned> originStack;
+  vector<signed> baseStack;
   vector<string> fileName;
   vector<unsigned> lineNumber;
   vector<unsigned> blockNumber;

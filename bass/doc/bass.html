@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v08.01</h1>
+    <h1>bass v09</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -378,7 +378,7 @@
     <p>Example:</p>
     <pre>incbin "binary/font.bin", 0x2000, 0x1000  //copy 0x1000 bytes from offset 0x2000</pre>
 
-    <h4>org offset</h4>
+    <h4>origin offset <small>(alias: org offset)</small></h4>
 
     <p>Specify the output file's origin. That is to say, the location in the
     file that data will be written to.</p>
@@ -392,14 +392,24 @@
     specified base for future reference. Set the base to the same value as the
     origin to turn this functionality off again.</p>
 
-    <h4>pushpc; pullpc</h4>
+    <h4>push ...; pull ...</h4>
 
     <p>Saves and restores values onto an internal stack. This is useful for when
     you need to seek to another location in the target file, and then restore
     the previous position once finished.</p>
 
-    <p>It is technically the origin that is being saved. The base is unaffected.
-    </p>
+    <p>You can push either the origin, the base, or both.</p>
+
+    <p>Example:</p>
+    <pre>push origin, base
+    {seek $808000}
+    ...
+    pull base, origin</pre>
+
+    <p>Note: currently, both base and origin use separate stacks, so the
+    ordering in the pull command is not strict. And thus, you cannot swap the
+    origin and base this way. However, for best practices and future changes,
+    please treat this as a FIFO stack and order as shown in the example.</p>
 
     <h4>align size</h4>
 
