@@ -15,7 +15,7 @@ protected:
   void error(const string &s);
   unsigned pc() const;
   void assembleFile(const string &filename);
-  virtual bool assembleBlock(const string &block);
+  virtual bool assembleBlock(string &block);
   void setMacro(const string &name, const lstring &args, const string &value);
   void setLabel(const string &name, unsigned offset);
   virtual void seek(unsigned offset);
@@ -36,6 +36,7 @@ protected:
 
   //eval.cpp
   int64_t eval(const string &s);
+  void evalBlock(string &block);
   void evalMacros(string &line);
   void evalParams(string &line, Macro &macro, lstring &args);
 
@@ -56,11 +57,13 @@ protected:
   unsigned nextLabelCounter;
   Condition condition;
   vector<Condition> conditionStack;
-  vector<unsigned> originStack;
-  vector<signed> baseStack;
+  vector<string> stack;
+
+  //these vectors preserve state across file incsrc recursion
   vector<string> fileName;
   vector<unsigned> lineNumber;
   vector<unsigned> blockNumber;
+  vector<lstring> activeLine;
 
 public:
   vector<Macro> defaultMacros;

@@ -1,5 +1,5 @@
 struct BassSnesSmp : public Bass {
-  bool assembleBlock(const string &block);
+  bool assembleBlock(string &block);
   BassSnesSmp();
 
 protected:

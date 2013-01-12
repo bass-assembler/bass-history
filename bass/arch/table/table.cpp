@@ -9,7 +9,7 @@ void BassTable::initialize(unsigned pass) {
   table.reset();
 }
 
-bool BassTable::assembleBlock(const string &block) {
+bool BassTable::assembleBlock(string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   if(block.beginswith("arch")) {

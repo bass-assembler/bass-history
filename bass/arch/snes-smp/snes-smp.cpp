@@ -5,7 +5,7 @@ int64_t BassSnesSmp::eval(const string &s) {
   return Bass::eval(s);
 }
 
-bool BassSnesSmp::assembleBlock(const string &block_) {
+bool BassSnesSmp::assembleBlock(string &block_) {
   if(Bass::assembleBlock(block_) == true) return true;
   block = block_;
   priority = false;

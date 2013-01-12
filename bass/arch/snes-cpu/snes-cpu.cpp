@@ -13,7 +13,7 @@ void BassSnesCpu::seek(unsigned offset) {
   Bass::seek(offset);
 }
 
-bool BassSnesCpu::assembleBlock(const string &block) {
+bool BassSnesCpu::assembleBlock(string &block) {
   if(Bass::assembleBlock(block) == true) return true;
   lstring part = block.split<1>(" ");
   string name = part[0], param = part(1, "");

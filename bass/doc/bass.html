@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v09</h1>
+    <h1>bass v09.02</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -151,6 +151,28 @@
 
     <p>You can also redeclare macros again and again, pass macros as arguments
     to other macros, and even delcare new macros inside of other macros.</p>
+
+    <h4>Argument Evaluations</h4>
+
+    <p>When passing a macro as an argument to another macro, the passed macro
+    argument will be inserted into the expanded macro. This results in the macro
+    argument being evaluated later. However, it can be necessary to evalulate
+    the macro argument immediately, which can be accomplished with
+    <i>{eval name}</i>. This is tricky to explain, so here is an example:</p>
+
+    <pre>
+    macro test argument; print "{argument}"; endmacro
+    eval counter 16
+    {test {counter}}  //expands to print "{counter}"
+    {test {eval counter}}  //expands to print "16"
+    </pre>
+
+    <p>Although the former version will still print "16", the evaluation will
+    happen after the macro has been expanded. If you were to write a recursive
+    macro, this could be problematic.</p>
+
+    <p>Please note that at this time, <i>{eval name}</i> only works on macros
+    which take no arguments.</p>
 
     <h3>Defines</h3>
 
@@ -346,6 +368,11 @@
     //net effect: $01, $02 is written to file; $03 is not
     </pre>
 
+    <h4>{eval ...}</h4>
+
+    <p>Evaluates macro arguments prior to macro expansion. See the section on
+    "Argument Evaluations" under "Macros" above for more information.</p>
+
     <h3>Directives</h3>
 
     <p>Directives are assembler-intrinsic commands that work on all
@@ -394,11 +421,17 @@
 
     <h4>push ...; pull ...</h4>
 
-    <p>Saves and restores values onto an internal stack. This is useful for when
-    you need to seek to another location in the target file, and then restore
-    the previous position once finished.</p>
+    <p>Saves and restores values onto an internal stack.</p>
 
-    <p>You can push either the origin, the base, or both.</p>
+    <p>Supported arguments:<br>
+    <b>pc</b> - origin + base (combined)<br>
+    <b>origin</b> - current file location<br>
+    <b>base</b> - current file displacement<br>
+    <b>namespace</b> - active namespace<br>
+    <b>label</b> - active label<br>
+    <b>"string"</b> - arbitrary value (push only)<br>
+    <b>null</b> - discard value (pull only)<br>
+    </p>
 
     <p>Example:</p>
     <pre>push origin, base
@@ -406,10 +439,8 @@
     ...
     pull base, origin</pre>
 
-    <p>Note: currently, both base and origin use separate stacks, so the
-    ordering in the pull command is not strict. And thus, you cannot swap the
-    origin and base this way. However, for best practices and future changes,
-    please treat this as a FIFO stack and order as shown in the example.</p>
+    <p>Note: the stack is FIFO (first in, first out.) Be sure to pull items off
+    the stack in the correct order to prevent compilation errors.</p>
 
     <h4>align size</h4>
 

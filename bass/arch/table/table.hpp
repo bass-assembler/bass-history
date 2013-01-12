@@ -1,6 +1,6 @@
 struct BassTable : public Bass {
   void initialize(unsigned pass);
-  bool assembleBlock(const string &block);
+  bool assembleBlock(string &block);
 
 protected:
   struct Prefix {

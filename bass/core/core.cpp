@@ -29,8 +29,10 @@ bool Bass::assemble(const string &filename) {
     condition = Condition::Matching;
     conditionStack.reset();
     conditionStack.append(condition);
-    originStack.reset();
-    baseStack.reset();
+    stack.reset();
+    lineNumber.reset();
+    blockNumber.reset();
+    activeLine.reset();
     try {
       assembleFile(filename);
     } catch(const char*) {
@@ -55,11 +57,11 @@ void Bass::initialize(unsigned pass) {
 }
 
 void Bass::warning(const string &s) {
-  print("[bass warning] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
+  print("[bass warning] ", fileName.last(), ":", 1 + lineNumber.last(), ":", 1 + blockNumber.last(), ":\n> ", s, "\n");
 }
 
 void Bass::error(const string &s) {
-  print("[bass error] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
+  print("[bass error] ", fileName.last(), ":", 1 + lineNumber.last(), ":", 1 + blockNumber.last(), ":\n> ", s, "\n");
   throw "";
 }
 
@@ -69,33 +71,26 @@ unsigned Bass::pc() const {
 
 void Bass::assembleFile(const string &filename) {
   fileName.append(filename);
-  lineNumber.append(1);
-  blockNumber.append(1);
+  lineNumber.append(0);
+  blockNumber.append(0);
+  activeLine.append("");
 
   string filedata;
-  if(filedata.readfile(filename) == false) {
-    error({"source file ", filename, " not found"});
-  }
-
-  if(options.caseInsensitive) filedata.qlower();
-  filedata.transform("\r\t", "  ");
+  if(filedata.readfile(filename) == false) error({"source file ", filename, " not found"});
+  filedata.transform("\r\t", "  ");  //treat ignored whitespace characters as spaces
 
   lstring lines = filedata.split("\n");
   for(auto &line : lines) {
-    blockNumber.last() = 1;
     if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
-    while(auto position = line.qposition("  ")) line.qreplace("  ", " ");
-    line.qreplace(", ", ",");
-    line.trim(" ");
+    if(options.caseInsensitive) line.qlower();
 
-    while(true) {
-      evalMacros(line);
-      lstring block = line.qsplit<1>(";");
-      line.ltrim<1>(string(block[0], ";"));
-      block[0].trim(" ");
-      if(assembleBlock(block[0]) == false) error({"unknown command:", block[0]});
+    blockNumber.last() = 0;
+    activeLine.last() = line.qsplit(";");
+
+    while(blockNumber.last() < activeLine.last().size()) {
+      string block = activeLine.last()(blockNumber.last());
+      if(assembleBlock(block) == false) error({"unknown command:", block});
       blockNumber.last()++;
-      if(block.size() == 1) break;
     }
 
     lineNumber.last()++;
@@ -109,16 +104,21 @@ void Bass::assembleFile(const string &filename) {
   fileName.remove();
   lineNumber.remove();
   blockNumber.remove();
+  activeLine.remove();
 }
 
-bool Bass::assembleBlock(const string &block_) {
-  if(block_ == "") return true;
-  string block = block_;
+bool Bass::assembleBlock(string &block) {
+  evalBlock(block);
+  if(block.empty()) return true;
 
   //================
   //= conditionals =
   //================
   if(macroDepth == 0) {
+    if((condition == Condition::Matching)
+    || (conditionStack.size() == 0 && block.wildcard("elseif ?*"))
+    ) evalMacros(block);  //do not evaluate macros inside unmatched conditional blocks
+
     if(block.wildcard("if ?*")) {
       block.ltrim<1>("if ");
       conditionStack.append(condition);
@@ -289,9 +289,19 @@ bool Bass::assembleBlock(const string &block_) {
     lstring list = block.split(",");
     for(auto &item : list) {
       if(item == "origin") {
-        originStack.append(origin);
+        stack.append(origin);
       } else if(item == "base") {
-        baseStack.append(base);
+        stack.append(base);
+      } else if(item == "pc") {
+        stack.append(origin);
+        stack.append(base);
+      } else if(item == "namespace") {
+        stack.append(activeNamespace);
+      } else if(item == "label") {
+        stack.append(activeLabel);
+      } else if(item.wildcard("\"*\"")) {
+        item.trim<1>("\"");
+        stack.append(item);
       } else {
         error({"unrecognized push argument: ", item});
       }
@@ -306,13 +316,22 @@ bool Bass::assembleBlock(const string &block_) {
     block.ltrim<1>("pull ");
     lstring list = block.split(",");
     for(auto &item : list) {
+      if(stack.size() == 0) error("stack is empty");
       if(item == "origin") {
-        if(originStack.size() == 0) error("origin stack is empty");
-        origin = originStack.take();
+        origin = decimal(stack.take());
         seek(origin);
       } else if(item == "base") {
-        if(baseStack.size() == 0) error("base stack is empty");
-        base = baseStack.take();
+        base = integer(stack.take());
+      } else if(item == "pc") {
+        base = integer(stack.take());
+        origin = decimal(stack.take());
+        seek(origin);
+      } else if(item == "namespace") {
+        activeNamespace = stack.take();
+      } else if(item == "label") {
+        activeLabel = stack.take();
+      } else if(item == "null") {
+        stack.take();
       } else {
         error({"unrecognized pull argument: ", item});
       }

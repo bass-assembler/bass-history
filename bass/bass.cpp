@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   }
 
   if(outputFilename.empty() || inputFilename.size() < 1) {
-    print("bass v09\n");
+    print("bass v09.02\n");
     print("author: byuu\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
@@ -81,16 +81,19 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  clock_t startTime = clock();
+  if(arch->open(outputFilename) == false) {
+    print("error: unable to open output file ", outputFilename, "\n");
+    return EXIT_FAILURE;
+  }
 
   bool success = true;
-  arch->open(outputFilename);
+  clock_t startTime = clock();
   for(auto &filename : inputFilename) success &= arch->assemble(filename);
-  arch->close();
-  delete arch;
-
   clock_t endTime = clock();
   if(benchmark) print("Assembled in ", (endTime - startTime) / (double)CLOCKS_PER_SEC, " seconds.\n");
+
+  arch->close();
+  delete arch;
 
   return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

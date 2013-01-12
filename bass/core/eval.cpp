@@ -31,7 +31,7 @@ int64_t Bass::eval(const string &s) {
       if(!name.position("::")) name = string(activeNamespace, "::", name);
       for(auto &label : labels) if(name == label.name) return label.offset;
       if(pass == 1) return pc();  //labels may not be defined yet on first pass
-      error({ "undefined label: ", name });
+      error({"undefined label: ", name});
     }
 
     throw "unrecognized token";
@@ -40,23 +40,34 @@ int64_t Bass::eval(const string &s) {
   try {
     const char *t = s;
     return fixedpoint::eval(t);
-  } catch(const char *e) {
-    error({e, ": ", s});
+  } catch(const char *errorMessage) {
+    error({errorMessage, ": ", s});
     return 0;
   }
 }
 
-void Bass::evalMacros(string &line) {
-  //do not evaluate macros inside of functions or macros
-  if(macroDepth) return;
+void Bass::evalBlock(string &block) {
+  //if block contains more than one statement, push subsequent statements into activeLine
+  //this allows expansion of macros into more than one statement
+  lstring blocks = block.qsplit<1>(";");
+  if(blocks.size() > 1) {
+    block = blocks[0];
+    activeLine.last().insert(blockNumber.last() + 1, blocks[1]);
+  }
 
-  //only evaluate macros from the first block
+  //remove/collapse excess space
+  while(block.qposition("  ")) block.qreplace("  ", " ");
+  block.qreplace(", ", ",");
+  block.strip();
+}
+
+void Bass::evalMacros(string &line) {
+  evalBlock(line);  //evalMacros() is recursive; split any additional statements from previous evaluation(s)
   unsigned length = line.length();
-  if(auto p = line.qposition(";")) length = p();
 
   for(unsigned x = 0; x < length; x++) {
     if(line[x] == '{') {
-      signed counter = 1;
+      signed counter = 1;  //count instances of { and } to find matching tags
       for(unsigned y = x + 1; y < length; y++) {
         if(line[y] == '{') counter++;
         if(line[y] == '}') counter--;
@@ -133,6 +144,20 @@ void Bass::evalParams(string &line, Bass::Macro &macro, lstring &args) {
   line.replace("{#}", string("_", decimal(macroExpandCounter)));
   unsigned counter = 0;
   for(auto &arg : macro.args) {
-    line.replace(string("{", arg, "}"), args[counter++]);
+    string substitution = args(counter++);
+
+    if(substitution.wildcard("{eval ?*}")) {
+      //evaluate macro argument prior to substitution, rather than after
+      string name = string{substitution}.trim<1>("{eval ", "}");
+      if(!name.position("::")) name = {activeNamespace, "::", name};
+      for(auto &macro : macros) {
+        if(name == macro.name && macro.args.size() == 0) {
+          substitution = macro.value;
+          break;
+        }
+      }
+    }
+
+    line.replace(string("{", arg, "}"), substitution);
   }
 }

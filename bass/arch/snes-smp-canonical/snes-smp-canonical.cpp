@@ -1,4 +1,4 @@
-bool BassSnesSmpCanonical::assembleBlock(const string &block) {
+bool BassSnesSmpCanonical::assembleBlock(string &block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   lstring part = block.split<1>(" "), list;
