@@ -57,11 +57,11 @@ void Bass::initialize(unsigned pass) {
 }
 
 void Bass::warning(const string &s) {
-  print("[bass warning] ", fileName.last(), ":", 1 + lineNumber.last(), ":", 1 + blockNumber.last(), ":\n> ", s, "\n");
+  print("[bass warning] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
 }
 
 void Bass::error(const string &s) {
-  print("[bass error] ", fileName.last(), ":", 1 + lineNumber.last(), ":", 1 + blockNumber.last(), ":\n> ", s, "\n");
+  print("[bass error] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
   throw "";
 }
 
@@ -71,8 +71,8 @@ unsigned Bass::pc() const {
 
 void Bass::assembleFile(const string &filename) {
   fileName.append(filename);
-  lineNumber.append(0);
-  blockNumber.append(0);
+  lineNumber.append(1);
+  blockNumber.append(1);
   activeLine.append("");
 
   string filedata;
@@ -84,11 +84,15 @@ void Bass::assembleFile(const string &filename) {
     if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
     if(options.caseInsensitive) line.qlower();
 
-    blockNumber.last() = 0;
-    activeLine.last() = line.qsplit(";");
+    blockNumber.last() = 1;
+    activeLine.last() = line;
 
-    while(blockNumber.last() < activeLine.last().size()) {
-      string block = activeLine.last()(blockNumber.last());
+    while(activeLine.last().empty() == false) {
+      //grab the next block, and remove it, from the active line
+      lstring blocks = activeLine.last().qsplit<1>(";");
+      string block = blocks(0);
+      activeLine.last() = blocks(1);
+
       if(assembleBlock(block) == false) error({"unknown command:", block});
       blockNumber.last()++;
     }

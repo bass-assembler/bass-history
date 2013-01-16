@@ -47,12 +47,12 @@ int64_t Bass::eval(const string &s) {
 }
 
 void Bass::evalBlock(string &block) {
-  //if block contains more than one statement, push subsequent statements into activeLine
+  //if block contains more than one statement, prepend subsequent statements onto active line
   //this allows expansion of macros into more than one statement
   lstring blocks = block.qsplit<1>(";");
   if(blocks.size() > 1) {
-    block = blocks[0];
-    activeLine.last().insert(blockNumber.last() + 1, blocks[1]);
+    block = blocks(0);
+    activeLine.last() = {blocks(1), ";", activeLine.last()};
   }
 
   //remove/collapse excess space

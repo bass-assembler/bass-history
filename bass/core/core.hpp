@@ -63,7 +63,7 @@ protected:
   vector<string> fileName;
   vector<unsigned> lineNumber;
   vector<unsigned> blockNumber;
-  vector<lstring> activeLine;
+  vector<string> activeLine;
 
 public:
   vector<Macro> defaultMacros;

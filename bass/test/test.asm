@@ -16,5 +16,4 @@ macro test level
 endmacro
 
 main:
-   {test 99}
-
+   {test 10}
