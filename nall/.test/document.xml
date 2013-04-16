@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<board type="1A0N-30">
+  <rom name="program.rom" size="0x200000" mode="linear"/>
+  <map address="00-3f:8000-ffff" id="rom"/>
+  <map address="80-bf:8000-ffff" id="rom"/>
+  <map address="40-7f:0000-ffff" id="rom"/>
+  <map address="c0-ff:0000-ffff" id="rom"/>
+</board>

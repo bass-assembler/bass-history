@@ -24,6 +24,7 @@ bool Bass::assemble(const string &filename) {
     activeLabel = "#invalid";
     macroDepth = 0;
     macroExpandCounter = 1;
+    macroRecursionCounter = 1;
     lastLabelCounter = 1;
     nextLabelCounter = 1;
     condition = Condition::Matching;
@@ -69,17 +70,85 @@ unsigned Bass::pc() const {
   return origin + base;
 }
 
+string Bass::qualifyMacro(string name) {
+  if(!name.position("::")) {
+    name = {activeNamespace, "::", name};
+  }
+  if(name.wildcard("self::?*")) {
+    name.ltrim<1>("self::");
+    return {"#", macroRecursionCounter, "::", name};
+  }
+  return name;
+}
+
+string Bass::qualifyLabel(string name) {
+  if(name.beginswith(".")) {
+    if(activeLabel == "#invalid") error("sub-label without matching label");
+    name = {activeLabel, name};
+  }
+  if(!name.position("::")) {
+    name = {activeNamespace, "::", name};
+  }
+  if(name.wildcard("self::?*")) {
+    name.ltrim<1>("self::");
+    return {"#", macroExpandCounter, "::", name};
+  }
+  return name;
+}
+
 void Bass::assembleFile(const string &filename) {
   fileName.append(filename);
   lineNumber.append(1);
   blockNumber.append(1);
   activeLine.append("");
 
-  string filedata;
-  if(filedata.readfile(filename) == false) error({"source file ", filename, " not found"});
-  filedata.transform("\r\t", "  ");  //treat ignored whitespace characters as spaces
+  if(!file::exists(filename)) error({"source file ", filename, " not found"});
+  string source = file::read(filename);
+  source.transform("\r\t", "  ");  //treat ignored whitespace characters as spaces
+  assembleSource(source);
 
-  lstring lines = filedata.split("\n");
+  fileName.remove();
+  lineNumber.remove();
+  blockNumber.remove();
+  activeLine.remove();
+}
+
+void Bass::assembleMacro(const string &name, const lstring &args) {
+  for(auto &match : macros) {
+    if(name == match.name && args.size() == match.args.size()) {
+      Macro macro = match;  //copy macro; as setMacro() invalidates our iterator
+
+      fileName.append({"{macro ", macro.name, "}"});
+      lineNumber.append(1);
+      blockNumber.append(1);
+      activeLine.append("");
+
+      for(unsigned n = 0; n < args.size(); n++) {
+        string name = {"#", macroRecursionCounter + 1, "::", macro.args[n]};
+        string value = args[n];
+        evalDefines(value);
+        setMacro(name, lstring(), value);
+      }
+
+      macroExpandCounter++;
+      macroRecursionCounter++;
+      assembleSource(macro.value);
+      macroRecursionCounter--;
+
+      fileName.remove();
+      lineNumber.remove();
+      blockNumber.remove();
+      activeLine.remove();
+
+      return;
+    }
+  }
+
+  error({"macro not found: ", name});
+}
+
+void Bass::assembleSource(const string &source) {
+  lstring lines = source.split("\n");
   for(auto &line : lines) {
     if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
     if(options.caseInsensitive) line.qlower();
@@ -87,13 +156,10 @@ void Bass::assembleFile(const string &filename) {
     blockNumber.last() = 1;
     activeLine.last() = line;
 
-    while(activeLine.last().empty() == false) {
-      //grab the next block, and remove it, from the active line
-      lstring blocks = activeLine.last().qsplit<1>(";");
-      string block = blocks(0);
-      activeLine.last() = blocks(1);
-
-      if(assembleBlock(block) == false) error({"unknown command:", block});
+    lstring blocks = activeLine.last().qsplit(";");
+    for(auto &block : blocks) {
+      if(block.strip().empty()) continue;
+      if(assembleBlock(block) == false) error({"unknown command: ", block});
       blockNumber.last()++;
     }
 
@@ -104,24 +170,18 @@ void Bass::assembleFile(const string &filename) {
     if(conditionStack.size() != 1) error("if without matching endif");
     if(macroDepth) error("macro without matching endmacro");
   }
-
-  fileName.remove();
-  lineNumber.remove();
-  blockNumber.remove();
-  activeLine.remove();
 }
 
 bool Bass::assembleBlock(string &block) {
-  evalBlock(block);
-  if(block.empty()) return true;
-
   //================
   //= conditionals =
   //================
   if(macroDepth == 0) {
     if((condition == Condition::Matching)
     || (conditionStack.size() == 0 && block.wildcard("elseif ?*"))
-    ) evalMacros(block);  //do not evaluate macros inside unmatched conditional blocks
+    ) {  //do not evaluate macros inside unmatched conditional blocks (prevent infinite recursion)
+      if(evalMacros(block)) return true;
+    }
 
     if(block.wildcard("if ?*")) {
       block.ltrim<1>("if ");
@@ -206,16 +266,16 @@ bool Bass::assembleBlock(string &block) {
   if(block.wildcard("define ?*")) {
     block.ltrim<1>("define ");
     lstring part = block.split<1>(" ");
-    if(!part[0].position("::")) part[0] = {activeNamespace, "::", part[0]};
-    setMacro(part[0], lstring(), part(1));
+    string name = qualifyMacro(part(0));
+    setMacro(name, lstring(), part(1));
     return true;
   }
 
   if(block.wildcard("eval ?* ?*")) {
     block.ltrim<1>("eval ");
     lstring part = block.split<1>(" ");
-    if(!part[0].position("::")) part[0] = {activeNamespace, "::", part[0]};
-    setMacro(part[0], lstring(), eval(part[1]));
+    string name = qualifyMacro(part(0));
+    setMacro(name, lstring(), eval(part[1]));
     return true;
   }
 
@@ -235,24 +295,38 @@ bool Bass::assembleBlock(string &block) {
     return true;
   }
 
+  //============
+  //= incbinas =
+  //============
+  string incbinName;
+  if(block.wildcard("incbinas ?*")) {
+    block.ltrim<1>("incbinas ");
+    lstring part = block.qsplit(",").strip();
+    incbinName = part.take(0);
+
+    //fallthrough to incbin
+    block = {"incbin ", part.concatenate(",")};
+  }
+
   //==========
   //= incbin =
   //==========
   if(block.wildcard("incbin \"?*\"*")) {
     block.ltrim<1>("incbin ");
-    lstring part = block.qsplit(",");
+    lstring part = block.qsplit(",").strip();
     part[0].trim<1>("\"");
-    file fp;
-    if(fp.open({dir(fileName.last()), part[0]}, file::mode::read) == false) {
-      error({"binary file ", part[0], " not found"});
-    }
+    file fp({dir(fileName.last()), part[0]}, file::mode::read);
+    if(!fp.open()) error({"binary file ", part[0], " not found"});
     unsigned offset = 0, length = fp.size() - offset;
     if(part.size() >= 2) offset = eval(part[1]);
     if(part.size() >= 3) length = eval(part[2]);
     if(length > fp.size()) error({"binary file ", part[0], " include length exceeds file size"});
+    if(incbinName) {  //incbinas name present; declare helper labels
+      setLabel(incbinName, pc());
+      setLabel({incbinName, ".size"}, length);
+    }
     fp.seek(offset);
     for(unsigned n = 0; n < length; n++) write(fp.read());
-    fp.close();
     return true;
   }
 
@@ -265,16 +339,6 @@ bool Bass::assembleBlock(string &block) {
     seek(origin);
     return true;
    }
-
-  //================
-  //= origin alias =
-  //================
-  if(block.wildcard("org ?*")) {
-    block.ltrim<1>("org ");
-    origin = eval(block);
-    seek(origin);
-    return true;
-  }
 
   //========
   //= base =
@@ -348,9 +412,11 @@ bool Bass::assembleBlock(string &block) {
   //=========
   if(block.wildcard("align ?*")) {
     block.ltrim<1>("align ");
-    unsigned align = eval(block);
+    lstring list = block.split(",");
+    unsigned align = eval(list[0]);
+    unsigned byte = eval(list(1, "0x00"));
     if(align == 0) return false;
-    while(pc() % align) write(0x00);
+    while(pc() % align) write(byte);
     return true;
   }
 
@@ -403,12 +469,7 @@ bool Bass::assembleBlock(string &block) {
   //=========
   if(block.endswith(":") && !block.position(" ")) {
     string name = block.rtrim<1>(":");
-    if(name.beginswith(".")) {
-      if(activeLabel == "#invalid") error("sub-label without matching label");
-      name = {activeLabel, name};
-    } else {
-      activeLabel = name;
-    }
+    if(!name.beginswith(".")) activeLabel = name;
     setLabel(name, pc());
     return true;
   }
@@ -433,8 +494,34 @@ bool Bass::assembleBlock(string &block) {
   //=============
   if(block.wildcard("namespace ?*")) {
     block.ltrim<1>("namespace ");
+    stack.append(activeLabel);
+    stack.append(activeNamespace);
     activeNamespace = block;
     activeLabel = "#invalid";
+    return true;
+  }
+
+  //================
+  //= endnamespace =
+  //================
+  if(block == "endnamespace") {
+    if(stack.size() < 2) error("stack is empty; possiblity: endnamespace without matching namespace");
+    activeNamespace = stack.take();
+    activeLabel = stack.take();
+    return true;
+  }
+
+  //========
+  //= echo =
+  //========
+  if(block.wildcard("echo \"*\"")) {
+    if(pass == 2) {
+      block.ltrim<1>("echo ");
+      block.trim<1>("\"");
+      block.replace("\\", "\n");
+      block.replace("\\\\", "\\");
+      print(block);
+    }
     return true;
   }
 
@@ -479,7 +566,7 @@ bool Bass::assembleBlock(string &block) {
 
 void Bass::setMacro(const string &name_, const lstring &args, const string &value) {
   string name = name_;
-  if(!name.position("::")) name = {activeNamespace, "::", name};
+  name = qualifyMacro(name);
 
   for(auto &macro : macros) {
     if(name == macro.name) {
@@ -493,7 +580,7 @@ void Bass::setMacro(const string &name_, const lstring &args, const string &valu
 
 void Bass::setLabel(const string &name_, unsigned offset) {
   string name = name_;
-  if(!name.position("::")) name = {activeNamespace, "::", name};
+  name = qualifyLabel(name);
 
   //labels cannot be redeclared
   for(auto &label : labels) {

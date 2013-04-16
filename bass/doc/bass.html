@@ -4,16 +4,22 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v10</h1>
+    <h1>bass v11</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
     <h3>Command-line Usage</h3>
-    <pre>bass -arch=name [-Dname(=value) ...] [options] -o output input [input ...]</pre>
+    <pre>
+    bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]
+    </pre>
 
     <h4>Architecture</h4>
-    <p>You must specify an architecture first. At this time, the following
-    values are supported:</p>
+    <p>bass supports multiple architectures. This allows custom parsers for any
+    instruction set. The default if one is not specified is the table parser,
+    which allows defining instructions sets in plain-text, and also has a few
+    built-in languages of its own.</p>
+
+    <p>The following architectures are currently implemented in bass:</p>
 
     <pre>
     table
@@ -25,10 +31,13 @@
     placed in the global namespace before assembly begins.</p>
 
     <p>You may specify zero or more defines here. Also, you may omit the
-    <i>=value</i> part of each define, in which case the value is set to 1 (eg
-    true.)</p>
+    <i>=value</i> part of each define, in which case the value is left blank.
+    You can use <i>{defined name}</i> syntax to test if a define was declared in
+    this way.</p>
 
-    <p>Use quotes around the define if spaces are needed in the value field.</p>
+    <p>The default namespace for defines is <i>global</i>, but you can specify
+    a different namespace. Use quotes around the define if spaces are needed in
+    the value field.</p>
 
     <h4>Options</h4>
     <p>You may specify any desired options. At this time, the following values
@@ -63,10 +72,12 @@
     over the source file a second time to write the actual data to the file.</p>
 
     <p>Take the following example:</p>
-    <pre>org 0x8000
+    <pre>
+    origin 0x8000
     prologue:
     dd prologue, epilogue
-    epilogue:</pre>
+    epilogue:
+    </pre>
 
     <p>On the first pass, the assembler will know the value of prologue, it is
     0x8000. However, it will not know about the value of epilogue, which is
@@ -85,20 +96,24 @@
     explicitly.</p>
 
     <p>Other assemblers can avoid this and perform this optimization by being
-    N-pass assemblers. That is, they continuously re-evaluate the source over
-    and over to keep trying to optimize and reposition code. Furthermore, this
-    is traditionally done during the linking stage, which bass does not have.
+    N-pass assemblers, generating object files to be linked by a separate stage.
     This comes at enormous cost to complexity and time, which is unacceptable to
     the goal of bass as being a patching assembler.</p>
+
+    <p>It is of course possible to write very large programs in bass. But
+    whether or not this is wise is up to you.</p>
 
     <h3>The Basics</h3>
 
     <p>Single-line comments are declared using //</p>
 
+    <p>Multi-line comments can reside inside if 0; ...; endif</p>
+
     <p>Multiple directives and opcodes can be specified on the same line by
     using the semicolon block-separator. Example:</p>
-
-    <pre>clc; adc #$20; rts  //add #$20 and return</pre>
+    <pre>
+    clc; adc #$20; rts  //add #$20 and return
+    </pre>
 
     <p>Signed decimal values can be expressed directly. Hexadecimal values must
     be prefixed with either 0x or $. Binary values must be prefixed with either
@@ -107,9 +122,10 @@
     <p>The math parser supports full C/C++ operator precedence, ternary
     expressions, conditional statements, and grouping. Math parsing can be used
     just about anywhere. Example:</p>
-
-    <pre>org (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
-    jmp (table+0x20,x)</pre>
+    <pre>
+    origin (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
+    jmp (table+0x20,x)
+    </pre>
 
     <p>Internally, architectures will search for a valid opcode. In this case,
     <i>jmp (*,x)</i>. Once found, it will remove "jmp (" from the left-hand
@@ -123,56 +139,40 @@
     <p>Macros use the syntax: macro x [arg, arg ...]; ...; endmacro</p>
 
     <p>Example:</p>
-    <pre>macro add n; clc; adc {n}; endmacro
+    <pre>
+    macro add value; clc; adc {self::value}; endmacro
     macro waitForVblank; -; bit $4212; bpl {-}; endmacro
     macro fill length, index
-    &nbsp;&nbsp;ldy #{length}
-    &nbsp;&nbsp;loop{#}:
-    &nbsp;&nbsp;sta $7e2000+{index},x
-    &nbsp;&nbsp;dey
-    &nbsp;&nbsp;bne loop{#}
+    &nbsp;&nbsp;ldy #{self::length}
+    &nbsp;&nbsp;self::loop:
+    &nbsp;&nbsp;&nbsp;&nbsp;sta $7e2000+{self::index},x
+    &nbsp;&nbsp;&nbsp;&nbsp;dey
+    &nbsp;&nbsp;&nbsp;&nbsp;bne self::loop
     &nbsp;&nbsp;rts
     endmacro
 
     {add #$20}  //expands to: clc; adc #$20
     {waitForVblank}
     {fill $0020, $0000}
-    {fill $0020, $0020}</pre>
+    {fill $0020, $0020}
+    </pre>
 
     <p>As you can see, macros can take zero or more arguments. Each argument is
-    named for clarity. Immediately upon unrolling a macro, all argument
-    references are replaced with the values passed to the macro. Macro arguments
-    will shadow global macros and defines.</p>
-
-    <p>There is also a special argument, {#}, which is used to indicate the
-    number of times macros have been decoded. It is used to create labels that
-    will not conflict if the macro is invoked more than once in the same
-    namespace.</p>
+    named for clarity. The <i>self</i> namespace is used to avoid shadowing
+    global macros and defines. See the <i>Namespaces</i> section for more
+    details.</p>
 
     <p>You can also redeclare macros again and again, pass macros as arguments
     to other macros, and even delcare new macros inside of other macros.</p>
 
-    <h4>Argument Evaluations</h4>
+    <h4>Evaluation</h4>
 
-    <p>When passing a macro as an argument to another macro, the passed macro
-    argument will be inserted into the expanded macro. This results in the macro
-    argument being evaluated later. However, it can be necessary to evalulate
-    the macro argument immediately, which can be accomplished with
-    <i>{eval name}</i>. This is tricky to explain, so here is an example:</p>
-
-    <pre>
-    macro test argument; print "{argument}"; endmacro
-    eval counter 16
-    {test {counter}}  //expands to print "{counter}"
-    {test {eval counter}}  //expands to print "16"
-    </pre>
-
-    <p>Although the former version will still print "16", the evaluation will
-    happen after the macro has been expanded. If you were to write a recursive
-    macro, this could be problematic.</p>
-
-    <p>Please note that at this time, <i>{eval name}</i> only works on macros
-    which take no arguments.</p>
+    <p>Macros are evalulated when a block consists of only a macro declaration.
+    For instance, <i>{add value}</i> as per above. The parser will set all of
+    the macro arguments in the <i>self</i> namespace, and then execute each
+    block inside of the macro, one at a time. This form is recursive, so a macro
+    can call itself, but you will need a conditional to prevent an infinite
+    loop.</p>
 
     <h3>Defines</h3>
 
@@ -184,11 +184,13 @@
     static variables.</p>
 
     <p>Example:</p>
-    <pre>define base $2000
-    define offset $7e0000 + base
+    <pre>
+    define base $2000
+    define offset $7e0000 + {base}
     lda {offset}+8  //lda $7e2008
     define offset $7e4000
-    lda {offset}+8  //lda $7e4008</pre>
+    lda {offset}+8  //lda $7e4008
+    </pre>
 
     <p>A value is not required for a define. If one is not provided, its value
     will be set to being blank. This is primarily useful with the if {defined}
@@ -197,37 +199,65 @@
     <p>Example:</p>
     <pre>
     define x
+    define y 80
     lda #${x}00  //evaluates to lda #$00
+    lda #${y}00  //evaluates to lda #$8000
     </pre>
 
     <p>Defines also allow redefinition of the ASCII table for strings. This
     functionality can be used to create translation tables.</p>
 
     <p>Example:</p>
-    <pre>define 'A' 0x61  //0x61 is the ASCII code for 'a'
+    <pre>
+    define 'A' 0x61  //0x61 is the ASCII code for 'a'
     define 'B' 0x62  //0x62 is the ASCII code for 'b'
-    db "ABCD"  //assembles as "abCD"</pre>
+    db "ABCD"  //assembles as "abCD"
+    </pre>
 
     <p>This also works with dw, dl, dd and dq. The define values can be larger
     than one byte; and will be truncated when using smaller directive sizes.</p>
 
     <p>Example:</p>
-    <pre>endian lsb
+    <pre>
+    endian lsb
     define 'A' 0x12345678
     db "A"  //writes 0x78
     dw "A"  //writes 0x5678
-    dd "A"  //writes 0x12345678</pre>
+    dd "A"  //writes 0x12345678
+    </pre>
+
+    <h4>Evalulation</h4>
+
+    <p>Defines are evalulated when they are part of a block. For instance,
+    <i>lda #{y}</i> as per above. In this case, the value of the define is
+    substituted in place of the reference to the define.</p>
+
+    <p>Unlike with macro evalulation, define evaluation will not evaluate every
+    block within the macro. And if you try and use define evaluation with a
+    multi-block macro, the result will be a compilation error. As such, macro
+    arguments are not permitted here.</p>
+
+    <p>Essentially, the syntax of macros and defines are the same, to aid in
+    consistency of expressions and to not consume multiple grouping terminals,
+    but for the most part you will want to treat the two as separate concepts.
+    </p>
 
     <h3>Evaluations</h3>
 
     <p>Evaluations are parsed defines, useful namely for meta programming.</p>
 
     <p>Example:</p>
-    <pre>define counter 1
+    <pre>
+    define counter 1
     define counter {counter}+1
     print "{counter}"  //prints 1+1
     eval counter {counter}+1
-    print "{counter}"  //prints 3</pre>
+    print "{counter}"  //prints 3
+    </pre>
+
+    <p>The main reason to use <i>eval</i> is to reduce processing overhead. You
+    can also use them to store a permanent copy of a source define, allowing you
+    to redefine the source without modifying the evalulated target.</p>
 
     <h3>Conditional Assembly</h3>
 
@@ -237,17 +267,23 @@
     <h4>if (condition); ...; [elseif (condition); ...;] [else; ...;] endif</h4>
 
     <p>Example:</p>
-    <pre>if {x} >= 20 && {x} <= 40
+    <pre>
+    if {x} >= 20 && {x} <= 40
     &nbsp;&nbsp;...
     elseif {x} <= 60
     &nbsp;&nbsp;if {y}
-    &nbsp;&nbsp;&nbsp;...
+    &nbsp;&nbsp;&nbsp;&nbsp;...
     &nbsp;&nbsp;else
-    &nbsp;&nbsp;&nbsp;...
+    &nbsp;&nbsp;&nbsp;&nbsp;...
     &nbsp;&nbsp;endif
     else
     &nbsp;&nbsp;...
-    endif</pre>
+    endif
+    </pre>
+
+    <p>Like macros, conditional blocks can be nested recursively. It is also
+    possible to nest macros inside of conditionals, and conditionals inside of
+    macros.</p>
 
     <h3>Namespaces and Labels</h3>
 
@@ -255,6 +291,12 @@
     is done so that it is easier to jump to other namespaces at any point.
     Namespaces basically act as prefixes to every label and macro. The active
     namespace is implicitly added if one is not manually specified.</p>
+
+    <p>Every <i>namespace</i> declaration pushes the current namespace and label
+    name onto the stack first, and must have a matching <i>endnamespace</i>
+    declaration to restore the previous namespace and label name. It is possible
+    to nest multiple <i>namespace</i> tags, while noting the aforementioned
+    restriction that evaluating namespaces are limited to a single-level.</p>
 
     <p>Labels must start with an underscore or alpha character, and must be
     followed only by underscores or alphanumeric characters. Labels and
@@ -267,21 +309,23 @@
     sublabel without declaring a parent label will result in an error.</p>
 
     <p>Example:</p>
-    <pre>namespace test
+    <pre>
+    namespace test
     define length 0x1000
     function:
-    lda {length}
-    jmp .prologue
-    .prologue:
-    ...
+    &nbsp;&nbsp;lda {length}
+    &nbsp;&nbsp;jmp .prologue
+    &nbsp;&nbsp;.prologue:
+    &nbsp;&nbsp;...
     secondaryFunction:
-    jmp function.prologue
+    &nbsp;&nbsp;jmp function.prologue
+    endnamespace
 
-    namespace global
     define length 0x2000
     lda {test::length}  //0x1000
     lda {length}  //0x2000
-    jmp test::function.prologue</pre>
+    jmp test::function.prologue
+    </pre>
 
     <h3>Anonymous Labels</h3>
 
@@ -298,8 +342,8 @@
     number of labels to seek by. A value of 0 for n is invalid.</p>
 
     <p>Example:</p>
-
-    <pre>org $8000
+    <pre>
+    org $8000
     above:  //all three branches go to above
     -; bra {-1}
     -; bra {-2}
@@ -311,7 +355,8 @@
     below:  //all three branches go to below
 
     //index value is optional: {-} == {-1}, {+} == {+1}
-    -; sta $2180; dex; beq {+}; dey; bra {-}; +; rts</pre>
+    -; sta $2180; dex; beq {+}; dey; bra {-}; +; rts
+    </pre>
 
     <h3>Intrinsics</h3>
 
@@ -326,35 +371,31 @@
 
     <p>Prints the origin without base adjustment.</p>
 
-    <h4>{-}, {-n}, {+}, {+n}</h4>
+    <h4>{eval expression}</h4>
 
-    <p>Anonymous labels. See section above for more information on their usage.
-    </p>
-
-    <h4>{#}</h4>
-
-    <p>Only valid inside of macros. This is used to allow the declaration of
-    labels that will not conflict when invoking the same macro more than once.
-    </p>
-
-    <p>The technical details should be completely transparent to bass users,
-    but if you're interested: {#} evaluates to a counter that represents the
-    number of times <i>any</i> macro has been decoded. This can be used as a
-    prefix or postfix to any labels inside of macros.</p>
+    <p>Evaluates the expression to a numeric value.</p>
 
     <p>Example:</p>
-    <pre>macro waitForVblank
-    &nbsp;&nbsp;.loop{#}:
-    &nbsp;&nbsp;&nbsp;&nbsp;bit $4212
-    &nbsp;&nbsp;&nbsp;&nbsp;bpl .loop{#}
-    endmacro
+    <pre>
+    origin 0x1000
+    label:
+    print "{eval label}"  //prints "4096"
+    </pre>
 
-    main:
-    &nbsp;&nbsp;{waitForVblank}
-    &nbsp;&nbsp;...
-    &nbsp;&nbsp;{waitForVblank}</pre>
+    <h4>{hex expression}</h4>
 
-    <h4>{defined ...}</h4>
+    <p>Evaluates the expression to a numeric hex value, instead of decimal.</p>
+
+    <p>Example:</p>
+    <pre>
+    origin 0x8000
+    label:
+    define value 0xc000
+    print "{hex label}"  //prints "0x8000"
+    print "{hex {value}}"  //prints "0xc000"
+    </pre>
+
+    <h4>{defined macro}</h4>
 
     <p>Tests whether a define or macro exists that matches the specified name.
     Evaluates to 1 if it exists, or 0 if it does not.</p>
@@ -368,10 +409,14 @@
     //net effect: $01, $02 is written to file; $03 is not
     </pre>
 
-    <h4>{eval ...}</h4>
+    <p>Note that this does not consider macro arguments. It would not matter if
+    <i>x</i> above were a define, or a macro with zero or more arguments, it
+    would still evalulate to 1.</p>
 
-    <p>Evaluates macro arguments prior to macro expansion. See the section on
-    "Argument Evaluations" under "Macros" above for more information.</p>
+    <h4>{-}, {-n}, {+}, {+n}</h4>
+
+    <p>Anonymous labels. See section above for more information on their usage.
+    </p>
 
     <h3>Directives</h3>
 
@@ -403,9 +448,25 @@
     specify a length, then declare the offset to be zero.</p>
 
     <p>Example:</p>
-    <pre>incbin "binary/font.bin", 0x2000, 0x1000  //copy 0x1000 bytes from offset 0x2000</pre>
+    <pre>
+    incbin "binary/font.bin", 0x2000, 0x1000  //copy 0x1000 bytes from offset 0x2000
+    </pre>
 
-    <h4>origin offset <small>(alias: org offset)</small></h4>
+    <h4>incbinas label, "filename" [,offset [,length]]</h4>
+
+    <p>The same as incbin, but with a label name provided. The label will be set
+    to the origin prior to insertion, and label.size will be set to the size of
+    the included binary data.</p>
+
+    <p>Example:</p>
+    <pre>
+    origin 0x8000
+    incbinas data, "data.bin"  //data.bin is 0x2000 bytes in length
+    print "{hex data}"  //prints 0x8000
+    print "{hex data.size}"  //prints 0x2000
+    </pre>
+
+    <h4>origin offset</small></h4>
 
     <p>Specify the output file's origin. That is to say, the location in the
     file that data will be written to.</p>
@@ -434,20 +495,26 @@
     </p>
 
     <p>Example:</p>
-    <pre>push origin, base
+    <pre>
+    push origin, base
     {seek $808000}
     ...
-    pull base, origin</pre>
+    pull base, origin
+    </pre>
 
     <p>Note: the stack is FIFO (first in, first out.) Be sure to pull items off
     the stack in the correct order to prevent compilation errors.</p>
 
-    <h4>align size</h4>
+    <h4>align size [,byte]</h4>
 
-    <p>Aligns the target file origin to a multiple of the specified size.</p>
+    <p>Aligns the target file origin to a multiple of the specified size. The
+    byte to write can optionally be specified as well. Otherwise, it will use
+    0x00.</p>
 
     <p>Example:</p>
-    <pre>org 0x2000; db 0x01; align 4  //will write three 0x00s as padding</pre>
+    <pre>
+    org 0x2000; db 0x01; align 4, 0xff  //will write three 0xff bytes as padding
+    </pre>
 
     <h4>fill length [,byte]</h4>
 
@@ -471,32 +538,57 @@
     string arguments.</p>
 
     <p>Example:</p>
-    <pre>db "Testing",0x00
-    dw 0x0123,0x4567</pre>
+    <pre>
+    db "Testing",0x00
+    dw 0x0123,0x4567
+    </pre>
+
+    <h4>echo "message"</h4>
+
+    <p>Prints raw text to the terminal during the second pass of assembly.
+    Unlike <i>print</i> below, <i>echo</i> does not automatically insert line
+    feeds. This will allow you to echo zero or more line feeds per statement,
+    useful for building output strings using multiple statements.</p>
+
+    <p>Escape characters are "\n" for line feed, and "\\" for backspace.</p>
+
+    <p>Example:</p>
+    <pre>
+    echo "PC is currently at: {$}\n"
+    </pre>
 
     <h4>print "message"</h4>
 
-    <p>Prints data to the terminal during the second pass of assembly. Each
-    print statement will also append a line-feed automatically.</p>
+    <p>Prints a single line to the terminal during the second pass of assembly.
+    A line feed character is automatically appended. Unlike <i>echo</i>, no
+    escaping is necessary.</p>
 
     <p>Example:</p>
-    <pre>print "PC is currently at: {$}"</pre>
+    <pre>
+    print "PC is currently at: {$}"
+    </pre>
 
     <h4>warning "message"</h4>
 
     <p>Prints a warning message to the terminal. Useful to combine with
     conditional code.</p>
 
+    <p>Warnings are always single-line, no line feed character is necessary.</p>
+
     <h4>error "message"</h4>
 
     <p>Prints an error message to the terminal and aborts the assembly process.
     Useful to combine with conditional code.</p>
 
+    <p>Errors are always single-line, no line feed character is necessary.</p>
+
     <p>Example:</p>
-    <pre>org 0x0000
+    <pre>
+    origin 0x0000
     incbin "script.bin"
     if {$} >= 0x8000
     &nbsp;&nbsp;error "script too large (> 32KB)"
-    endif</pre>
+    endif
+    </pre>
   </body>
 </html>

@@ -1,25 +1,19 @@
-include nall/Makefile
+include ../nall/Makefile
 
 application := bass
-flags := -I. -DBASS_BINARY -O3 -fomit-frame-pointer
-link := -s
+flags := $(flags) -O3 -fomit-frame-pointer -I.. -DBASS_BINARY
+link := $(link) -s
+objects := obj/$(application).o
 
-all: $(application).o
-	$(cpp) -o $(application) $(application).o $(link)
+all: $(objects)
+	$(compiler) $(flags) -o $(application) $(objects) $(link)
 	$(call delete,*.o)
 
-$(application).o: $(application).cpp
-	$(cpp) $(flags) -c -o $(application).o $(application).cpp
+obj/$(application).o: $(application).cpp $(application).hpp $(call rwildcard,core/*) $(call rwildcard,arch/*)
+	$(compiler) $(cppflags) $(flags) -o obj/$(application).o -c $(application).cpp
 
 install:
 	sudo cp $(application) /usr/local/bin/$(application)
 
 clean:
-	$(call delete,*.o)
-
-sync:
-ifeq ($(shell id -un),byuu)
-	if [ -d ./nall ]; then rm -r ./nall; fi
-	cp -r ../nall ./nall
-	rm -r nall/test
-endif
+	$(call delete,obj/*.o)

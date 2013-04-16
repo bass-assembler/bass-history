@@ -1,7 +1,3 @@
-//bass
-//author: byuu
-//license: GPLv3
-
 #include "bass.hpp"
 #include "core/core.cpp"
 #include "arch/table/table.cpp"
@@ -40,8 +36,9 @@ int main(int argc, char **argv) {
       string argument = argv[n];
       argument.ltrim<1>("-D");
       lstring part = argument.split<1>("=");
+      if(!part[0].position("::")) part[0] = {"global::", part[0]};
       arch->defaultMacros.append({
-        {"global::", part[0]}, {}, part(1, "1")  //no argument sets value to true (1)
+        part[0], {}, part(1, "")  //no argument sets value to blank
       });
       n++;
     } else if(cstring{argv[n]} == "-case-insensitive") {
@@ -66,8 +63,9 @@ int main(int argc, char **argv) {
   }
 
   if(outputFilename.empty() || inputFilename.size() < 1) {
-    print("bass v10\n");
+    print("bass v11\n");
     print("author: byuu\n");
+    print("license: GPLv3\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
     print("supported archs:\n");
     print("  table (default)\n");

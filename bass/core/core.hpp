@@ -10,17 +10,6 @@ struct Bass {
   } options;
 
 protected:
-  virtual void initialize(unsigned pass);
-  void warning(const string &s);
-  void error(const string &s);
-  unsigned pc() const;
-  void assembleFile(const string &filename);
-  virtual bool assembleBlock(string &block);
-  void setMacro(const string &name, const lstring &args, const string &value);
-  void setLabel(const string &name, unsigned offset);
-  virtual void seek(unsigned offset);
-  virtual void write(uint64_t data, unsigned length = 1);
-
   enum class Condition : unsigned { NotYetMatched, Matching, AlreadyMatched };
 
   struct Macro {
@@ -34,11 +23,26 @@ protected:
     unsigned offset;
   };
 
+  virtual void initialize(unsigned pass);
+  void warning(const string &s);
+  void error(const string &s);
+  unsigned pc() const;
+  string qualifyMacro(string name);
+  string qualifyLabel(string name);
+  void assembleFile(const string &filename);
+  void assembleMacro(const string &name, const lstring &args);
+  void assembleSource(const string &source);
+  virtual bool assembleBlock(string &block);
+  void setMacro(const string &name, const lstring &args, const string &value);
+  void setLabel(const string &name, unsigned offset);
+  virtual void seek(unsigned offset);
+  virtual void write(uint64_t data, unsigned length = 1);
+
   //eval.cpp
   int64_t eval(const string &s);
-  void evalBlock(string &block);
-  void evalMacros(string &line);
-  void evalParams(string &line, Macro &macro, lstring &args);
+  bool evalMacros(string &block);
+  void evalDefines(string &line);
+  string evalDefine(string &name);
 
   file output;
   enum class Endian : bool { LSB, MSB } endian;
@@ -48,11 +52,12 @@ protected:
   uint64_t table[256];
   vector<Macro> macros;
   vector<Label> labels;
-  Macro activeMacro;
   string activeNamespace;
-  string activeLabel;
+  Macro activeMacro;   //buffer used to construct new macros (not to evaluate them)
+  string activeLabel;  //active label prefix for sublabels
   unsigned macroDepth;
   unsigned macroExpandCounter;
+  unsigned macroRecursionCounter;
   unsigned lastLabelCounter;
   unsigned nextLabelCounter;
   Condition condition;
