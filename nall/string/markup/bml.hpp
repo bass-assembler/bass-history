@@ -14,21 +14,21 @@ protected:
   }
 
   //determine indentation level, without incrementing pointer
-  unsigned readDepth(const char *p) {
+  unsigned readDepth(const char* p) {
     unsigned depth = 0;
     while(p[depth] == '\t' || p[depth] == ' ') depth++;
     return depth;
   }
 
   //determine indentation level
-  unsigned parseDepth(const char *&p) {
+  unsigned parseDepth(const char*& p) {
     unsigned depth = readDepth(p);
     p += depth;
     return depth;
   }
 
   //read name
-  void parseName(const char *&p) {
+  void parseName(const char*& p) {
     unsigned length = 0;
     while(valid(p[length])) length++;
     if(length == 0) throw "Invalid node name";
@@ -36,7 +36,7 @@ protected:
     p += length;
   }
 
-  void parseData(const char *&p) {
+  void parseData(const char*& p) {
     if(*p == '=' && *(p + 1) == '\"') {
       unsigned length = 2;
       while(p[length] && p[length] != '\n' && p[length] != '\"') length++;
@@ -58,7 +58,7 @@ protected:
   }
 
   //read all attributes for a node
-  void parseAttributes(const char *&p) {
+  void parseAttributes(const char*& p) {
     while(*p && *p != '\n') {
       if(*p != ' ') throw "Invalid node name";
       while(*p == ' ') p++;  //skip excess spaces
@@ -77,8 +77,8 @@ protected:
   }
 
   //read a node and all of its child nodes
-  void parseNode(const lstring &text, unsigned &y) {
-    const char *p = text[y++];
+  void parseNode(const lstring& text, unsigned& y) {
+    const char* p = text[y++];
     level = parseDepth(p);
     parseName(p);
     parseData(p);
@@ -102,15 +102,14 @@ protected:
   }
 
   //read top-level nodes
-  void parse(const string &document) {
+  void parse(const string& document) {
     lstring text = string{document}.replace("\r", "").split("\n");
 
     //remove empty lines and comment lines
     for(unsigned y = 0; y < text.size();) {
-      text[y].rtrim<1>("\n");
       unsigned x = 0;
       bool empty = true;
-      while(text[y][x]) {
+      while(x < text[y].size()) {
         if(text[y][x] == ' ' || text[y][x] == '\t') { x++; continue; }
         empty = (text[y][x + 0] == '/' && text[y][x + 1] == '/');
         break;
@@ -134,12 +133,12 @@ protected:
 struct Document : Node {
   string error;
 
-  bool load(const string &document) {
+  bool load(const string& document) {
     name = "", data = "";
 
     try {
       parse(document);
-    } catch(const char *error) {
+    } catch(const char* error) {
       this->error = error;
       children.reset();
       return false;
@@ -147,7 +146,7 @@ struct Document : Node {
     return true;
   }
 
-  Document(const string &document = "") {
+  Document(const string& document = "") {
     load(document);
   }
 };

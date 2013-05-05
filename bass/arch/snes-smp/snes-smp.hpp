@@ -1,5 +1,5 @@
 struct BassSnesSmp : public Bass {
-  bool assembleBlock(string &block);
+  virtual bool assembleBlock(string &block) override;
   BassSnesSmp();
 
 protected:

@@ -1,10 +1,11 @@
 #ifdef NALL_STRING_INTERNAL_HPP
 
+namespace nall {
 namespace floatingpoint {
 
-static nall::function<double (const char *&)> eval_fallback;
+static nall::function<double (const char*&)> eval_fallback;
 
-static double eval_integer(const char *&s) {
+double eval_integer(const char*& s) {
   if(!*s) throw "unrecognized integer";
   intmax_t value = 0, radix = 0, x = *s, y = *(s + 1);
 
@@ -45,9 +46,10 @@ static double eval_integer(const char *&s) {
       return value;
     }
     //floating-point
+    unsigned divisor = 1;
     while(true) {
-      if(*s >= '0' && *s <= '9') { radix = radix * 10 + (*s++ - '0'); continue; }
-      return atof(nall::string{ nall::decimal(value), ".", nall::decimal(radix) });
+      if(*s >= '0' && *s <= '9') { radix = radix * 10 + (*s++ - '0'); divisor *= 10; continue; }
+      return (double)value + (double)radix / (double)divisor;
     }
   }
 
@@ -64,7 +66,7 @@ static double eval_integer(const char *&s) {
   throw "unrecognized integer";
 }
 
-static double eval(const char *&s, int depth = 0) {
+double eval(const char*& s, int depth) {
   while(*s == ' ' || *s == '\t') s++;  //trim whitespace
   if(!*s) throw "unrecognized token";
   double value = 0, x = *s, y = *(s + 1);
@@ -133,25 +135,26 @@ static double eval(const char *&s, int depth = 0) {
   return value;
 }
 
-static bool eval(const char *s, double &result) {
+bool eval(const char* s, double& result) {
   try {
     result = eval(s);
     return true;
-  } catch(const char*e) {
+  } catch(const char*) {
     result = 0;
     return false;
   }
 }
 
-static double parse(const char *s) {
+double parse(const char* s) {
   try {
     double result = eval(s);
     return result;
-  } catch(const char *) {
+  } catch(const char*) {
     return 0;
   }
 }
 
+}
 }
 
 #endif

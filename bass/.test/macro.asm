@@ -1,41 +1,38 @@
-//note: this file uses a deprecated architecture
-//it will not assemble, but is left to demonstrate functionality
+arch snes.cpu
 
-mapper lorom
-org $8000; fill $8000; org $8000
+origin $0000; fill $10000
+origin $0000
 
-macro add n; clc; adc {n}; endmacro
-macro sub n; sec; sbc {n}; endmacro
-macro addsub x,y
-  {add {x}}
-  {sub {y}}
+macro echo counter
+self::main:
+  lda #<{self::counter}
+  print "{hex self::main}: {hex {self::counter}}; {self::counter}"
+  if {self::counter} > 0
+  //{echo {self::counter}-1}
+    {echo {eval {self::counter}-1}}
+  else
+    print "Finished"
+  endif
 endmacro
 
-define offset $7efff8 + 8
-define length $20
-define 'A' 0x61
-define 'B' 0x62
+macro foo value
+  namespace self
+    print "{value}"
+  endnamespace
+endmacro
+
+macro bar value
+  namespace self
+    {global::foo {value}}
+  endnamespace
+endmacro
 
 main:
-  {addsub #$20,#$40}
-  lda {offset}
-  {add #{length}}
-  db "ABCD"
-  jml main
+  {echo 10}
+  {bar hello}
+  {foo goodbye}
 
-if {$} >= 0x8040
-  error "Out of space! PC = {$}"
-elseif {$} >= 0x8020
-  warning "Almost out of space! PC = {$}"
-endif
-
-macro m1 x
-  macro m2 y
-    {x} {y}
-  endmacro
-endmacro
-
-{m1 lda}; {m2 #$ff}
-
-macro test; nop #2; endmacro; {test}
-
+  echo "{$}\n"
+  incbinas binary, "include.bin"
+  print "{hex binary}: {eval binary.size}; {hex binary+binary.size}"
+  print "{$}"

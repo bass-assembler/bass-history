@@ -1,7 +1,7 @@
 struct BassSnesCpu : public Bass {
   int64_t eval(const string &s);
-  void seek(unsigned offset);
-  bool assembleBlock(string &block);
+  virtual void seek(unsigned offset) override;
+  virtual bool assembleBlock(string &block) override;
   BassSnesCpu();
 
 protected:

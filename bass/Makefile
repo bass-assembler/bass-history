@@ -7,7 +7,7 @@ objects := obj/$(application).o
 
 all: $(objects)
 	$(compiler) $(flags) -o $(application) $(objects) $(link)
-	$(call delete,*.o)
+	$(call delete,obj/*.o)
 
 obj/$(application).o: $(application).cpp $(application).hpp $(call rwildcard,core/*) $(call rwildcard,arch/*)
 	$(compiler) $(cppflags) $(flags) -o obj/$(application).o -c $(application).cpp

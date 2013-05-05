@@ -1,17 +1,30 @@
 #include "eval.cpp"
 
-bool Bass::open(const string &filename) {
+const bool Bass::Define = 0;
+const bool Bass::Function = 1;
+
+bool Bass::open(string filename, Bass::FileMode mode) {
   close();
-  if(options.overwrite == false) {
+  if(pass == 0 && !filename) return true;  //filename not required on command-line
+
+  if(mode == FileMode::Auto) {
+    if(options.overwrite) mode = FileMode::Create;
+  }
+  if(mode == FileMode::Modify) {
     output.open(filename, file::mode::readwrite);
   }
   if(output.open() == false) {
     output.open(filename, file::mode::write);
   }
-  return output.open();
+  if(output.open() == true) {
+    origin = 0;
+    base = 0;
+    return true;
+  }
+  return false;
 }
 
-bool Bass::assemble(const string &filename) {
+bool Bass::assemble(string filename) {
   for(pass = 1; pass <= 2; pass++) {
     initialize(pass);
     endian = Endian::LSB;
@@ -19,12 +32,13 @@ bool Bass::assemble(const string &filename) {
     base = 0;
     for(unsigned n = 0; n < 256; n++) table[n] = n;
     macros.reset();
-    for(auto &macro : defaultMacros) macros.append(macro);
+    for(auto& macro : defaultMacros) macros.insert(macro);
     activeNamespace = "global";
     activeLabel = "#invalid";
     macroDepth = 0;
     macroExpandCounter = 1;
     macroRecursionCounter = 1;
+    macroReturnStack.reset();
     lastLabelCounter = 1;
     nextLabelCounter = 1;
     condition = Condition::Matching;
@@ -33,10 +47,9 @@ bool Bass::assemble(const string &filename) {
     stack.reset();
     lineNumber.reset();
     blockNumber.reset();
-    activeLine.reset();
     try {
       assembleFile(filename);
-    } catch(const char*) {
+    } catch(...) {
       return false;
     }
   }
@@ -48,6 +61,7 @@ void Bass::close() {
 }
 
 Bass::Bass() {
+  pass = 0;
   options.caseInsensitive = false;
   options.overwrite = false;
 }
@@ -57,26 +71,30 @@ Bass::Bass() {
 void Bass::initialize(unsigned pass) {
 }
 
-void Bass::warning(const string &s) {
+template<typename... Args> void Bass::warning(Args&&... args) {
+  string s = string(std::forward<Args>(args)...);
   print("[bass warning] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
 }
 
-void Bass::error(const string &s) {
+template<typename... Args> void Bass::error(Args&&... args) {
+  string s = string(std::forward<Args>(args)...);
   print("[bass error] ", fileName.last(), ":", lineNumber.last(), ":", blockNumber.last(), ":\n> ", s, "\n");
-  throw "";
+  struct bass_parser_error{};
+  throw bass_parser_error{};
 }
 
 unsigned Bass::pc() const {
   return origin + base;
 }
 
-string Bass::qualifyMacro(string name) {
+string Bass::qualifyMacro(string name, unsigned args) {
+  name = {name, "{", args, "}"};
   if(!name.position("::")) {
     name = {activeNamespace, "::", name};
   }
   if(name.wildcard("self::?*")) {
     name.ltrim<1>("self::");
-    return {"#", macroRecursionCounter, "::", name};
+    return {"#", macroRecursionCounter - 1, "::", name};  //subtract 1 as value is incremented prior to calling assembleSource
   }
   return name;
 }
@@ -96,13 +114,12 @@ string Bass::qualifyLabel(string name) {
   return name;
 }
 
-void Bass::assembleFile(const string &filename) {
+void Bass::assembleFile(string filename) {
   fileName.append(filename);
   lineNumber.append(1);
   blockNumber.append(1);
-  activeLine.append("");
 
-  if(!file::exists(filename)) error({"source file ", filename, " not found"});
+  if(!file::exists(filename)) error("source file not found: ", filename);
   string source = file::read(filename);
   source.transform("\r\t", "  ");  //treat ignored whitespace characters as spaces
   assembleSource(source);
@@ -110,56 +127,51 @@ void Bass::assembleFile(const string &filename) {
   fileName.remove();
   lineNumber.remove();
   blockNumber.remove();
-  activeLine.remove();
 }
 
-void Bass::assembleMacro(const string &name, const lstring &args) {
-  for(auto &match : macros) {
-    if(name == match.name && args.size() == match.args.size()) {
-      Macro macro = match;  //copy macro; as setMacro() invalidates our iterator
+string Bass::assembleMacro(string name, const lstring& args) {
+  if(const auto& match = macros.find(name)) {
+    const Macro& macro = match();
+    if(macro.type == Define) return macro.value;
 
-      fileName.append({"{macro ", macro.name, "}"});
-      lineNumber.append(1);
-      blockNumber.append(1);
-      activeLine.append("");
+    fileName.append({"{macro ", macro.name, "}"});
+    lineNumber.append(1);
+    blockNumber.append(1);
 
-      for(unsigned n = 0; n < args.size(); n++) {
-        string name = {"#", macroRecursionCounter + 1, "::", macro.args[n]};
-        string value = args[n];
-        evalDefines(value);
-        setMacro(name, lstring(), value);
-      }
-
-      macroExpandCounter++;
-      macroRecursionCounter++;
-      assembleSource(macro.value);
-      macroRecursionCounter--;
-
-      fileName.remove();
-      lineNumber.remove();
-      blockNumber.remove();
-      activeLine.remove();
-
-      return;
+    for(unsigned n = 0; n < args.size(); n++) {
+      string name = {"#", macroRecursionCounter, "::", macro.args[n]};
+      string value = args[n];
+      evalMacros(value);
+      setMacro(name, {}, value, Define);
     }
+
+    macroExpandCounter++;
+    macroRecursionCounter++;
+    macroReturnStack.append("");
+    assembleSource(macro.value);
+    macroRecursionCounter--;
+
+    fileName.remove();
+    lineNumber.remove();
+    blockNumber.remove();
+
+    return macroReturnStack.take();
   }
 
-  error({"macro not found: ", name});
+  error("macro not found: ", name);
 }
 
-void Bass::assembleSource(const string &source) {
+void Bass::assembleSource(string source) {
   lstring lines = source.split("\n");
-  for(auto &line : lines) {
-    if(auto position = line.qposition("//")) line[position()] = 0;  //strip comments
+  for(auto& line : lines) {
+    if(auto position = line.qposition("//")) line.resize(position());  //strip comments
     if(options.caseInsensitive) line.qlower();
 
     blockNumber.last() = 1;
-    activeLine.last() = line;
 
-    lstring blocks = activeLine.last().qsplit(";");
-    for(auto &block : blocks) {
-      if(block.strip().empty()) continue;
-      if(assembleBlock(block) == false) error({"unknown command: ", block});
+    lstring blocks = line.qsplit(";");
+    for(auto& block : blocks) {
+      if(assembleBlock(block.strip()) == false) error("unknown command: ", block);
       blockNumber.last()++;
     }
 
@@ -172,22 +184,21 @@ void Bass::assembleSource(const string &source) {
   }
 }
 
-bool Bass::assembleBlock(string &block) {
+bool Bass::assembleBlock(string& block) {
   //================
   //= conditionals =
   //================
   if(macroDepth == 0) {
-    if((condition == Condition::Matching)
-    || (conditionStack.size() == 0 && block.wildcard("elseif ?*"))
-    ) {  //do not evaluate macros inside unmatched conditional blocks (prevent infinite recursion)
-      if(evalMacros(block)) return true;
+    //do not evaluate macros inside unmatched conditional blocks (prevent infinite recursion)
+    if((condition == Condition::Matching) || (conditionStack.size() == 0 && block.wildcard("elseif ?*"))) {
+      evalMacros(block);
     }
 
     if(block.wildcard("if ?*")) {
       block.ltrim<1>("if ");
       conditionStack.append(condition);
       condition = eval(block) ? Condition::Matching : Condition::NotYetMatched;
-      for(auto &item : conditionStack) {
+      for(auto& item : conditionStack) {
         if(item != Condition::Matching) condition = Condition::AlreadyMatched;
       }
       return true;
@@ -223,6 +234,10 @@ bool Bass::assembleBlock(string &block) {
     return true;
   }
 
+  if(!block.strip()) {
+    return true;
+  }
+
   //==========
   //= macros =
   //==========
@@ -233,7 +248,7 @@ bool Bass::assembleBlock(string &block) {
       return true;
     }
     activeMacro.value.rtrim<1>("; ");
-    setMacro(activeMacro.name, activeMacro.args, activeMacro.value);
+    setMacro(activeMacro.name, activeMacro.args, activeMacro.value, Function);
     return true;
   }
 
@@ -245,12 +260,20 @@ bool Bass::assembleBlock(string &block) {
 
   if(block.beginswith("macro ")) {
     block.ltrim<1>("macro ");
-    lstring header = block.split<2>(" "), args;  //header[0] = name, header[1] = params
-    if(!header(1).empty()) args = header(1).split(",");
+    lstring header = block.split<1>(" "), args;  //header[0] = name, header[1] = params
+    if(header(1)) args = header(1).split(",").strip();
     activeMacro.name = header(0);
     activeMacro.args = args;
     activeMacro.value = "";
     macroDepth++;
+    return true;
+  }
+
+  if(block.beginswith("return")) {
+    if(macroReturnStack.size() == 0) error("return statements outside of macros are not allowed");
+    block.ltrim<1>("return");
+    block.ltrim<1>(" ");  //argument is optional
+    macroReturnStack.last() = block;
     return true;
   }
 
@@ -259,23 +282,36 @@ bool Bass::assembleBlock(string &block) {
   //===========
   if(block.wildcard("define '?' ?*")) {
     block.ltrim<1>("define ");
-    table[block[1]] = eval((const char*)block + 3);
+    lstring part = block.qsplit<1>(" ");
+    table[block[1]] = eval(part(1));
     return true;
   }
 
   if(block.wildcard("define ?*")) {
     block.ltrim<1>("define ");
     lstring part = block.split<1>(" ");
-    string name = qualifyMacro(part(0));
-    setMacro(name, lstring(), part(1));
+    setMacro(part(0), {}, part(1), Define);
     return true;
   }
 
   if(block.wildcard("eval ?* ?*")) {
     block.ltrim<1>("eval ");
     lstring part = block.split<1>(" ");
-    string name = qualifyMacro(part(0));
-    setMacro(name, lstring(), eval(part[1]));
+    setMacro(part(0), {}, eval(part(1)), Define);
+    return true;
+  }
+
+  //==========
+  //= output =
+  //==========
+  if(block.wildcard("output \"?*\"*")) {
+    block.ltrim<1>("output ");
+    lstring part = block.qsplit(",").strip();
+    part[0].trim<1>("\"");
+    FileMode mode = FileMode::Auto;
+    if(part(1) == "create") mode = FileMode::Create;
+    if(part(1) == "modify") mode = FileMode::Modify;
+    if(open({dir(fileName.last()), part[0]}, mode) == false) error("unable to open output file: ", part[0]);
     return true;
   }
 
@@ -316,11 +352,11 @@ bool Bass::assembleBlock(string &block) {
     lstring part = block.qsplit(",").strip();
     part[0].trim<1>("\"");
     file fp({dir(fileName.last()), part[0]}, file::mode::read);
-    if(!fp.open()) error({"binary file ", part[0], " not found"});
+    if(!fp.open()) error("binary file not found: ", part[0]);
     unsigned offset = 0, length = fp.size() - offset;
     if(part.size() >= 2) offset = eval(part[1]);
     if(part.size() >= 3) length = eval(part[2]);
-    if(length > fp.size()) error({"binary file ", part[0], " include length exceeds file size"});
+    if(length > fp.size()) error("binary file include length exceeds file size");
     if(incbinName) {  //incbinas name present; declare helper labels
       setLabel(incbinName, pc());
       setLabel({incbinName, ".size"}, length);
@@ -355,7 +391,7 @@ bool Bass::assembleBlock(string &block) {
   if(block.wildcard("push ?*")) {
     block.ltrim<1>("push ");
     lstring list = block.split(",");
-    for(auto &item : list) {
+    for(auto& item : list) {
       if(item == "origin") {
         stack.append(origin);
       } else if(item == "base") {
@@ -371,7 +407,7 @@ bool Bass::assembleBlock(string &block) {
         item.trim<1>("\"");
         stack.append(item);
       } else {
-        error({"unrecognized push argument: ", item});
+        error("unrecognized push argument: ", item);
       }
     }
     return true;
@@ -383,7 +419,7 @@ bool Bass::assembleBlock(string &block) {
   if(block.wildcard("pull ?*")) {
     block.ltrim<1>("pull ");
     lstring list = block.split(",");
-    for(auto &item : list) {
+    for(auto& item : list) {
       if(stack.size() == 0) error("stack is empty");
       if(item == "origin") {
         origin = decimal(stack.take());
@@ -401,7 +437,7 @@ bool Bass::assembleBlock(string &block) {
       } else if(item == "null") {
         stack.take();
       } else {
-        error({"unrecognized pull argument: ", item});
+        error("unrecognized pull argument: ", item);
       }
     }
     return true;
@@ -453,14 +489,24 @@ bool Bass::assembleBlock(string &block) {
   if(block.beginswith("dq ")) { block.ltrim<1>("dq "); size = 8; }
   if(size != 0) {
     lstring list = block.qsplit(",");
-    for(auto &item : list) {
+    for(auto& item : list) {
       if(item.wildcard("\"*\"") == false) {
         write(eval(item), size);
       } else {
         item.trim<1>("\"");
-        for(auto &n : item) write(table[n], size);
+        for(auto& n : item) write(table[n], size);
       }
     }
+    return true;
+  }
+
+  //============
+  //= constant =
+  //============
+  if(block.wildcard("constant ?* ?*")) {
+    block.ltrim<1>("constant ");
+    lstring part = block.split<1>(" ").strip();
+    setLabel(part(0), eval(part(1)));
     return true;
   }
 
@@ -511,20 +557,6 @@ bool Bass::assembleBlock(string &block) {
     return true;
   }
 
-  //========
-  //= echo =
-  //========
-  if(block.wildcard("echo \"*\"")) {
-    if(pass == 2) {
-      block.ltrim<1>("echo ");
-      block.trim<1>("\"");
-      block.replace("\\", "\n");
-      block.replace("\\\\", "\\");
-      print(block);
-    }
-    return true;
-  }
-
   //=========
   //= print =
   //=========
@@ -564,39 +596,29 @@ bool Bass::assembleBlock(string &block) {
   return false;
 }
 
-void Bass::setMacro(const string &name_, const lstring &args, const string &value) {
-  string name = name_;
-  name = qualifyMacro(name);
-
-  for(auto &macro : macros) {
-    if(name == macro.name) {
-      macro.value = value;
-      return;
-    }
-  }
-
-  macros.append({name, args, value});
+void Bass::setMacro(string name, const lstring& args, string value, bool type) {
+  name = qualifyMacro(name, args.size());
+  macros.insert({name, args, value, type});
 }
 
-void Bass::setLabel(const string &name_, unsigned offset) {
-  string name = name_;
+void Bass::setLabel(string name, unsigned offset) {
   name = qualifyLabel(name);
 
   //labels cannot be redeclared
-  for(auto &label : labels) {
-    if(name == label.name) {
-      if(pass == 1) error({"Label ", name, " has already been declared"});
-    }
+  if(const auto& label = labels.find(name)) {
+    if(pass == 1) error("label has already been declared: ", name);
   }
 
-  labels.append({name, offset});
+  labels.insert({name, offset});
 }
 
 void Bass::seek(unsigned offset) {
+  if(output.open() == false) error("output file not opened\n");
   output.seek(offset);
 }
 
 void Bass::write(uint64_t data, unsigned length) {
+  if(output.open() == false) error("output file not opened\n");
   if(pass == 2) {
     if(endian == Endian::LSB) output.writel(data, length);
     if(endian == Endian::MSB) output.writem(data, length);

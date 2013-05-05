@@ -1,3 +1,3 @@
 struct BassSnesSmpCanonical : public Bass {
-  bool assembleBlock(string &block);
+  virtual bool assembleBlock(string &block) override;
 };

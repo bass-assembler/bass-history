@@ -1,5 +1,5 @@
-int64_t Bass::eval(const string &s) {
-  fixedpoint::eval_fallback = [this](const char *&s) -> int64_t {
+int64_t Bass::eval(string s) {
+  fixedpoint::eval_fallback = [this](const char*& s) -> int64_t {
     //hexadecimal
     if(*s == '$') {
       s++;
@@ -24,64 +24,59 @@ int64_t Bass::eval(const string &s) {
 
     //label
     if(*s == ':' || *s == '.' || *s == '_' || (*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z')) {
-      const char *start = s;
+      const char* start = s;
       while(*s == ':' || *s == '.' || *s == '_' || (*s >= 'A' && *s <= 'Z') || (*s >= 'a' && *s <= 'z') || (*s >= '0' && *s <= '9')) s++;
       string name = substr(start, 0, s - start);
       name = qualifyLabel(name);
-      for(auto &label : labels) if(name == label.name) return label.offset;
+      if(const auto& label = labels.find(name)) return label().offset;
       if(pass == 1) return pc();  //labels may not be defined yet on first pass
-      error({"undefined label: ", name});
+      error("undefined label: ", name);
     }
 
     throw "unrecognized token";
   };
 
   try {
-    const char *t = s;
+    const char* t = s;
     return fixedpoint::eval(t);
-  } catch(const char *errorMessage) {
-    error({errorMessage, ": ", s});
+  } catch(const char* errorMessage) {
+    error(errorMessage, ": ", s);
     return 0;
   }
 }
 
-//return true if this block was a macro that was evaluated fully
-//otherwise, return false so that assembleBlock() will parse it
-bool Bass::evalMacros(string &block) {
-  if(block.wildcard("{*}")) {
-    lstring part = string{block}.trim<1>("{", "}").split<1>(" "), args;
-    string name = qualifyMacro(part(0));
-    if(part.size() >= 2) args = part(1).split(",");
-
-    assembleMacro(name, args);
-    return true;
+void Bass::evalMacros(string& line) {
+  //evaluate the deepest macro first, so that macros can be arguments to other macros
+  //example: {add {add 1,2},{add 3,4}} == 10
+  unsigned depth = 0, maxDepth = 0;
+  for(unsigned x = 0; x < line.size(); x++) {
+    if(line[x] == '{') depth++;
+    if(depth >= maxDepth) maxDepth = depth;
+    if(line[x] == '}') depth--;
   }
 
-  evalDefines(block);
-  return false;
-}
+  depth = 0;
+  for(unsigned x = 0; x < line.size(); x++) {
+    if(line[x] == '{') depth++;
+    if(line[x] == '}') depth--;
 
-void Bass::evalDefines(string &line) {
-  unsigned length = line.length();
-
-  for(unsigned x = 0; x < length; x++) {
-    if(line[x] == '{') {
-      signed counter = 1;  //count instances of { and } to find matching tags
-      for(unsigned y = x + 1; y < length; y++) {
+    if(line[x] == '{' && depth == maxDepth) {
+      signed counter = 0;  //count instances of { and } to find matching tags
+      for(unsigned y = x; y < line.size(); y++) {
         if(line[y] == '{') counter++;
         if(line[y] == '}') counter--;
 
         if(line[y] == '}' && counter == 0) {
           string name = substr(line, x + 1, y - x - 1);
-          line = {substr(line, 0, x), evalDefine(name), substr(line, y + 1)};
-          return evalDefines(line);
+          line = {substr(line, 0, x), evalMacro(name), substr(line, y + 1)};
+          return evalMacros(line);
         }
       }
     }
   }
 }
 
-string Bass::evalDefine(string &name) {
+string Bass::evalMacro(string& name) {
   if(name == "$") {  //pc
     return {"0x", hex(pc())};
   }
@@ -92,22 +87,20 @@ string Bass::evalDefine(string &name) {
 
   if(name.wildcard("eval ?*")) {
     name.ltrim<1>("eval ");
-    evalDefines(name);
+    evalMacros(name);
     return eval(name);
   }
 
   if(name.wildcard("hex ?*")) {
     name.ltrim<1>("hex ");
-    evalDefines(name);
+    evalMacros(name);
     return {"0x", hex(eval(name))};
   }
 
   if(name.wildcard("defined ?*")) {  //definition test
     name.ltrim<1>("defined ");
-    name = qualifyMacro(name);
-    for(auto &macro : macros) {
-      if(macro.name == name) return "1";
-    }
+    name = qualifyMacro(name, 0);
+    if(const auto& macro = macros.find(name)) return "1";
     return "0";
   }
 
@@ -124,16 +117,7 @@ string Bass::evalDefine(string &name) {
   }
 
   lstring part = name.split<1>(" "), args;
-  name = qualifyMacro(part(0));
-  if(!part(1).empty()) args = part(1).qsplit(",");
-  for(auto &arg : args) arg.trim();
-
-  for(auto &macro : macros) {
-    if(name == macro.name && args.size() == macro.args.size()) {
-      if(args.size() > 0) error("macro define evaluation may not contain macro arguments");
-      return macro.value;
-    }
-  }
-
-  error({"unknown define: ", name});
+  if(part(1)) args = part(1).qsplit(",").strip();
+  name = qualifyMacro(part(0), args.size());
+  return assembleMacro(name, args);
 }

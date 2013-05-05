@@ -5,52 +5,42 @@
 
 #if defined(BASS_BINARY)
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
   string outputFilename;
   lstring inputFilename;
 
-  Bass *arch = new BassTable;
+  Bass* arch = new BassTable;
   bool benchmark = false;
-
-  #if 0
-  char argv1[] = "bass";
-  char argv2[] = "-o";
-  char argv3[] = "test/test.bin";
-  char argv4[] = "test/test.asm";
-  char *argvN[] = {argv1, argv2, argv3, argv4, nullptr};
-  argc = 4;
-  argv = (char**)argvN;
-  #endif
 
   for(unsigned n = 1; n < argc;) {
     if(0) {
-    } else if(cstring{argv[n]} == "-arch=table") {
+    } else if(string{argv[n]} == "-arch=table") {
       delete arch;
       arch = new BassTable;
       n++;
-    } else if(cstring{argv[n]} == "-arch=snes-smp-canonical") {
+    } else if(string{argv[n]} == "-arch=snes-smp-canonical") {
       delete arch;
       arch = new BassSnesSmpCanonical;
       n++;
-    } else if(strbegin(argv[n], "-D")) {
+    } else if(string{argv[n]}.beginswith("-D")) {
       string argument = argv[n];
       argument.ltrim<1>("-D");
       lstring part = argument.split<1>("=");
       if(!part[0].position("::")) part[0] = {"global::", part[0]};
       arch->defaultMacros.append({
-        part[0], {}, part(1, "")  //no argument sets value to blank
+        part[0], {}, part(1, ""), Bass::Define  //no argument sets value to blank
       });
       n++;
-    } else if(cstring{argv[n]} == "-case-insensitive") {
+    } else if(string{argv[n]} == "-case-insensitive") {
       arch->options.caseInsensitive = true;
       n++;
-    } else if(cstring{argv[n]} == "-overwrite") {
+    } else if(string{argv[n]} == "-overwrite") {
       arch->options.overwrite = true;
       n++;
-    } else if(cstring{argv[n]} == "-benchmark") {
+    } else if(string{argv[n]} == "-benchmark") {
       benchmark = true;
       n++;
-    } else if(cstring{argv[n]} == "-o" && n + 1 < argc) {
+    } else if(string{argv[n]} == "-o" && n + 1 < argc) {
       outputFilename = argv[n + 1];
       n += 2;
     } else if(argv[n][0] != '-') {
@@ -62,11 +52,12 @@ int main(int argc, char **argv) {
     }
   }
 
-  if(outputFilename.empty() || inputFilename.size() < 1) {
-    print("bass v11\n");
+  if(inputFilename.size() < 1) {
+    print("bass v11.04\n");
     print("author: byuu\n");
     print("license: GPLv3\n");
-    print("usage: bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]\n\n");
+    print("usage: bass [-arch=name] [-Dname(=value) ...] [options] [-o output] input [input ...]\n");
+    print("\n");
     print("supported archs:\n");
     print("  table (default)\n");
     print("  snes-smp-canonical\n");
@@ -80,13 +71,13 @@ int main(int argc, char **argv) {
   }
 
   if(arch->open(outputFilename) == false) {
-    print("error: unable to open output file ", outputFilename, "\n");
+    print("error: unable to open output file: ", outputFilename, "\n");
     return EXIT_FAILURE;
   }
 
   bool success = true;
   clock_t startTime = clock();
-  for(auto &filename : inputFilename) success &= arch->assemble(filename);
+  for(auto& filename : inputFilename) success &= arch->assemble(filename);
   clock_t endTime = clock();
   if(benchmark) print("Assembled in ", (endTime - startTime) / (double)CLOCKS_PER_SEC, " seconds.\n");
 

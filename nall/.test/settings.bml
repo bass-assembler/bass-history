@@ -1,18 +1,2 @@
-//version
-Version: 3.2
-
-Video
-  Driver: XVideo
-  //synchronize to vertical retrace
-  Synchronize: false
-  MaskOverscan: false
-    Horizontal: 16
-    Vertical: 8
-  StartFullScreen: true
-
-//audio settings
-Audio
-  Driver: ALSA
-  //silence audio output
-  Mute: false
+Geometry: 0,0,720,600
 

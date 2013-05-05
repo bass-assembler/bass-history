@@ -1,6 +1,6 @@
 struct BassTable : public Bass {
-  void initialize(unsigned pass);
-  bool assembleBlock(string &block);
+  virtual void initialize(unsigned pass) override;
+  virtual bool assembleBlock(string& block) override;
 
 protected:
   struct Prefix {
@@ -29,9 +29,9 @@ protected:
   vector<Opcode> table;
   uint64_t bitval, bitpos;
 
-  unsigned bitLength(string &text) const;
+  unsigned bitLength(string& text) const;
   void writeBits(uint64_t data, unsigned bits);
-  bool parseTable(const string &text);
-  void assembleTableLHS(Opcode &opcode, const string &text);
-  void assembleTableRHS(Opcode &opcode, const string &text);
+  bool parseTable(const string& text);
+  void assembleTableLHS(Opcode& opcode, const string& text);
+  void assembleTableRHS(Opcode& opcode, const string& text);
 };

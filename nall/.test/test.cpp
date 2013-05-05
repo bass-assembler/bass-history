@@ -28,6 +28,7 @@
 #include <nall/public-cast.hpp>
 #include <nall/random.hpp>
 #include <nall/serializer.hpp>
+#include <nall/set.hpp>
 #include <nall/stdint.hpp>
 #include <nall/stream.hpp>
 #include <nall/string.hpp>
@@ -55,81 +56,69 @@
 #endif
 using namespace nall;
 
-struct Settings : Configuration::Document {
-  double version;
-
-  struct Video : Configuration::Node {
-    string driver;
-    bool synchronize;
-    struct MaskOverscan : Configuration::Node {
-      bool enable;
-      unsigned horizontal;
-      unsigned vertical;
-    } maskOverscan;
-    bool startFullScreen;
-  } video;
-
-  struct Audio : Configuration::Node {
-    string driver;
-    bool mute;
-  } audio;
-
-  Settings() {
-    append(version = 3.2, "Version", "version");
-
-    video.append(video.driver = "OpenGL", "Driver");
-    video.append(video.synchronize = false, "Synchronize", "synchronize to vertical retrace");
-    video.maskOverscan.assign(video.maskOverscan.enable = true);
-    video.maskOverscan.append(video.maskOverscan.horizontal = 8, "Horizontal");
-    video.maskOverscan.append(video.maskOverscan.vertical = 8, "Vertical");
-    video.append(video.maskOverscan, "MaskOverscan");
-    video.append(video.startFullScreen = true, "StartFullScreen");
-    append(video, "Video");
-
-    audio.append(audio.driver = "ALSA", "Driver");
-    audio.append(audio.mute = false, "Mute", "silence audio output");
-    append(audio, "Audio", "audio settings");
-
-    load("settings.bml");
-    save("settings.bml");
-
-    print(video.driver, "\n");
-    print(video.synchronize, "\n");
-    print(audio.driver, "\n");
-    print(audio.mute, "\n");
-  }
-} settings;
-
+#if 1
 int main() {
-  lstring list = string{" test 1 , test 2 , test 3 "}.split(",").strip();
-  list.strip();
-  for(auto &i : list) print(i, "!\n");
+  clock_t s = clock();
+  auto document = Markup::Document(string::read("/usr/share/higan/cheats.bml"));
+//for(auto& cartridge : document.find("cartridge")) print(cartridge["name"].text(), "\n");
+  clock_t f = clock();
+  print(f - s, "\n");
+  print(sizeof(std::shared_ptr<char>), "\n");
+
   return 0;
 }
+#endif
 
 #if 0
-int main(int argc, char **argv) {
+#include <set>
+#include <unordered_set>
+
+int main() {
+  random_lfsr r;
+  set<unsigned> tree1;
+  std::set<unsigned> tree2;
+  clock_t start, finish;
+
+  start = clock();
+  r.seed(0x5aa5f00f);
+  for(unsigned n = 0; n < 4 * 1024 * 1024; n++) tree1.insert(r());
+  finish = clock();
+  print(finish - start, "\n");
+
+  start = clock();
+  r.seed(0x5aa5f00f);
+  for(unsigned n = 0; n < 4 * 1024 * 1024; n++) tree2.insert(r());
+  finish = clock();
+  print(finish - start, "\n");
+
+  return 0;
+}
+#endif
+
+#if 0
+int main(int argc, char** argv) {
+clock_t s = clock();
+for(unsigned n = 0; n < 1; n++) {
   auto document = BML::Document(string::read("document.bml"));
   if(document.error) return print(document.error, "\n"), 0;
 
 //auto result = document.find("*/spc7110(revision=2)/rom(=Q,id=data,size=0x400000)");
   auto result = document.find("*/spc7110(revision<3)[1]/rom[1-2]");
-  for(auto &node : result) print(node.name, "=", node["name"].data, "\n");
-  print("\n");
+  if(1) { for(auto& node : result) print(node.name, "=", node["name"].data, "\n"); print("\n"); }
 
-  for(auto &root : document) {
+  if(1) for(auto& root : document) {
     print("{", root.name, "}");
     if(!root.data.empty()) print("={", root.data, "}");
     print("\n");
-    for(auto &node : root) {
+    for(auto& node : root) {
       print("  {", node.name, "}");
       if(!node.data.empty()) print("={", node.data, "}");
       print("\n");
-      for(auto &leaf : node) {
+      for(auto& leaf : node) {
         print("    {", leaf.name, "}");
         if(!leaf.data.empty()) print("={", leaf.data, "}");
         print("\n");
-        for(auto &last : leaf) {
+        for(auto& last : leaf) {
           print("      {", last.name, "}");
           if(!last.data.empty()) print("={", last.data, "}");
           print("\n");
@@ -137,6 +126,9 @@ int main(int argc, char **argv) {
       }
     }
   }
+}
+clock_t f = clock();
+print(f-s, "\n");
 
   return 0;
 }

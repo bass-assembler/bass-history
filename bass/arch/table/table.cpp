@@ -9,7 +9,7 @@ void BassTable::initialize(unsigned pass) {
   table.reset();
 }
 
-bool BassTable::assembleBlock(string &block) {
+bool BassTable::assembleBlock(string& block) {
   if(Bass::assembleBlock(block) == true) return true;
 
   if(block.beginswith("arch")) {
@@ -20,8 +20,8 @@ bool BassTable::assembleBlock(string &block) {
       else if(name == "snes.smp") data = Arch_snes_smp;
       else {
         name.trim<1>("\"");
-        name = { dir(fileName.last()), name };
-        if(data.readfile(name) == false) error({"arch: file \"", name, "\" not found"});
+        name = {dir(fileName.last()), name};
+        if(data.readfile(name) == false) error("arch: file not found: ", name);
       }
       table.reset();
       parseTable(data);
@@ -40,7 +40,7 @@ bool BassTable::assembleBlock(string &block) {
 
   unsigned pc = this->pc();
 
-  for(auto &opcode : table) {
+  for(auto& opcode : table) {
     if(tokenize(block, opcode.pattern) == false) continue;
 
     lstring args;
@@ -48,7 +48,7 @@ bool BassTable::assembleBlock(string &block) {
     if(args.size() != opcode.number.size()) continue;
 
     bool mismatch = false;
-    for(auto &format : opcode.format) {
+    for(auto& format : opcode.format) {
       if(format.type == Format::Type::Absolute) {
         if(format.match != Format::Match::Weak) {
           unsigned bits = bitLength(args[format.argument]);
@@ -63,7 +63,7 @@ bool BassTable::assembleBlock(string &block) {
     }
     if(mismatch) continue;
 
-    for(auto &format : opcode.format) {
+    for(auto& format : opcode.format) {
       switch(format.type) {
       case Format::Type::Static: {
         writeBits(format.data, format.bits);
@@ -92,8 +92,8 @@ bool BassTable::assembleBlock(string &block) {
   return false;
 }
 
-unsigned BassTable::bitLength(string &text) const {
-  auto hexLength = [&](const char *p) -> unsigned {
+unsigned BassTable::bitLength(string& text) const {
+  auto hexLength = [&](const char* p) -> unsigned {
     unsigned length = 0;
     while(*p) {
       if(*p >= '0' && *p <= '9') { p++; length += 4; continue; }
@@ -103,7 +103,7 @@ unsigned BassTable::bitLength(string &text) const {
     return length;
   };
 
-  auto binLength = [&](const char *p) -> unsigned {
+  auto binLength = [&](const char* p) -> unsigned {
     unsigned length = 0;
     while(*p) {
       if(*p == '0' || *p == '1') { p++; length += 1; continue; }
@@ -136,9 +136,9 @@ void BassTable::writeBits(uint64_t data, unsigned length) {
   }
 }
 
-bool BassTable::parseTable(const string &text) {
+bool BassTable::parseTable(const string& text) {
   lstring lines = text.split("\n");
-  for(auto &line : lines) {
+  for(auto& line : lines) {
     if(auto position = line.position("//")) line[position()] = 0;  //remove comments
     lstring part = line.split<1>(";");
     if(part.size() != 2) continue;
@@ -152,7 +152,7 @@ bool BassTable::parseTable(const string &text) {
   return true;
 }
 
-void BassTable::assembleTableLHS(Opcode &opcode, const string &text) {
+void BassTable::assembleTableLHS(Opcode& opcode, const string& text) {
   unsigned offset = 0;
 
   auto length = [&] {
@@ -177,18 +177,18 @@ void BassTable::assembleTableLHS(Opcode &opcode, const string &text) {
     offset += 3;
   }
 
-  for(auto &prefix : opcode.prefix) {
+  for(auto& prefix : opcode.prefix) {
     opcode.pattern.append(prefix.text, "*");
   }
   opcode.pattern.rtrim<1>("*");
   if(opcode.number.size() == opcode.prefix.size()) opcode.pattern.append("*");
 }
 
-void BassTable::assembleTableRHS(Opcode &opcode, const string &text) {
+void BassTable::assembleTableRHS(Opcode& opcode, const string& text) {
   unsigned offset = 0;
 
   lstring list = text.split(" ");
-  for(auto &item : list) {
+  for(auto& item : list) {
     if(item[0] == '$' && item.length() == 3) {
       Format format = {Format::Type::Static};
       format.data = hex((const char*)item + 1);

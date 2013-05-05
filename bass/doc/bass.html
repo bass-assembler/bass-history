@@ -4,20 +4,20 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v11</h1>
+    <h1>bass v11.04</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
     <h3>Command-line Usage</h3>
     <pre>
-    bass [-arch=name] [-Dname(=value) ...] [options] -o output input [input ...]
+    bass [-arch=name] [-Dname(=value) ...] [options] [-o output] input [input ...]
     </pre>
 
     <h4>Architecture</h4>
     <p>bass supports multiple architectures. This allows custom parsers for any
-    instruction set. The default if one is not specified is the table parser,
-    which allows defining instructions sets in plain-text, and also has a few
-    built-in languages of its own.</p>
+    instruction set. The default if one is not specified is the <i>table</i>
+    parser, which allows defining instruction sets in plain-text, and also has a
+    few built-in languages of its own.</p>
 
     <p>The following architectures are currently implemented in bass:</p>
 
@@ -25,6 +25,8 @@
     table
     snes-smp-canonical
     </pre>
+
+    <p>See the separate documentation for each specific architecture.</p>
 
     <h4>Defines</h4>
     <p>You may optionally specify defines on the command-line. These will be
@@ -165,15 +167,6 @@
     <p>You can also redeclare macros again and again, pass macros as arguments
     to other macros, and even delcare new macros inside of other macros.</p>
 
-    <h4>Evaluation</h4>
-
-    <p>Macros are evalulated when a block consists of only a macro declaration.
-    For instance, <i>{add value}</i> as per above. The parser will set all of
-    the macro arguments in the <i>self</i> namespace, and then execute each
-    block inside of the macro, one at a time. This form is recursive, so a macro
-    can call itself, but you will need a conditional to prevent an infinite
-    loop.</p>
-
     <h3>Defines</h3>
 
     <p>Defines are essentially macros that take zero arguments and contain only
@@ -226,22 +219,6 @@
     dd "A"  //writes 0x12345678
     </pre>
 
-    <h4>Evalulation</h4>
-
-    <p>Defines are evalulated when they are part of a block. For instance,
-    <i>lda #{y}</i> as per above. In this case, the value of the define is
-    substituted in place of the reference to the define.</p>
-
-    <p>Unlike with macro evalulation, define evaluation will not evaluate every
-    block within the macro. And if you try and use define evaluation with a
-    multi-block macro, the result will be a compilation error. As such, macro
-    arguments are not permitted here.</p>
-
-    <p>Essentially, the syntax of macros and defines are the same, to aid in
-    consistency of expressions and to not consume multiple grouping terminals,
-    but for the most part you will want to treat the two as separate concepts.
-    </p>
-
     <h3>Evaluations</h3>
 
     <p>Evaluations are parsed defines, useful namely for meta programming.</p>
@@ -258,6 +235,34 @@
     <p>The main reason to use <i>eval</i> is to reduce processing overhead. You
     can also use them to store a permanent copy of a source define, allowing you
     to redefine the source without modifying the evalulated target.</p>
+
+    <h3>Recursive Macro Evaluation</h3>
+
+    <p>For each block, the deepest macros are evaluated first, which allows
+    macros to accept macros as arguments.</p>
+
+    <p>The <i>return</i> statement can be used to specify what value a macro
+    should return in place of its parent block's invocation. <i>return</i> can
+    be blank, or have no argument. Note that <i>return</i> does not stop macro
+    evaluation. This is so the conditional stack can be unwound and checked. If
+    you need multiple return statements, separate them with conditionals.</p>
+
+    <p>Example:</p>
+    <pre>
+    macro add x,y
+    &nbsp;&nbsp;return {eval {self::x} + {self::y}}
+    endmacro
+
+    macro factorial n
+    &nbsp;&nbsp;if {self::n} == 1
+    &nbsp;&nbsp;&nbsp;&nbsp;return 1
+    &nbsp;&nbsp;else
+    &nbsp;&nbsp;&nbsp;&nbsp;return {eval {self::n} * {factorial {eval {self::n} - 1}}}
+    &nbsp;&nbsp;endif
+    endmacro
+
+    print "{add {add 1,2}, {add 3,4}}! = {factorial 10}"  //prints 10! = 3628800
+    </pre>
 
     <h3>Conditional Assembly</h3>
 
@@ -358,6 +363,27 @@
     -; sta $2180; dex; beq {+}; dey; bra {-}; +; rts
     </pre>
 
+    <h3>Constants</h3>
+
+    <p>Constants are to labels as defines are to macros. That is to say,
+    internally a constant is a label, and shares the properties of labels. You
+    can reference a constant before is defined (although it will evaluate to
+    the current PC address rather than its actual value during the first pass),
+    but you cannot redeclare the same constant twice, and constant names shadow
+    label names.</p>
+
+    <p>Consider these to be a static, read-only form of defines. They are also
+    useful for modifying existing binaries: you can declare label names for
+    known functions in the source binary this way, without having to seek there
+    first with the <i>origin</i> keyword.</p>
+
+    <p>Example:</p>
+    <pre>
+    lda addr,x  //evaluates to $208000,x
+    constant base $200000
+    constant addr base + $8000
+    </pre>
+
     <h3>Intrinsics</h3>
 
     <p>Intrinsics are built-in macros that have special meanings.</p>
@@ -422,6 +448,33 @@
 
     <p>Directives are assembler-intrinsic commands that work on all
     architectures.</p>
+
+    <h4>output "filename" [,mode]</h4>
+
+    <p>The output file can be selected on the command-line with the <i>-o</i>
+    flag. Or you can choose to omit the filename there, and use the
+    <i>output</i> directive instead, to specify the output filename inside the
+    source code.</p>
+
+    <p>The <i>output</i> directive can also be used to write to multiple files
+    with a single invocation of bass.</p>
+
+    <p>You can specify one of two modes: <i>create</i> will replace an existing
+    file, and <i>modify</i> can be used to manipulate an existing file. If no
+    mode argument is specified, the mode will be determined by the command-line
+    flags: if <i>-overwrite</i> was specified, <i>create</i> will be used;
+    otherwise, <i>modify</i> will be used.</p>
+
+    <p>This directive will reset both the origin and base directives to zero
+    each time it is encountered.</p>
+
+    <p>Example:</p>
+    <pre>
+    output "data.bin", create
+    fill 0x8000  //generate data.bin and fill it with 32KB of 0x00s
+    output "target.bin", modify
+    fill 0x4000  //open target.bin and fill the first 16KB with 0x00s
+    </pre>
 
     <h4>endian { lsb, msb }</h4>
 
@@ -543,25 +596,10 @@
     dw 0x0123,0x4567
     </pre>
 
-    <h4>echo "message"</h4>
-
-    <p>Prints raw text to the terminal during the second pass of assembly.
-    Unlike <i>print</i> below, <i>echo</i> does not automatically insert line
-    feeds. This will allow you to echo zero or more line feeds per statement,
-    useful for building output strings using multiple statements.</p>
-
-    <p>Escape characters are "\n" for line feed, and "\\" for backspace.</p>
-
-    <p>Example:</p>
-    <pre>
-    echo "PC is currently at: {$}\n"
-    </pre>
-
     <h4>print "message"</h4>
 
     <p>Prints a single line to the terminal during the second pass of assembly.
-    A line feed character is automatically appended. Unlike <i>echo</i>, no
-    escaping is necessary.</p>
+    A line feed character is automatically appended.</p>
 
     <p>Example:</p>
     <pre>
@@ -573,14 +611,10 @@
     <p>Prints a warning message to the terminal. Useful to combine with
     conditional code.</p>
 
-    <p>Warnings are always single-line, no line feed character is necessary.</p>
-
     <h4>error "message"</h4>
 
     <p>Prints an error message to the terminal and aborts the assembly process.
     Useful to combine with conditional code.</p>
-
-    <p>Errors are always single-line, no line feed character is necessary.</p>
 
     <p>Example:</p>
     <pre>
