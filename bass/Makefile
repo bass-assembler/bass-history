@@ -1,7 +1,7 @@
 include ../nall/Makefile
 
 application := bass
-flags := $(flags) -O3 -fomit-frame-pointer -I.. -DBASS_BINARY
+flags := $(flags) -I.. -DBASS_BINARY -O3 -fomit-frame-pointer
 link := $(link) -s
 objects := obj/$(application).o
 

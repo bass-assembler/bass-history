@@ -7,9 +7,29 @@ struct stringref;
 struct lstring;
 typedef const stringref& rstring;
 
+//#define NALL_STRING_ALLOCATOR_COPY_ON_WRITE
+#define NALL_STRING_ALLOCATOR_SMALL_STRING_OPTIMIZATION
+//#define NALL_STRING_ALLOCATOR_VECTOR
+
 struct string {
 protected:
+  #if defined(NALL_STRING_ALLOCATOR_COPY_ON_WRITE)
+  inline void _copy();
   std::shared_ptr<char> _data;
+  #endif
+
+  #if defined(NALL_STRING_ALLOCATOR_SMALL_STRING_OPTIMIZATION)
+  enum : unsigned { SSO = sizeof(char*) };
+  union {
+    char* _data;
+    char _text[SSO];
+  };
+  #endif
+
+  #if defined(NALL_STRING_ALLOCATOR_VECTOR)
+  char* _data;
+  #endif
+
   unsigned _capacity;
   unsigned _size;
 
@@ -32,7 +52,6 @@ public:
 
   //file.hpp
   inline static string read(rstring filename);
-  inline bool readfile(rstring);
 
   //datetime.hpp
   inline static string date();
@@ -61,6 +80,8 @@ public:
   inline bool ibeginswith(rstring) const;
   inline bool endswith(rstring) const;
   inline bool iendswith(rstring) const;
+
+  inline string substring(unsigned offset, unsigned length = 0) const;
 
   inline string& lower();
   inline string& upper();
@@ -109,8 +130,6 @@ public:
 //protected:
   struct exception_out_of_bounds{};
   template<unsigned Limit, bool Insensitive, bool Quoted> inline string& ureplace(rstring, rstring);
-  inline void _unique();
-  inline void _copy();
   inline string& _append(const char*);
 
 #if defined(QSTRING_H)

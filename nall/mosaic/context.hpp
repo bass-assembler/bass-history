@@ -159,8 +159,8 @@ struct context {
   }
 
   bool load(const string& filename) {
-    string filedata;
-    if(filedata.readfile(filename) == false) return false;
+    string filedata = string::read(filename);
+    if(filedata.empty()) return false;
     parse(filedata);
     return true;
   }

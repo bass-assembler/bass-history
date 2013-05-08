@@ -21,7 +21,8 @@ bool BassTable::assembleBlock(string& block) {
       else {
         name.trim<1>("\"");
         name = {dir(fileName.last()), name};
-        if(data.readfile(name) == false) error("arch: file not found: ", name);
+        data = string::read(name);
+        if(data.empty()) error("arch: file not found: ", name);
       }
       table.reset();
       parseTable(data);

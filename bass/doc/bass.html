@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v11.04</h1>
+    <h1>bass v11.06</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -142,14 +142,14 @@
 
     <p>Example:</p>
     <pre>
-    macro add value; clc; adc {self::value}; endmacro
+    macro add value; clc; adc {#value}; endmacro
     macro waitForVblank; -; bit $4212; bpl {-}; endmacro
     macro fill length, index
-    &nbsp;&nbsp;ldy #{self::length}
-    &nbsp;&nbsp;self::loop:
-    &nbsp;&nbsp;&nbsp;&nbsp;sta $7e2000+{self::index},x
+    &nbsp;&nbsp;ldy #{#length}
+    &nbsp;&nbsp;#loop:
+    &nbsp;&nbsp;&nbsp;&nbsp;sta $7e2000+{#index},x
     &nbsp;&nbsp;&nbsp;&nbsp;dey
-    &nbsp;&nbsp;&nbsp;&nbsp;bne self::loop
+    &nbsp;&nbsp;&nbsp;&nbsp;bne #loop
     &nbsp;&nbsp;rts
     endmacro
 
@@ -160,9 +160,11 @@
     </pre>
 
     <p>As you can see, macros can take zero or more arguments. Each argument is
-    named for clarity. The <i>self</i> namespace is used to avoid shadowing
-    global macros and defines. See the <i>Namespaces</i> section for more
-    details.</p>
+    named for clarity. Macros and labels prefixed with # only exist within the
+    context of the current macro. Macro arguments are always prefixed with #, to
+    avoid conflicting with global macros and defines. In this case, if the loop
+    label were not prefixed with #, it would be declared twice, which would
+    result in an error.</p>
 
     <p>You can also redeclare macros again and again, pass macros as arguments
     to other macros, and even delcare new macros inside of other macros.</p>
@@ -219,6 +221,29 @@
     dd "A"  //writes 0x12345678
     </pre>
 
+    <h4>Escape Sequences</h4>
+
+    <p>It is sometimes necessary to embed non-plaintext characters within
+    strings, and to redefine those escapable characters. The backslash character
+    can be used to encode escaped characters.</p>
+
+    <p>Valid escape sequences are:
+    <pre>
+    \\ = backslash
+    \0 = null
+    \a = apostrophe
+    \q = quotation mark
+    \t = tab
+    \r = carriage return
+    \n = line feed
+    </pre>
+
+    <p>Example:</p>
+    <pre>
+    define '\n' 0xff
+    db "Test\n"  //writes "Test", 0xff
+    </pre>
+
     <h3>Evaluations</h3>
 
     <p>Evaluations are parsed defines, useful namely for meta programming.</p>
@@ -250,15 +275,16 @@
     <p>Example:</p>
     <pre>
     macro add x,y
-    &nbsp;&nbsp;return {eval {self::x} + {self::y}}
+    &nbsp;&nbsp;return {eval {#x} + {#y}}
     endmacro
 
     macro factorial n
-    &nbsp;&nbsp;if {self::n} == 1
+    &nbsp;&nbsp;if {#n} == 1
     &nbsp;&nbsp;&nbsp;&nbsp;return 1
     &nbsp;&nbsp;else
-    &nbsp;&nbsp;&nbsp;&nbsp;return {eval {self::n} * {factorial {eval {self::n} - 1}}}
+    &nbsp;&nbsp;&nbsp;&nbsp;return {eval {#n} * {factorial {eval {#n} - 1}}}
     &nbsp;&nbsp;endif
+    &nbsp;&nbsp;//a return statement here would override both of the above statements
     endmacro
 
     print "{add {add 1,2}, {add 3,4}}! = {factorial 10}"  //prints 10! = 3628800
@@ -310,8 +336,7 @@
     <p>Sublabels must begin with . when being declared. When being referenced,
     the active label is implicitly added if one is not manually specified.</p>
 
-    <p>The default namespace is named <i>global</i>. Attempting to declare a
-    sublabel without declaring a parent label will result in an error.</p>
+    <p>The default namespace is named <i>global</i>.</p>
 
     <p>Example:</p>
     <pre>
@@ -346,9 +371,13 @@
     more than one label backward or forward, use {-n} or {+n}, where n is the
     number of labels to seek by. A value of 0 for n is invalid.</p>
 
+    <p>Note that using anonymous labels inside macros will affect the counts in
+    the parent code as well. If you need to avoid this, rely on named macro
+    labels instead.</p>
+
     <p>Example:</p>
     <pre>
-    org $8000
+    origin $8000
     above:  //all three branches go to above
     -; bra {-1}
     -; bra {-2}
@@ -566,7 +595,7 @@
 
     <p>Example:</p>
     <pre>
-    org 0x2000; db 0x01; align 4, 0xff  //will write three 0xff bytes as padding
+    origin 0x2000; db 0x01; align 4, 0xff  //will write three 0xff bytes as padding
     </pre>
 
     <h4>fill length [,byte]</h4>
@@ -580,6 +609,15 @@
     length to go backward. Will not write any data to the file, so be careful
     not to seek forward if there is no data there yet (for instance, if you are
     in overwrite mode and already at the end of the file.)</p>
+
+    <h4>write ...</h4>
+
+    <p>Writes data directly to the target file. Arguments can be string
+    sequences or bytes.</p>
+
+    <p><i>write</i> works like <i>db</i>, except it does not honor character
+    value overrides (eg <i>define ' ' 0x00</i>), meaning that text is always
+    written using ASCII values.</p>
 
     <h4>db ...; dw ...; dl ...; dd ...; dq ...</h4>
 
@@ -599,11 +637,12 @@
     <h4>print "message"</h4>
 
     <p>Prints a single line to the terminal during the second pass of assembly.
-    A line feed character is automatically appended.</p>
+    Note that a line feed character is not automatically appended. This allows
+    you to build a line to output with multiple <i>print</i> statements.</p>
 
     <p>Example:</p>
     <pre>
-    print "PC is currently at: {$}"
+    print "PC is currently at: {$}\n"
     </pre>
 
     <h4>warning "message"</h4>

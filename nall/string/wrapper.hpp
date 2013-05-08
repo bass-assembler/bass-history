@@ -40,6 +40,12 @@ bool string::iendswith(rstring source) const {
   return imemcmp(data() + size() - source.size(), source.data(), source.size()) == 0;
 }
 
+string string::substring(unsigned offset, unsigned length) const {
+  if(offset >= size()) return "";
+  if(length == 0) length = size() - offset;
+  return substr(data(), offset, length);
+}
+
 string& string::lower() { nall::strlower(data()); return *this; }
 string& string::upper() { nall::strupper(data()); return *this; }
 string& string::qlower() { nall::qstrlower(data()); return *this; }

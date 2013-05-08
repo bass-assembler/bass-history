@@ -27,9 +27,7 @@ int main(int argc, char** argv) {
       argument.ltrim<1>("-D");
       lstring part = argument.split<1>("=");
       if(!part[0].position("::")) part[0] = {"global::", part[0]};
-      arch->defaultMacros.append({
-        part[0], {}, part(1, ""), Bass::Define  //no argument sets value to blank
-      });
+      arch->defaultMacros.append({part[0], {}, {"return ", part(1, "")}});  //no argument sets value to blank
       n++;
     } else if(string{argv[n]} == "-case-insensitive") {
       arch->options.caseInsensitive = true;
@@ -53,7 +51,7 @@ int main(int argc, char** argv) {
   }
 
   if(inputFilename.size() < 1) {
-    print("bass v11.04\n");
+    print("bass v11.06\n");
     print("author: byuu\n");
     print("license: GPLv3\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] [-o output] input [input ...]\n");
