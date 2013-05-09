@@ -1,5 +1,5 @@
-bool BassSnesSmpCanonical::assembleBlock(string &block) {
-  if(Bass::assembleBlock(block) == true) return true;
+bool BassSnesSmpCanonical::assembleDirective(string &block) {
+  if(Bass::assembleDirective(block) == true) return true;
 
   lstring part = block.split<1>(" "), list;
   string name = part[0], args = part(1, "");

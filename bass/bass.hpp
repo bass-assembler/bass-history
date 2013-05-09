@@ -7,4 +7,3 @@ using namespace nall;
 
 #include "core/core.hpp"
 #include "arch/table/table.hpp"
-#include "arch/snes-smp-canonical/snes-smp-canonical.hpp"

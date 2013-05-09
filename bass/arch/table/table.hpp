@@ -1,6 +1,6 @@
 struct BassTable : public Bass {
   virtual void initialize(unsigned pass) override;
-  virtual bool assembleBlock(string& block) override;
+  virtual bool assembleDirective(string& block) override;
 
 protected:
   struct Prefix {

@@ -4,7 +4,7 @@
     <link href="style.css" rel="stylesheet" type="text/css">
   </head>
   <body>
-    <h1>bass v11.06</h1>
+    <h1>bass v11.07</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -19,14 +19,10 @@
     parser, which allows defining instruction sets in plain-text, and also has a
     few built-in languages of its own.</p>
 
-    <p>The following architectures are currently implemented in bass:</p>
-
-    <pre>
-    table
-    snes-smp-canonical
-    </pre>
-
     <p>See the separate documentation for each specific architecture.</p>
+
+    <p><small><i>Note: currently, the only architecture supported is the table
+    architecture.</i></small></p>
 
     <h4>Defines</h4>
     <p>You may optionally specify defines on the command-line. These will be
@@ -46,15 +42,9 @@
     are supported:</p>
 
     <pre>
-    -case-insensitive
     -overwrite
     -benchmark
     </pre>
-
-    <p><i>-case-insenstive</i> will treat all input as lowercase. This will
-    allow typing directives and opcodes in capital letters, but has the downside
-    of making labels, defines and macros case-insensitive as well. Text inside
-    quotes (eg strings) will remain case-sensitive.</p>
 
     <p><i>-overwrite</i> will always create a new output file, specified by the
     -o flag. Without this flag, bass will act in its traditional form and apply
@@ -136,22 +126,27 @@
 
     <h3>Macros</h3>
 
-    <p>Macros allow for user-specified expansion of code.</p>
+    <p>There are two forms of macros: <i>functions</i> and <i>defines</i>,
+    described below.</p>
 
-    <p>Macros use the syntax: macro x [arg, arg ...]; ...; endmacro</p>
+    <h3>Functions</h3>
+
+    <p>Functions allow for user-specified expansion of code.</p>
+
+    <p>Functions use the syntax: function x [arg, arg ...]; ...; endfunction</p>
 
     <p>Example:</p>
     <pre>
-    macro add value; clc; adc {#value}; endmacro
-    macro waitForVblank; -; bit $4212; bpl {-}; endmacro
-    macro fill length, index
+    function add value; clc; adc {#value}; endfunction
+    function waitForVblank; -; bit $4212; bpl {-}; endfunction
+    function fill length, index
     &nbsp;&nbsp;ldy #{#length}
     &nbsp;&nbsp;#loop:
     &nbsp;&nbsp;&nbsp;&nbsp;sta $7e2000+{#index},x
     &nbsp;&nbsp;&nbsp;&nbsp;dey
     &nbsp;&nbsp;&nbsp;&nbsp;bne #loop
     &nbsp;&nbsp;rts
-    endmacro
+    endfunction
 
     {add #$20}  //expands to: clc; adc #$20
     {waitForVblank}
@@ -159,21 +154,46 @@
     {fill $0020, $0020}
     </pre>
 
-    <p>As you can see, macros can take zero or more arguments. Each argument is
-    named for clarity. Macros and labels prefixed with # only exist within the
-    context of the current macro. Macro arguments are always prefixed with #, to
-    avoid conflicting with global macros and defines. In this case, if the loop
-    label were not prefixed with #, it would be declared twice, which would
-    result in an error.</p>
+    <p>As you can see, functions can take zero or more arguments. Each argument
+    is named for clarity. Functions and labels prefixed with # only exist within
+    the context of the current function. Function arguments are always prefixed
+    with #, to avoid conflicting with global functions and defines. In this
+    case, if the loop label were not prefixed with #, it would be declared
+    twice, which would result in an error.</p>
 
-    <p>You can also redeclare macros again and again, pass macros as arguments
-    to other macros, and even delcare new macros inside of other macros.</p>
+    <p>You can also redeclare functions again and again, pass functions as
+    arguments to other functions, and even delcare new functions inside of other
+    functions.</p>
+
+    <h4>String Invocation</h4>
+
+    <p>For the purpose of passing functions as arguments to functions for
+    deferred evaluation (for instance, to support currying), bass supports
+    evaluating quoted functions.</p>
+
+    <p>Example:</p>
+    <pre>
+    function invoke function
+    &nbsp;&nbsp;{{#function}}
+    endfunction
+
+    function echo text
+    &nbsp;&nbsp;print "{#text}\n"
+    endfunction
+
+    {invoke "echo test"}  //prints "test"
+    </pre>
+
+    <p>Inside <i>invoke</i>, {#function} evaluates to "echo test". The second
+    set of braces thus forms {"echo test"}. bass sees the attempt to call a
+    function that is surrounded by quotes, removes the quotes, and then executes
+    the <i>echo</i> function with the argument of test.</p>
 
     <h3>Defines</h3>
 
-    <p>Defines are essentially macros that take zero arguments and contain only
+    <p>Defines are essentially functions that take zero arguments and contain only
     a single block. They utilize the same markup, and can in fact overwrite each
-    other (eg if a define uses the same name as a macro, or vice versa.)</p>
+    other (eg if a define uses the same name as a function, or vice versa.)</p>
 
     <p>They are primarily intended to be used as a convenient way to declare
     static variables.</p>
@@ -204,8 +224,8 @@
 
     <p>Example:</p>
     <pre>
-    define 'A' 0x61  //0x61 is the ASCII code for 'a'
-    define 'B' 0x62  //0x62 is the ASCII code for 'b'
+    define "A" 0x61  //0x61 is the ASCII code for 'a'
+    define "B" 0x62  //0x62 is the ASCII code for 'b'
     db "ABCD"  //assembles as "abCD"
     </pre>
 
@@ -215,7 +235,7 @@
     <p>Example:</p>
     <pre>
     endian lsb
-    define 'A' 0x12345678
+    define "A" 0x12345678
     db "A"  //writes 0x78
     dw "A"  //writes 0x5678
     dd "A"  //writes 0x12345678
@@ -230,8 +250,6 @@
     <p>Valid escape sequences are:
     <pre>
     \\ = backslash
-    \0 = null
-    \a = apostrophe
     \q = quotation mark
     \t = tab
     \r = carriage return
@@ -240,7 +258,7 @@
 
     <p>Example:</p>
     <pre>
-    define '\n' 0xff
+    define "\n" 0xff
     db "Test\n"  //writes "Test", 0xff
     </pre>
 
@@ -261,33 +279,34 @@
     can also use them to store a permanent copy of a source define, allowing you
     to redefine the source without modifying the evalulated target.</p>
 
-    <h3>Recursive Macro Evaluation</h3>
+    <h3>Recursive Function Evaluation</h3>
 
-    <p>For each block, the deepest macros are evaluated first, which allows
-    macros to accept macros as arguments.</p>
+    <p>For each block, the deepest functions are evaluated first, which allows
+    functions to accept functions as arguments.</p>
 
-    <p>The <i>return</i> statement can be used to specify what value a macro
-    should return in place of its parent block's invocation. <i>return</i> can
-    be blank, or have no argument. Note that <i>return</i> does not stop macro
-    evaluation. This is so the conditional stack can be unwound and checked. If
-    you need multiple return statements, separate them with conditionals.</p>
+    <p>The optional <i>return</i> statement can be used to specify what value a
+    function should return in place of its parent block's invocation.
+    <i>return</i> can be blank, or have no argument. Note that <i>return</i>
+    does not stop function evaluation. This is so the conditional stack can be
+    unwound and checked. If you need multiple return statements, separate them
+    with conditionals.</p>
 
     <p>Example:</p>
     <pre>
-    macro add x,y
-    &nbsp;&nbsp;return {eval {#x} + {#y}}
-    endmacro
+    function add x, y
+    &nbsp;&nbsp;return {= {#x} + {#y}}
+    endfunction
 
-    macro factorial n
+    function factorial n
     &nbsp;&nbsp;if {#n} == 1
     &nbsp;&nbsp;&nbsp;&nbsp;return 1
     &nbsp;&nbsp;else
-    &nbsp;&nbsp;&nbsp;&nbsp;return {eval {#n} * {factorial {eval {#n} - 1}}}
+    &nbsp;&nbsp;&nbsp;&nbsp;return {= {#n} * {factorial {= {#n} - 1}}}
     &nbsp;&nbsp;endif
     &nbsp;&nbsp;//a return statement here would override both of the above statements
-    endmacro
+    endfunction
 
-    print "{add {add 1,2}, {add 3,4}}! = {factorial 10}"  //prints 10! = 3628800
+    print "{add {add 1, 2}, {add 3, 4}}! = {factorial 10}"  //prints 10! = 3628800
     </pre>
 
     <h3>Conditional Assembly</h3>
@@ -312,9 +331,26 @@
     endif
     </pre>
 
-    <p>Like macros, conditional blocks can be nested recursively. It is also
-    possible to nest macros inside of conditionals, and conditionals inside of
-    macros.</p>
+    <p>Like functions, conditional blocks can be nested recursively. It is also
+    possible to nest functions inside of conditionals, and conditionals inside
+    of functions.</p>
+
+    <h4>while (condition); ...; endwhile</h4>
+
+    <p>Repeats a block of code while the condition is true. Requires the use of
+    defines to break out of the loop.</p>
+
+    <p>Example:</p>
+    <pre>
+    eval times 5
+    while {times} > 0
+    &nbsp;&nbsp;print "{times}, "
+    &nbsp;&nbsp;eval times {times} - 1
+    endwhile
+    print "{times}\n"
+    </pre>
+
+    <p>The above will print "5, 4, 3, 2, 1, 0"</p>
 
     <h3>Namespaces and Labels</h3>
 
@@ -371,9 +407,9 @@
     more than one label backward or forward, use {-n} or {+n}, where n is the
     number of labels to seek by. A value of 0 for n is invalid.</p>
 
-    <p>Note that using anonymous labels inside macros will affect the counts in
-    the parent code as well. If you need to avoid this, rely on named macro
-    labels instead.</p>
+    <p>Note that using anonymous labels inside functionss will affect the counts
+    in the parent code as well. If you need to avoid this, rely on named
+    function labels instead.</p>
 
     <p>Example:</p>
     <pre>
@@ -394,7 +430,7 @@
 
     <h3>Constants</h3>
 
-    <p>Constants are to labels as defines are to macros. That is to say,
+    <p>Constants are to labels as defines are to functions. That is to say,
     internally a constant is a label, and shares the properties of labels. You
     can reference a constant before is defined (although it will evaluate to
     the current PC address rather than its actual value during the first pass),
@@ -415,29 +451,44 @@
 
     <h3>Intrinsics</h3>
 
-    <p>Intrinsics are built-in macros that have special meanings.</p>
+    <p>Intrinsics are built-in functions that have special meanings.</p>
 
-    <h4>{$}</h4>
+    <h4>{-}, {-n}, {+}, {+n}</h4>
+
+    <p>Anonymous labels. See section above for more information on their usage.
+    </p>
+
+    <h4>{@eval expression}</h4>
+
+    <p>Evaluates the expression to a numeric value. This can be critical for
+    function recursion: a loop that keeps passing {#n} - 1 as an argument would
+    keep appending " - 1" to each iteration. Using <i>{@eval}</i> allows the
+    expression to be resolved to a single numeric value first.</p>
+
+    <p>The functionality is technically the same as the <i>eval</i> directive,
+    but can be specified inline with other expressions, and does not actually
+    assign the result to a define.</p>
+
+    <p>As this is the most critical intrinsic provided, there is a special
+    shorthand syntax of <i>{=...}</i> for this intrinsic.</p>
+
+    <h4>{@pc}</h4>
 
     <p>Prints the current program counter value. This is equal to the
     base-adjusted origin.</p>
 
-    <h4>{@}</h4>
+    <h4>{@origin}</h4>
 
     <p>Prints the origin without base adjustment.</p>
-
-    <h4>{eval expression}</h4>
-
-    <p>Evaluates the expression to a numeric value.</p>
 
     <p>Example:</p>
     <pre>
     origin 0x1000
     label:
-    print "{eval label}"  //prints "4096"
+    print "{= label}"  //prints "4096"
     </pre>
 
-    <h4>{hex expression}</h4>
+    <h4>{@hex expression}</h4>
 
     <p>Evaluates the expression to a numeric hex value, instead of decimal.</p>
 
@@ -446,32 +497,41 @@
     origin 0x8000
     label:
     define value 0xc000
-    print "{hex label}"  //prints "0x8000"
-    print "{hex {value}}"  //prints "0xc000"
+    print "{@hex label}"  //prints "0x8000"
+    print "{@hex {value}}"  //prints "0xc000"
     </pre>
 
-    <h4>{defined macro}</h4>
+    <h4>{@defined macro}</h4>
 
-    <p>Tests whether a define or macro exists that matches the specified name.
-    Evaluates to 1 if it exists, or 0 if it does not.</p>
+    <p>Tests whether a define or function exists that matches the specified
+    name. Evaluates to 1 if it exists, or 0 if it does not.</p>
 
     <p>Example:</p>
     <pre>
     define x
-    if {defined x}; db $01; endif  //evaluates to "if 1"
-    if {defined x} || {defined y}; db $02; endif  //evaluates to "if 1 || 0"
-    if {defined y}; db $03; endif  //evaluates to "if 0"
+    if {@defined x}; db $01; endif  //evaluates to "if 1"
+    if {@defined x} || {@defined y}; db $02; endif  //evaluates to "if 1 || 0"
+    if {@defined y}; db $03; endif  //evaluates to "if 0"
     //net effect: $01, $02 is written to file; $03 is not
     </pre>
 
-    <p>Note that this does not consider macro arguments. It would not matter if
-    <i>x</i> above were a define, or a macro with zero or more arguments, it
-    would still evalulate to 1.</p>
+    <p>Note that this does not consider function arguments. It would not matter
+    if <i>x</i> above were a define, or a function with zero or more arguments,
+    it would still evalulate to 1.</p>
 
-    <h4>{-}, {-n}, {+}, {+n}</h4>
+    <h4>User-Defined Intrinsics</h4>
 
-    <p>Anonymous labels. See section above for more information on their usage.
-    </p>
+    <p>It is possible to create new intrinsics by prefixing function names with
+    the @ character. This should only be done for library-style functions.</p>
+
+    <p>Example:</p>
+    <pre>
+    function @equals x, y
+    &nbsp;&nbsp;return {= {@compare {#x}, {#y}} == 0}
+    endfunction
+
+    print "{@equals "foo", "bar"}, {@equals "bar", "bar"}\n"  //prints 0, 1
+    </pre>
 
     <h3>Directives</h3>
 
@@ -544,8 +604,8 @@
     <pre>
     origin 0x8000
     incbinas data, "data.bin"  //data.bin is 0x2000 bytes in length
-    print "{hex data}"  //prints 0x8000
-    print "{hex data.size}"  //prints 0x2000
+    print "{@hex data}"  //prints 0x8000
+    print "{@hex data.size}"  //prints 0x2000
     </pre>
 
     <h4>origin offset</small></h4>
@@ -616,7 +676,7 @@
     sequences or bytes.</p>
 
     <p><i>write</i> works like <i>db</i>, except it does not honor character
-    value overrides (eg <i>define ' ' 0x00</i>), meaning that text is always
+    value overrides (eg <i>define " " 0x00</i>), meaning that text is always
     written using ASCII values.</p>
 
     <h4>db ...; dw ...; dl ...; dd ...; dq ...</h4>
@@ -642,7 +702,7 @@
 
     <p>Example:</p>
     <pre>
-    print "PC is currently at: {$}\n"
+    print "PC is currently at: {@pc}\n"
     </pre>
 
     <h4>warning "message"</h4>
@@ -659,7 +719,7 @@
     <pre>
     origin 0x0000
     incbin "script.bin"
-    if {$} >= 0x8000
+    if {@pc} >= 0x8000
     &nbsp;&nbsp;error "script too large (> 32KB)"
     endif
     </pre>

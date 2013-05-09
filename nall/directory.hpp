@@ -112,14 +112,14 @@ private:
       if(wcscmp(data.cFileName, L".") && wcscmp(data.cFileName, L"..")) {
         if(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
           string name = (const char*)utf8_t(data.cFileName);
-          if(wildcard(name, pattern)) list.append(name);
+          if(name.match(pattern)) list.append(name);
         }
       }
       while(FindNextFile(handle, &data) != false) {
         if(wcscmp(data.cFileName, L".") && wcscmp(data.cFileName, L"..")) {
           if(data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
             string name = (const char*)utf8_t(data.cFileName);
-            if(wildcard(name, pattern)) list.append(name);
+            if(name.match(pattern)) list.append(name);
           }
         }
       }
@@ -141,12 +141,12 @@ private:
     if(handle != INVALID_HANDLE_VALUE) {
       if((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
         string name = (const char*)utf8_t(data.cFileName);
-        if(wildcard(name, pattern)) list.append(name);
+        if(name.match(pattern)) list.append(name);
       }
       while(FindNextFile(handle, &data) != false) {
         if((data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
           string name = (const char*)utf8_t(data.cFileName);
-          if(wildcard(name, pattern)) list.append(name);
+          if(name.match(pattern)) list.append(name);
         }
       }
       FindClose(handle);
@@ -191,7 +191,7 @@ private:
         if(!strcmp(ep->d_name, ".")) continue;
         if(!strcmp(ep->d_name, "..")) continue;
         if(ep->d_type & DT_DIR) {
-          if(wildcard(ep->d_name, pattern)) list.append(ep->d_name);
+          if(strmatch(ep->d_name, pattern)) list.append(ep->d_name);
         }
       }
       closedir(dp);
@@ -210,7 +210,7 @@ private:
         if(!strcmp(ep->d_name, ".")) continue;
         if(!strcmp(ep->d_name, "..")) continue;
         if((ep->d_type & DT_DIR) == 0) {
-          if(wildcard(ep->d_name, pattern)) list.append(ep->d_name);
+          if(strmatch(ep->d_name, pattern)) list.append(ep->d_name);
         }
       }
       closedir(dp);

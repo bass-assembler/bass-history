@@ -9,8 +9,8 @@ void BassTable::initialize(unsigned pass) {
   table.reset();
 }
 
-bool BassTable::assembleBlock(string& block) {
-  if(Bass::assembleBlock(block) == true) return true;
+bool BassTable::assembleDirective(string& block) {
+  if(Bass::assembleDirective(block) == true) return true;
 
   if(block.beginswith("arch")) {
     if(block.beginswith("arch ")) {
@@ -20,7 +20,7 @@ bool BassTable::assembleBlock(string& block) {
       else if(name == "snes.smp") data = Arch_snes_smp;
       else {
         name.trim<1>("\"");
-        name = {dir(fileName.last()), name};
+        name = {dir(sourceFiles.last()), name};
         data = string::read(name);
         if(data.empty()) error("arch: file not found: ", name);
       }
@@ -30,7 +30,7 @@ bool BassTable::assembleBlock(string& block) {
     } else if(block == "arch.reset") {
       table.reset();
       return true;
-    } else if(block.wildcard("arch.append \"*\"")) {
+    } else if(block.match("arch.append \"*\"")) {
       string data = block;
       data.ltrim<1>("arch.append ");
       data.trim<1>("\"");
@@ -140,7 +140,7 @@ void BassTable::writeBits(uint64_t data, unsigned length) {
 bool BassTable::parseTable(const string& text) {
   lstring lines = text.split("\n");
   for(auto& line : lines) {
-    if(auto position = line.position("//")) line[position()] = 0;  //remove comments
+    if(auto position = line.find("//")) line.resize(position());  //remove comments
     lstring part = line.split<1>(";");
     if(part.size() != 2) continue;
 

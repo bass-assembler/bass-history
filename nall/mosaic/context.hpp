@@ -64,7 +64,7 @@ struct context {
     lstring list = expression.split(",");
     for(auto& item : list) {
       item.trim();
-      if(item.wildcard("f(?*) ?*")) {
+      if(item.match("f(?*) ?*")) {
         item.ltrim<1>("f(");
         lstring part = item.split<1>(") ");
         lstring args = part[0].split<3>(";");
@@ -85,10 +85,10 @@ struct context {
           buffer[offset] = eval(fn);
           offset += stride;
         }
-      } else if(item.wildcard("base64*")) {
+      } else if(item.match("base64*")) {
         unsigned offset = 0;
         item.ltrim<1>("base64");
-        if(item.wildcard("(?*) *")) {
+        if(item.match("(?*) *")) {
           item.ltrim<1>("(");
           lstring part = item.split<1>(") ");
           offset = eval(part[0]);
@@ -102,7 +102,7 @@ struct context {
           if(c == '-') buffer.append(offset + 62);
           if(c == '_') buffer.append(offset + 63);
         }
-      } else if(item.wildcard("file *")) {
+      } else if(item.match("file *")) {
         item.ltrim<1>("file ");
         item.trim();
         //...

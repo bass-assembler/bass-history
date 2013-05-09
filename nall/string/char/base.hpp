@@ -23,6 +23,11 @@ inline char* qstrlower(char* str);
 inline char* qstrupper(char* str);
 inline char* strtr(char* dest, const char* before, const char* after);
 
+//match.hpp
+inline bool match(const char* str, const char* pattern);
+inline bool imatch(const char* str, const char* pattern);
+inline bool tokenize(const char* s, const char* p);
+
 //math-fixed-point.hpp
 namespace fixedpoint {
 inline intmax_t eval_integer(const char*& s);
@@ -72,11 +77,6 @@ inline void utf8_write(char* s, const UTF8& utf8);
 template<bool Insensitive> alwaysinline bool chrequal(char x, char y);
 template<bool Quoted, typename T> alwaysinline bool quoteskip(T*& p);
 template<bool Quoted, typename T> alwaysinline bool quotecopy(char*& t, T*& p);
-
-//wildcard.hpp
-inline bool wildcard(const char* str, const char* pattern);
-inline bool iwildcard(const char* str, const char* pattern);
-inline bool tokenize(const char* s, const char* p);
 
 }
 

@@ -58,19 +58,12 @@ using namespace nall;
 
 #if 1
 int main() {
-  string test = "helloworld";
-  print(test.substring(0), "!\n");
-  print(test.substring(5), "!\n");
-  print(test.substring(5, 20), "!\n");
-  print(test.substring(20), "!\n");
-
   clock_t s = clock();
   auto document = Markup::Document(string::read("/usr/share/higan/cheats.bml"));
   print(document["database/revision"].text(), "\n");
 //for(auto& cartridge : document.find("cartridge")) print(cartridge["name"].text(), "\n");
   clock_t f = clock();
   print(f - s, "\n");
-
   return 0;
 }
 #endif

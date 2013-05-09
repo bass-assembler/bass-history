@@ -11,7 +11,6 @@ struct Bass {
   Bass();
 
   struct Options {
-    bool caseInsensitive;
     bool overwrite;
   } options;
 
@@ -20,6 +19,13 @@ protected:
     NotYetMatched,
     Matching,
     AlreadyMatched,
+  };
+
+  struct Context {
+    vector<lstring> source;
+    string name;
+    unsigned line;
+    unsigned block;
   };
 
   struct Macro {
@@ -56,14 +62,22 @@ protected:
   void assembleFile(const string& filename);
   unsigned macroRecursion() const;
   optional<string> assembleMacro(const string& name, const lstring& args);
-  void assembleSource(const string& source);
-  virtual bool assembleBlock(string& block);
+  void assembleSource(const string& name, const string& source);
+
+  //directives.cpp
+  virtual bool assembleDirective(string& block);
+
+  //intrinsics.cpp
+  virtual bool assembleIntrinsic(string& block);
 
   //eval.cpp
   int64_t eval(const string& s);
-  string evalText(string& text);
   string evalMacros(string& line);
   optional<string> evalMacro(string name);
+
+  //text.cpp
+  string encodeText(string text);
+  string decodeText(string text);
 
   file output;
   enum class Endian : bool { LSB, MSB } endian;
@@ -71,6 +85,8 @@ protected:
   unsigned origin;
   signed base;
   uint64_t table[256];
+  vector<string> sourceFiles;
+  vector<Context> contexts;
   set<Macro> macros;
   set<Label> labels;
   string activeNamespace;
@@ -83,11 +99,7 @@ protected:
   unsigned nextLabelCounter;
   vector<Condition> conditionStack;
   vector<string> stack;
-
-  //these vectors preserve state across incsrc and macro recursion
-  vector<string> fileName;
-  vector<unsigned> lineNumber;
-  vector<unsigned> blockNumber;
+  bool sync;
 
 public:
   static const bool Define;

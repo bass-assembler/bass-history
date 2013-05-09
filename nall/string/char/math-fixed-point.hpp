@@ -47,13 +47,17 @@ intmax_t eval_integer(const char*& s) {
   }
 
   //char
-  if(x == '\'' && y != '\'') {
-    s += 1;
-    while(true) {
-      value = value * 256 + *s++;
-      if(*s == '\'') { s += 1; return value; }
-      if(!*s) throw "mismatched char";
-    }
+  if(x == '\'') {
+    if(s[1] == '\\' && s[2] == '\\' && s[3] == '\'') { s += 4; return '\\'; }
+    if(s[1] == '\\' && s[2] == '0'  && s[3] == '\'') { s += 4; return '\0'; }
+    if(s[1] == '\\' && s[2] == 's'  && s[3] == '\'') { s += 4; return ' ';  }
+    if(s[1] == '\\' && s[2] == 'a'  && s[3] == '\'') { s += 4; return '\''; }
+    if(s[1] == '\\' && s[2] == 'q'  && s[3] == '\'') { s += 4; return '\"'; }
+    if(s[1] == '\\' && s[2] == 't'  && s[3] == '\'') { s += 4; return '\t'; }
+    if(s[1] == '\\' && s[2] == 'r'  && s[3] == '\'') { s += 4; return '\r'; }
+    if(s[1] == '\\' && s[2] == 'n'  && s[3] == '\'') { s += 4; return '\n'; }
+    if(s[1] != '\\' && s[2] == '\'') { s += 3; return y; }
+    throw "unrecognized char";
   }
 
   throw "unrecognized integer";
