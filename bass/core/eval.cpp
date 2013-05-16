@@ -90,13 +90,13 @@ optional<string> Bass::evalMacro(string name) {
   if(name.beginswith("-")) {  //anonymous last label
     signed offset = (name == "-" ? -1 : integer(name));
     if(offset >= 0) error("invalid anonymous label index");
-    return {true, {"!relativeLast", lastLabelCounter + offset - 0}};
+    return {true, {"anonymous::relativeLast", lastLabelCounter + offset - 0}};
   }
 
   if(name.beginswith("+")) {  //anonymous next label
     signed offset = (name == "+" ? +1 : integer(name));
     if(offset <= 0) error("invalid anonymous label index");
-    return {true, {"!relativeNext", nextLabelCounter + offset - 1}};
+    return {true, {"anonymous::relativeNext", nextLabelCounter + offset - 1}};
   }
 
   if(name.beginswith("@")) {

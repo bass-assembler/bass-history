@@ -323,8 +323,8 @@ bool Bass::assembleDirective(string& block) {
       if(item.match("\"*\"") == false) {
         write(eval(item));
       } else {
-        decodeText(block);
-        for(auto byte : block) write(byte);
+        item = decodeText(item);
+        for(auto byte : item) write(byte);
       }
     }
     return true;
@@ -345,7 +345,7 @@ bool Bass::assembleDirective(string& block) {
       if(item.match("\"*\"") == false) {
         write(eval(item), size);
       } else {
-        decodeText(item);
+        item = decodeText(item);
         for(auto byte : item) write(table[byte], size);
       }
     }
@@ -376,13 +376,13 @@ bool Bass::assembleDirective(string& block) {
   //= anonymous labels =
   //====================
   if(block == "-") {
-    if(pass == 1) setLabel({"!relativeLast", lastLabelCounter}, pc());
+    if(pass == 1) setLabel({"anonymous::relativeLast", lastLabelCounter}, pc());
     lastLabelCounter++;
     return true;
   }
 
   if(block == "+") {
-    if(pass == 1) setLabel({"!relativeNext", nextLabelCounter}, pc());
+    if(pass == 1) setLabel({"anonymous::relativeNext", nextLabelCounter}, pc());
     nextLabelCounter++;
     return true;
   }
@@ -416,7 +416,13 @@ bool Bass::assembleDirective(string& block) {
     if(pass == 2) {
       block.ltrim<1>("print ");
       lstring list = block.qsplit(",").strip();
-      for(auto& text : list) print(decodeText(text));
+      for(auto& item : list) {
+        if(item.match("\"*\"") == false) {
+          print(eval(item));
+        } else {
+          print(decodeText(item));
+        }
+      }
     }
     return true;
   }

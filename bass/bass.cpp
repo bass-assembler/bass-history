@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
   }
 
   if(inputFilename.size() < 1) {
-    print("bass v11.07\n");
+    print("bass v11.08\n");
     print("author: byuu\n");
     print("license: GPLv3\n");
     print("usage: bass [-arch=name] [-Dname(=value) ...] [options] [-o output] input [input ...]\n");

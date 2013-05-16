@@ -58,6 +58,8 @@ using namespace nall;
 
 #if 1
 int main() {
+  print(hex(42), "\n");
+
   clock_t s = clock();
   auto document = Markup::Document(string::read("/usr/share/higan/cheats.bml"));
   print(document["database/revision"].text(), "\n");

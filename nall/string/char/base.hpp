@@ -24,8 +24,8 @@ inline char* qstrupper(char* str);
 inline char* strtr(char* dest, const char* before, const char* after);
 
 //match.hpp
-inline bool match(const char* str, const char* pattern);
-inline bool imatch(const char* str, const char* pattern);
+inline bool strmatch(const char* str, const char* pattern);
+inline bool istrmatch(const char* str, const char* pattern);
 inline bool tokenize(const char* s, const char* p);
 
 //math-fixed-point.hpp
