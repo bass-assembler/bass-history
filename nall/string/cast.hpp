@@ -15,9 +15,9 @@ template<> struct stringify<bool> {
 };
 
 template<> struct stringify<char> {
-  char data[256];
+  char data[2];
   operator const char*() const { return data; }
-  stringify(char value) { integer(data, value); }
+  stringify(char value) { data[0] = value, data[1] = 0; }
 };
 
 // signed integers
@@ -101,19 +101,19 @@ template<unsigned bits> struct stringify<uint_t<bits>> {
 template<> struct stringify<float> {
   char data[256];
   operator const char*() const { return data; }
-  stringify(float value) { fp(data, value); }
+  stringify(float value) { real(data, value); }
 };
 
 template<> struct stringify<double> {
   char data[256];
   operator const char*() const { return data; }
-  stringify(double value) { fp(data, value); }
+  stringify(double value) { real(data, value); }
 };
 
 template<> struct stringify<long double> {
   char data[256];
   operator const char*() const { return data; }
-  stringify(long double value) { fp(data, value); }
+  stringify(long double value) { real(data, value); }
 };
 
 // arrays

@@ -1,6 +1,6 @@
-struct BassTable : public Bass {
-  virtual void initialize(unsigned pass) override;
-  virtual bool assembleDirective(string& block) override;
+struct BassTable : Bass {
+  virtual void assembleInitialize() override;
+  virtual bool assembleInstruction(Instruction& instruction) override;
 
 protected:
   struct Prefix {
@@ -15,7 +15,9 @@ protected:
   struct Format {
     enum class Type : unsigned { Static, Absolute, Relative, Repeat } type;
     enum class Match : unsigned { Exact, Strong, Weak } match;
-    unsigned data, bits, argument;
+    unsigned data;
+    unsigned bits;
+    unsigned argument;
     signed displacement;
   };
 

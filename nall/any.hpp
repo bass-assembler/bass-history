@@ -8,6 +8,7 @@ namespace nall {
 
 struct any {
   bool empty() const { return container; }
+  void reset() { if(container) { delete container; container = nullptr; } }
 
   const std::type_info& type() const {
     return container ? container->type() : typeid(void);
@@ -47,12 +48,13 @@ struct any {
   any(const any& source) { operator=(source); }
   any(any&& source) { operator=(std::move(source)); }
   template<typename T> any(const T& value) { operator=(value); }
-  ~any() { if(container) delete container; }
+  ~any() { reset(); }
 
 private:
   struct placeholder {
     virtual const std::type_info& type() const = 0;
     virtual placeholder* copy() const = 0;
+    virtual ~placeholder() {}
   };
   placeholder* container = nullptr;
 

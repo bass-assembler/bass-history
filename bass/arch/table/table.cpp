@@ -3,49 +3,56 @@
 #include "snes-smp.arch"
 #undef arch
 
-void BassTable::initialize(unsigned pass) {
+void BassTable::assembleInitialize() {
+  Bass::assembleInitialize();
+
   bitval = 0;
   bitpos = 0;
   table.reset();
 }
 
-bool BassTable::assembleDirective(string& block) {
-  if(Bass::assembleDirective(block) == true) return true;
+bool BassTable::assembleInstruction(Instruction& i) {
+  if(Bass::assembleInstruction(i) == true) return true;
 
-  if(block.beginswith("arch")) {
-    if(block.beginswith("arch ")) {
-      string name = substr(block, 5), data;
-      if(0);
-      else if(name == "snes.cpu") data = Arch_snes_cpu;
-      else if(name == "snes.smp") data = Arch_snes_smp;
-      else {
-        name.trim<1>("\"");
-        name = {dir(sourceFiles.last()), name};
-        data = string::read(name);
-        if(data.empty()) error("arch: file not found: ", name);
-      }
-      table.reset();
-      parseTable(data);
-      return true;
-    } else if(block == "arch.reset") {
-      table.reset();
-      return true;
-    } else if(block.match("arch.append \"*\"")) {
-      string data = block;
-      data.ltrim<1>("arch.append ");
-      data.trim<1>("\"");
-      parseTable(data);
-      return true;
+  string s = i.statement;
+
+  if(s.match("arch ?*")) {
+    s.ltrim<1>("arch ");
+    string data;
+    if(0);
+    else if(s == "snes.cpu") data = Arch_snes_cpu;
+    else if(s == "snes.smp") data = Arch_snes_smp;
+    else if(s.match("\"?*\"")) {
+      s.trim<1>("\"");
+      s = {dir(sourceFilename.last()), s};
+      if(!file::exists(s)) error("arch file ", s, " not found");
+      data = file::read(s);
+    } else {
+      error("unrecognized arch ", s);
     }
+    table.reset();
+    parseTable(data);
+    return true;
+  }
+
+  if(s.match("arch.reset")) {
+    table.reset();
+    return true;
+  }
+
+  if(s.match("arch.append \"*\"")) {
+    s.trim<1>("arch.append \"", "\"");
+    parseTable(s);
+    return true;
   }
 
   unsigned pc = this->pc();
 
   for(auto& opcode : table) {
-    if(tokenize(block, opcode.pattern) == false) continue;
+    if(tokenize(s, opcode.pattern) == false) continue;
 
     lstring args;
-    tokenize(args, block, opcode.pattern);
+    tokenize(args, s, opcode.pattern);
     if(args.size() != opcode.number.size()) continue;
 
     bool mismatch = false;
@@ -66,24 +73,33 @@ bool BassTable::assembleDirective(string& block) {
 
     for(auto& format : opcode.format) {
       switch(format.type) {
-      case Format::Type::Static: {
-        writeBits(format.data, format.bits);
-      } break;
-      case Format::Type::Absolute: {
-        unsigned data = eval(args[format.argument]);
-        writeBits(data, opcode.number[format.argument].bits);
-      } break;
-      case Format::Type::Relative: {
-        signed data = eval(args[format.argument]) - (pc + format.displacement);
-        unsigned bits = opcode.number[format.argument].bits;
-        signed min = -(1 << (bits - 1)), max = +(1 << (bits - 1)) - 1;
-        if(data < min || data > max) error("branch out of bounds");
-        writeBits(data, opcode.number[format.argument].bits);
-      } break;
-      case Format::Type::Repeat: {
-        unsigned data = eval(args[format.argument]);
-        for(unsigned n = 0; n < data; n++) writeBits(format.data, opcode.number[format.argument].bits);
-      } break;
+        case Format::Type::Static: {
+          writeBits(format.data, format.bits);
+          break;
+        }
+
+        case Format::Type::Absolute: {
+          unsigned data = evaluate(args[format.argument]);
+          writeBits(data, opcode.number[format.argument].bits);
+          break;
+        }
+
+        case Format::Type::Relative: {
+          signed data = evaluate(args[format.argument]) - (pc + format.displacement);
+          unsigned bits = opcode.number[format.argument].bits;
+          signed min = -(1 << (bits - 1)), max = +(1 << (bits - 1)) - 1;
+          if(data < min || data > max) error("branch out of bounds");
+          writeBits(data, opcode.number[format.argument].bits);
+          break;
+        }
+
+        case Format::Type::Repeat: {
+          unsigned data = evaluate(args[format.argument]);
+          for(unsigned n = 0; n < data; n++) {
+            writeBits(format.data, opcode.number[format.argument].bits);
+          }
+          break;
+        }
       }
     }
 
@@ -94,20 +110,20 @@ bool BassTable::assembleDirective(string& block) {
 }
 
 unsigned BassTable::bitLength(string& text) const {
-  auto hexLength = [&](const char* p) -> unsigned {
+  auto binLength = [&](const char* p) -> unsigned {
     unsigned length = 0;
     while(*p) {
-      if(*p >= '0' && *p <= '9') { p++; length += 4; continue; }
-      if(*p >= 'a' && *p <= 'f') { p++; length += 4; continue; }
+      if(*p == '0' || *p == '1') { p++; length += 1; continue; }
       return 0;
     }
     return length;
   };
 
-  auto binLength = [&](const char* p) -> unsigned {
+  auto hexLength = [&](const char* p) -> unsigned {
     unsigned length = 0;
     while(*p) {
-      if(*p == '0' || *p == '1') { p++; length += 1; continue; }
+      if(*p >= '0' && *p <= '9') { p++; length += 4; continue; }
+      if(*p >= 'a' && *p <= 'f') { p++; length += 4; continue; }
       return 0;
     }
     return length;
@@ -141,12 +157,12 @@ bool BassTable::parseTable(const string& text) {
   lstring lines = text.split("\n");
   for(auto& line : lines) {
     if(auto position = line.find("//")) line.resize(position());  //remove comments
-    lstring part = line.split<1>(";");
+    lstring part = line.split<1>(";").strip();
     if(part.size() != 2) continue;
 
     Opcode opcode;
-    assembleTableLHS(opcode, part[0].trim());
-    assembleTableRHS(opcode, part[1].trim());
+    assembleTableLHS(opcode, part(0));
+    assembleTableRHS(opcode, part(1));
     table.append(opcode);
   }
 

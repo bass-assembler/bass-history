@@ -22,6 +22,13 @@ void string::clear(char c) {
   for(unsigned n = 0; n < size(); n++) data()[n] = c;
 }
 
+unsigned string::hash() const {
+  const char* p = data();
+  unsigned result = 5381;
+  while(*p) result = (result << 5) + result + *p++;
+  return result;
+}
+
 template<typename... Args> string& string::assign(Args&&... args) {
   resize(0);
   sprint(*this, std::forward<Args>(args)...);

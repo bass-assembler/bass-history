@@ -25,7 +25,7 @@ bool string::equals(rstring source) const {
 
 bool string::iequals(rstring source) const {
   if(size() != source.size()) return false;
-  return compare(source) != 0;
+  return icompare(source) == 0;
 }
 
 bool string::beginswith(rstring source) const {
@@ -96,9 +96,16 @@ template<unsigned Limit> string& string::rtrim(rstring key) {
   return *this;
 }
 
-template<unsigned Limit> string& string::trim(rstring key, rstring rkey) {
-  rtrim<Limit>(rkey.size() ? rkey : key);
-  return ltrim<Limit>(key);
+template<unsigned Limit> string& string::trim(rstring key) {
+  rtrim<Limit>(key);
+  ltrim<Limit>(key);
+  return *this;
+}
+
+template<unsigned Limit> string& string::trim(rstring lkey, rstring rkey) {
+  rtrim<Limit>(rkey);
+  ltrim<Limit>(lkey);
+  return *this;
 }
 
 string& string::strip() {

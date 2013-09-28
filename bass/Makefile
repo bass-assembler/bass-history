@@ -1,19 +1,21 @@
 include ../nall/Makefile
 
 application := bass
-flags := $(flags) -I.. -DBASS_BINARY -O3 -fomit-frame-pointer
+flags := $(flags) -O3 -fomit-frame-pointer -I..
 link := $(link) -s
-objects := obj/$(application).o
+objects := obj/bass.o
 
 all: $(objects)
-	$(compiler) $(flags) -o $(application) $(objects) $(link)
-	$(call delete,obj/*.o)
+	$(compiler) -o $(application) $(objects) $(link)
 
-obj/$(application).o: $(application).cpp $(application).hpp $(call rwildcard,core/*) $(call rwildcard,arch/*)
-	$(compiler) $(cppflags) $(flags) -o obj/$(application).o -c $(application).cpp
+obj/bass.o: bass.cpp $(call rwildcard,core/*) $(call rwildcard,arch/*)
+	$(compiler) $(cppflags) $(flags) -o obj/bass.o -c bass.cpp
 
 install:
 	sudo cp $(application) /usr/local/bin/$(application)
 
+uninstall:
+	sudo rm /usr/local/bin/$(application)
+
 clean:
-	$(call delete,obj/*.o)
+	-@$(call delete,obj/*.o)

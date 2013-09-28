@@ -56,81 +56,8 @@
 #endif
 using namespace nall;
 
-#if 1
 int main() {
-  print(hex(42), "\n");
-
-  clock_t s = clock();
-  auto document = Markup::Document(string::read("/usr/share/higan/cheats.bml"));
-  print(document["database/revision"].text(), "\n");
-//for(auto& cartridge : document.find("cartridge")) print(cartridge["name"].text(), "\n");
-  clock_t f = clock();
-  print(f - s, "\n");
-  return 0;
-}
-#endif
-
-#if 0
-#include <set>
-#include <unordered_set>
-
-int main() {
-  random_lfsr r;
-  set<unsigned> tree1;
-  std::set<unsigned> tree2;
-  clock_t start, finish;
-
-  start = clock();
-  r.seed(0x5aa5f00f);
-  for(unsigned n = 0; n < 4 * 1024 * 1024; n++) tree1.insert(r());
-  finish = clock();
-  print(finish - start, "\n");
-
-  start = clock();
-  r.seed(0x5aa5f00f);
-  for(unsigned n = 0; n < 4 * 1024 * 1024; n++) tree2.insert(r());
-  finish = clock();
-  print(finish - start, "\n");
-
-  return 0;
-}
-#endif
-
-#if 0
-int main(int argc, char** argv) {
-clock_t s = clock();
-for(unsigned n = 0; n < 1; n++) {
-  auto document = BML::Document(string::read("document.bml"));
-  if(document.error) return print(document.error, "\n"), 0;
-
-//auto result = document.find("*/spc7110(revision=2)/rom(=Q,id=data,size=0x400000)");
-  auto result = document.find("*/spc7110(revision<3)[1]/rom[1-2]");
-  if(1) { for(auto& node : result) print(node.name, "=", node["name"].data, "\n"); print("\n"); }
-
-  if(1) for(auto& root : document) {
-    print("{", root.name, "}");
-    if(!root.data.empty()) print("={", root.data, "}");
-    print("\n");
-    for(auto& node : root) {
-      print("  {", node.name, "}");
-      if(!node.data.empty()) print("={", node.data, "}");
-      print("\n");
-      for(auto& leaf : node) {
-        print("    {", leaf.name, "}");
-        if(!leaf.data.empty()) print("={", leaf.data, "}");
-        print("\n");
-        for(auto& last : leaf) {
-          print("      {", last.name, "}");
-          if(!last.data.empty()) print("={", last.data, "}");
-          print("\n");
-        }
-      }
-    }
+  if(auto value = Eval::integer("0x1234")) {
+    print(value(), "\n");
   }
 }
-clock_t f = clock();
-print(f-s, "\n");
-
-  return 0;
-}
-#endif

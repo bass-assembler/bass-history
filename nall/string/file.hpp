@@ -2,7 +2,7 @@
 
 namespace nall {
 
-string string::read(rstring filename) {
+string string::read(const string& filename) {
   string result;
 
   #if !defined(_WIN32)

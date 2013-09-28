@@ -47,9 +47,8 @@ struct context {
   }
 
   unsigned eval(const string& expression) {
-    intmax_t result;
-    if(fixedpoint::eval(expression, result) == false) return 0u;
-    return result;
+    if(auto result = Eval::integer(expression)) return result();
+    return 0u;
   }
 
   void eval(vector<unsigned>& buffer, const string& expression_) {

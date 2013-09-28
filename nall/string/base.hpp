@@ -47,11 +47,13 @@ public:
   inline void resize(unsigned);
   inline void clear(char);
 
+  inline unsigned hash() const;
+
   template<typename... Args> inline string& assign(Args&&... args);
   template<typename... Args> inline string& append(Args&&... args);
 
   //file.hpp
-  inline static string read(rstring filename);
+  inline static string read(const string& filename);
 
   //datetime.hpp
   inline static string date();
@@ -93,9 +95,16 @@ public:
   inline string& transform(rstring before, rstring after);
   inline string& reverse();
 
-  template<unsigned limit = 0> inline string& ltrim(rstring key = " ");
-  template<unsigned limit = 0> inline string& rtrim(rstring key = " ");
-  template<unsigned limit = 0> inline string& trim(rstring key = " ", rstring rkey = "");
+  template<unsigned limit = 0> inline string& ltrim() { return ltrim<limit>(" "); }
+  template<unsigned limit = 0> inline string& ltrim(rstring key);
+
+  template<unsigned limit = 0> inline string& rtrim() { return rtrim<limit>(" "); }
+  template<unsigned limit = 0> inline string& rtrim(rstring key);
+
+  template<unsigned limit = 0> inline string& trim() { return trim<limit>(" "); }
+  template<unsigned limit = 0> inline string& trim(rstring key);
+  template<unsigned limit = 0> inline string& trim(rstring key, rstring rkey);
+
   inline string& strip();
 
   inline optional<unsigned> find(rstring key) const;
@@ -144,7 +153,8 @@ public:
 //list.hpp
 struct lstring : vector<string> {
   inline optional<unsigned> find(rstring) const;
-  inline string concatenate(const string&) const;
+  inline string merge(const string&) const;
+  inline string concatenate(const string&) const;  //deprecated
   inline lstring& isort();
   inline lstring& strip();
   inline void append() {}
@@ -201,8 +211,8 @@ inline bool tokenize(lstring& list, const char* s, const char* p);
 inline char* integer(char* result, intmax_t value);
 inline char* decimal(char* result, uintmax_t value);
 
-inline unsigned fp(char* str, long double value);
-inline string fp(long double value);
+inline unsigned real(char* str, long double value);
+inline string real(long double value);
 
 //variadic.hpp
 inline void sprint(string& output);

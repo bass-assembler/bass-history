@@ -1,109 +1,99 @@
 struct Bass {
-  enum class FileMode : unsigned {
-    Auto,
-    Create,
-    Modify,
-  };
-
-  bool open(const string& filename, FileMode mode = FileMode::Auto);
-  bool assemble(const string& filename);
-  void close();
-  Bass();
-
-  struct Options {
-    bool overwrite;
-  } options;
+  bool target(const string& filename, bool overwrite);
+  bool source(const string& filename);
+  bool preprocess();
+  bool assemble();
 
 protected:
-  enum class Condition : unsigned {
-    NotYetMatched,
-    Matching,
-    AlreadyMatched,
+  enum class Phase : unsigned { Analyze, Execute, Query, Write };
+  enum class Endian : unsigned { LSB, MSB };
+
+  struct Instruction {
+    string statement;
+    Eval::Node* expression = nullptr;
+    unsigned ip[2];
+
+    unsigned fileNumber;
+    unsigned lineNumber;
+    unsigned blockNumber;
   };
 
-  struct Context {
-    vector<lstring> source;
-    string name;
-    unsigned line;
-    unsigned block;
+  struct BlockStack {
+    string type;
+    unsigned ip;
   };
 
   struct Macro {
     string name;
-    lstring args;
-    string value;
-    bool operator< (const Macro& source) const { return name <  source.name; }
+    lstring parameters;
+    unsigned ip;
+
+    unsigned hash() const { return name.hash(); }
     bool operator==(const Macro& source) const { return name == source.name; }
-    Macro() = default;
+    Macro() {}
     Macro(const string& name) : name(name) {}
-    Macro(const string& name, const lstring& args, const string& value) : name(name), args(args), value(value) {}
   };
 
-  struct Label {
+  struct Define {
     string name;
-    unsigned offset = 0;
-    bool operator< (const Label& source) const { return name <  source.name; }
-    bool operator==(const Label& source) const { return name == source.name; }
-    Label() = default;
-    Label(const string& name) : name(name) {}
-    Label(const string& name, unsigned offset) : name(name), offset(offset) {}
+    string value;
+
+    unsigned hash() const { return name.hash(); }
+    bool operator==(const Define& source) const { return name == source.name; }
+    Define() {}
+    Define(const string& name) : name(name) {}
   };
 
-  virtual void initialize(unsigned pass);
-  template<typename... Args> void warning(Args&&... args);
+  struct Variable {
+    string name;
+    int64_t value;
+
+    unsigned hash() const { return name.hash(); }
+    bool operator==(const Variable& source) const { return name == source.name; }
+    Variable() {}
+    Variable(const string& name) : name(name) {}
+  };
+
+  Phase phase;
+  Endian endian = Endian::LSB;
+
+  file targetFile;
+  lstring sourceFilename;
+  vector<Instruction> program;
+  vector<Instruction> instructions;
+  vector<BlockStack> blockStack;
+  hashset<Macro> macros;
+  vector<hashset<Define>> contexts;
+  hashset<Define> defines;
+  hashset<Variable> variables;
+  vector<unsigned> callStack;
+  vector<bool> ifStack;
+  unsigned macroInvocationCounter = 0;
+  unsigned ip = 0;
+  unsigned origin = 0;
+  signed base = 0;
+
+  //core
   template<typename... Args> void error(Args&&... args);
+  template<typename... Args> void warning(Args&&... args);
+  bool writePhase() const;
   unsigned pc() const;
-  virtual void seek(unsigned offset);
-  virtual void write(uint64_t data, unsigned length = 1);
-  string qualifyMacro(string name, unsigned args);
-  void setMacro(string name, const lstring& args, const string& value);
-  string qualifyLabel(string name);
-  void setLabel(string name, unsigned offset);
-  void assembleFile(const string& filename);
-  unsigned macroRecursion() const;
-  optional<string> assembleMacro(const string& name, const lstring& args);
-  void assembleSource(const string& name, const string& source);
+  void seek(unsigned offset);
+  void write(uint64_t data, unsigned length = 1);
 
-  //directives.cpp
-  virtual bool assembleDirective(string& block);
+  //evaluator
+  int64_t evaluate(const string& expression);
+  int64_t evaluate(Eval::Node* node);
+  int64_t evaluateLiteral(Eval::Node* node);
 
-  //intrinsics.cpp
-  virtual bool assembleIntrinsic(string& block);
+  //preprocessor
+  bool preprocessAnalyze();
+  bool preprocessExecute();
+  void preprocessDefines(string& statement);
 
-  //eval.cpp
-  int64_t eval(const string& s);
-  string evalMacros(string& line);
-  optional<string> evalMacro(string name);
-
-  //text.cpp
-  string encodeText(string text);
-  string decodeText(string text);
-
-  file output;
-  enum class Endian : bool { LSB, MSB } endian;
-  unsigned pass;
-  unsigned origin;
-  signed base;
-  uint64_t table[256];
-  vector<string> sourceFiles;
-  vector<Context> contexts;
-  set<Macro> macros;
-  set<Label> labels;
-  string activeNamespace;
-  Macro activeMacro;   //buffer used to construct new macros (not to evaluate them)
-  string activeLabel;  //active label prefix for sublabels
-  unsigned macroDepth;
-  unsigned macroExpandCounter;
-  vector<string> macroReturnStack;
-  unsigned lastLabelCounter;
-  unsigned nextLabelCounter;
-  vector<Condition> conditionStack;
-  vector<string> stack;
-  bool sync;
-
-public:
-  static const bool Define;
-  static const bool Function;
-
-  vector<Macro> defaultMacros;
+  //assembler
+  virtual void assembleInitialize();
+  bool assemblePhase();
+  virtual bool assembleInstruction(Instruction& instruction);
+  string text(string s);
 };

@@ -190,7 +190,13 @@ private:
       while(ep = readdir(dp)) {
         if(!strcmp(ep->d_name, ".")) continue;
         if(!strcmp(ep->d_name, "..")) continue;
-        if(ep->d_type & DT_DIR) {
+        bool is_directory = ep->d_type & DT_DIR;
+        if(ep->d_type & DT_UNKNOWN) {
+          struct stat sp = {0};
+          stat(string{pathname, ep->d_name}, &sp);
+          is_directory = S_ISDIR(sp.st_mode);
+        }
+        if(is_directory) {
           if(strmatch(ep->d_name, pattern)) list.append(ep->d_name);
         }
       }
