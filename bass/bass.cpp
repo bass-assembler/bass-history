@@ -1,26 +1,29 @@
-//bass v12-beta1
+//bass
 //license: GPLv3
 //author: byuu
 //project started: 2013-09-27
 
-#include <nall/nall.hpp>
-using namespace nall;
-
-#include "core/core.hpp"
+#include "bass.hpp"
 #include "core/core.cpp"
-
-#include "arch/table/table.hpp"
 #include "arch/table/table.cpp"
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12-beta1\n");
-    print("usage: bass [-overwrite] [-o target] source [source ...]\n");
+    print("bass v12-beta2\n");
+    print("usage: bass [options] [-o target] source [source ...]\n");
+    print("\n");
+    print("options:\n");
+    print("  -create          overwrite target file if it already exists\n");
+    print("  -d name          create define\n");
+    print("  -d name=value    create define with value\n");
+    print("  -benchmark       benchmark performance\n");
     return 0;
   }
 
   string targetFilename;
-  bool overwrite = false;
+  lstring defines;
+  bool create = false;
+  bool benchmark = false;
   lstring sourceFilenames;
 
   for(unsigned n = 1; n < argc;) {
@@ -32,8 +35,20 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    if(s == "-overwrite") {
-      overwrite = true;
+    if(s == "-d") {
+      defines.append(argv[n + 1]);
+      n += 2;
+      continue;
+    }
+
+    if(s == "-create") {
+      create = true;
+      n += 1;
+      continue;
+    }
+
+    if(s == "-benchmark") {
+      benchmark = true;
       n += 1;
       continue;
     }
@@ -48,12 +63,21 @@ int main(int argc, char** argv) {
     return -1;
   }
 
+  clock_t clockStart = clock();
   BassTable bass;
-  bass.target(targetFilename, overwrite);
+  bass.target(targetFilename, create);
   for(auto& sourceFilename : sourceFilenames) {
     bass.source(sourceFilename);
   }
+  for(auto& define : defines) {
+    lstring p = define.split<1>("=");
+    bass.setDefine(p(0), p(1));
+  }
   if(bass.preprocess() == false) return -1;
   if(bass.assemble() == false) return -1;
+  clock_t clockFinish = clock();
+  if(benchmark) {
+    print("bass: assembled in ", (double)(clockFinish - clockStart) / CLOCKS_PER_SEC, " seconds\n");
+  }
   return 0;
 }

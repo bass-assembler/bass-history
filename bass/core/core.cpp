@@ -2,14 +2,14 @@
 #include "preprocessor.cpp"
 #include "assembler.cpp"
 
-bool Bass::target(const string& filename, bool overwrite) {
+bool Bass::target(const string& filename, bool create) {
   if(targetFile.open()) targetFile.close();
   if(filename.empty()) return true;
 
   //cannot modify a file unless it exists
-  if(!file::exists(filename)) overwrite = true;
+  if(!file::exists(filename)) create = true;
 
-  if(!targetFile.open(filename, overwrite ? file::mode::write : file::mode::modify)) {
+  if(!targetFile.open(filename, create ? file::mode::write : file::mode::modify)) {
     print("warning: unable to open target file ", filename, "\n");
     return false;
   }
@@ -23,7 +23,7 @@ bool Bass::source(const string& filename) {
     return false;
   }
 
-  sourceFilename.append(filename);
+  sourceFilenames.append(filename);
 
   string data = file::read(filename);
   data.transform("\t\r", "  ");
@@ -39,11 +39,11 @@ bool Bass::source(const string& filename) {
 
       if(statement.match("include \"?*\"")) {
         statement.trim<1>("include \"", "\"");
-        source({dir(sourceFilename.last()), statement});
+        source({dir(sourceFilenames.last()), statement});
       } else {
         Instruction instruction;
         instruction.statement = statement;
-        instruction.fileNumber = sourceFilename.size() - 1;
+        instruction.fileNumber = sourceFilenames.size() - 1;
         instruction.lineNumber = 1 + lineNumber;
         instruction.blockNumber = 1 + blockNumber;
         program.append(instruction);
@@ -76,6 +76,9 @@ bool Bass::assemble() {
 template<typename... Args> void Bass::error(Args&&... args) {
   string s = string(std::forward<Args>(args)...);
   print("error: ", s, "\n");
+  auto& pool = (analyzePhase() || executePhase() ? program : instructions);
+  auto& i = pool(ip - 1);
+  print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
 
   struct BassError {};
   throw BassError();
@@ -84,13 +87,12 @@ template<typename... Args> void Bass::error(Args&&... args) {
 template<typename... Args> void Bass::warning(Args&&... args) {
   string s = string(std::forward<Args>(args)...);
   print("warning: ", s, "\n");
+  auto& pool = (analyzePhase() || executePhase() ? program : instructions);
+  auto& i = pool(ip - 1);
+  print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
 
   struct BassWarning {};
   throw BassWarning();
-}
-
-bool Bass::writePhase() const {
-  return phase == Phase::Write;
 }
 
 unsigned Bass::pc() const {

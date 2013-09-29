@@ -24,7 +24,7 @@ bool BassTable::assembleInstruction(Instruction& i) {
     else if(s == "snes.smp") data = Arch_snes_smp;
     else if(s.match("\"?*\"")) {
       s.trim<1>("\"");
-      s = {dir(sourceFilename.last()), s};
+      s = {dir(sourceFilenames.last()), s};
       if(!file::exists(s)) error("arch file ", s, " not found");
       data = file::read(s);
     } else {

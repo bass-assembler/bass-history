@@ -1,11 +1,25 @@
 int64_t Bass::evaluate(const string& expression) {
-  return evaluate(Eval::parse(expression));
+  if(queryPhase() || writePhase()) {
+    if(expression == "--") return getVariable({"lastLabel#", lastLabelCounter - 2});
+    if(expression == "-" ) return getVariable({"lastLabel#", lastLabelCounter - 1});
+    if(expression == "+" ) return getVariable({"nextLabel#", nextLabelCounter + 0});
+    if(expression == "++") return getVariable({"nextLabel#", nextLabelCounter + 1});
+  }
+
+  Eval::Node* node = nullptr;
+  try {
+    node = Eval::parse(expression);
+  } catch(...) {
+    error("malformed expression: ", expression);
+  }
+  return evaluate(node);
 }
 
 int64_t Bass::evaluate(Eval::Node* node) {
   #define p(n) evaluate(node->link[n])
 
   switch(node->type) {
+  case Eval::Node::Type::Member: return evaluateMember(node);
   case Eval::Node::Type::Literal: return evaluateLiteral(node);
   case Eval::Node::Type::Multiply: return p(0) * p(1);
   case Eval::Node::Type::Divide: return p(0) / p(1);
@@ -29,16 +43,41 @@ int64_t Bass::evaluate(Eval::Node* node) {
   }
 
   #undef p
-  print("warning: malformed expression\n");
+  error("malformed expression");
+}
+
+int64_t Bass::evaluateMember(Eval::Node* node) {
+  lstring p;
+  p.prepend(node->link[1]->literal);
+  node = node->link[0];
+  while(node->type == Eval::Node::Type::Member) {
+    p.prepend(node->link[1]->literal);
+    node = node->link[0];
+  }
+  p.prepend(node->literal);
+  string s = p.merge(".");
+
+  if(queryPhase() || writePhase()) {
+    if(auto variable = findVariable(s)) return variable();
+    if(queryPhase()) return pc();
+  }
+
+  error("unrecognized variable: ", s);
 }
 
 int64_t Bass::evaluateLiteral(Eval::Node* node) {
   string& s = node->literal;
 
-  if(auto variable = variables.find({s})) return variable().value;
-
   if(s[0] == '0' && s[1] == 'b') return binary(s);
   if(s[0] == '0' && s[1] == 'o') return octal(s);
   if(s[0] == '0' && s[1] == 'x') return hex(s);
-  return integer(s);
+  if(s[0] >= '0' && s[0] <= '9') return integer(s);
+  if(s[0] == '$') return hex((const char*)s + 1);
+
+  if(queryPhase() || writePhase()) {
+    if(auto variable = findVariable(s)) return variable();
+    if(queryPhase()) return pc();
+  }
+
+  error("unrecognized variable: ", s);
 }
