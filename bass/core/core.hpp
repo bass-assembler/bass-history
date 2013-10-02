@@ -92,6 +92,7 @@ protected:
 
   template<typename... Args> void error(Args&&... args);
   template<typename... Args> void warning(Args&&... args);
+  string filepath(Instruction& instruction) const;
   unsigned pc() const;
   void seek(unsigned offset);
   void write(uint64_t data, unsigned length = 1);

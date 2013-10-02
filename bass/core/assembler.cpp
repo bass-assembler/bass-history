@@ -13,13 +13,59 @@ bool Bass::assemblePhase() {
   ip = 0;
   while(ip < instructions.size()) {
     Instruction& i = instructions(ip++);
-    if(!assembleInstruction(i)) return false;
+    if(!assembleInstruction(i)) error("unrecognized directive: ", i.statement);
   }
   return true;
 }
 
 bool Bass::assembleInstruction(Instruction& i) {
   string s = i.statement;
+
+  //scope name {
+  if(s.match("scope ?* {")) {
+    s.trim<1>("scope ", " {").strip();
+    scope.append(s);
+    return true;
+  }
+
+  //}
+  if(s.match("} endscope")) {
+    scope.remove();
+    return true;
+  }
+
+  //function name {
+  if(s.match("function ?* {")) {
+    s.trim<1>("function ", " {").strip();
+    setVariable(s, pc(), true);
+    scope.append(s);
+    return true;
+  }
+
+  //}
+  if(s.match("} endfunction")) {
+    scope.remove();
+    return true;
+  }
+
+  //label: {
+  if(s.match("?*: {")) {
+    s.rtrim<1>(": {");
+    setVariable(s, pc(), true);
+    return true;
+  }
+
+  //}
+  if(s.match("} endlabel")) {
+    return true;
+  }
+
+  //label:
+  if(s.match("?*:")) {
+    s.rtrim<1>(":");
+    setVariable(s, pc(), true);
+    return true;
+  }
 
   //variable name(value)
   if(s.match("variable ?*(*)")) {
@@ -35,36 +81,8 @@ bool Bass::assembleInstruction(Instruction& i) {
     return true;
   }
 
-  //label:
-  if(s.match("?*:")) {
-    s.rtrim<1>(":");
-    setVariable(s, pc(), true);
-    return true;
-  }
-
-  //label: {
-  if(s.match("?*: {")) {
-    s.rtrim<1>(": {").strip();
-    setVariable(s, pc(), true);
-    scope.append(s);
-    return true;
-  }
-
-  //scope name {
-  if(s.match("scope ?* {")) {
-    s.trim<1>("scope ", " {").strip();
-    scope.append(s);
-    return true;
-  }
-
-  //}
-  if(s.match("} endscope")) {
-    scope.remove();
-    return true;
-  }
-
   //-
-  if(s.match("-")) {
+  if(s.match("-") || s.match("- {")) {
     setVariable({"lastLabel#", lastLabelCounter++}, pc(), true);
     return true;
   }
@@ -78,7 +96,7 @@ bool Bass::assembleInstruction(Instruction& i) {
   //output "filename" [, create]
   if(s.match("output ?*")) {
     lstring p = s.ltrim<1>("output ").qsplit(",").strip();
-    string filename = {dir(sourceFilenames.last()), p.take(0).trim<1>("\"")};
+    string filename = {filepath(i), p.take(0).trim<1>("\"")};
     bool create = (p.size() && p(0) == "create");
     target(filename, create);
     return true;
@@ -96,6 +114,7 @@ bool Bass::assembleInstruction(Instruction& i) {
   if(s.match("origin ?*")) {
     s.ltrim<1>("origin ");
     origin = evaluate(s);
+    seek(origin);
     return true;
   }
 
@@ -103,6 +122,14 @@ bool Bass::assembleInstruction(Instruction& i) {
   if(s.match("base ?*")) {
     s.ltrim<1>("base ");
     base = evaluate(s);
+    return true;
+  }
+
+  //seek displacement
+  if(s.match("seek ?*")) {
+    signed offset = evaluate(s.ltrim<1>("seek "));
+    origin += offset;
+    seek(origin);
     return true;
   }
 
@@ -149,7 +176,7 @@ bool Bass::assembleInstruction(Instruction& i) {
     lstring p = s.ltrim<1>("insert ").qsplit(",").strip();
     string name;
     if(!p(0).match("\"*\"")) name = p.take(0);
-    string filename = {dir(sourceFilenames.last()), p.take(0).trim<1>("\"")};
+    string filename = {filepath(i), p.take(0).trim<1>("\"")};
     file fp;
     if(!fp.open(filename, file::mode::read)) error("file not found: ", filename);
     unsigned offset = p.size() ? evaluate(p.take(0)) : 0;
@@ -175,20 +202,12 @@ bool Bass::assembleInstruction(Instruction& i) {
     return true;
   }
 
-  //fill offset [, with]
+  //fill length [, with]
   if(s.match("fill ?*")) {
     lstring p = s.ltrim<1>("fill ").qsplit(",").strip();
     unsigned length = evaluate(p(0));
     unsigned byte = evaluate(p(1, "0"));
     while(length--) write(byte);
-    return true;
-  }
-
-  //seek displacement
-  if(s.match("seek ?*")) {
-    signed offset = evaluate(s.ltrim<1>("seek "));
-    origin += offset;
-    seek(origin);
     return true;
   }
 

@@ -9,14 +9,14 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12-beta2\n");
+    print("bass v12\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
+    print("  -benchmark       benchmark performance\n");
     print("  -create          overwrite target file if it already exists\n");
     print("  -d name          create define\n");
     print("  -d name=value    create define with value\n");
-    print("  -benchmark       benchmark performance\n");
     return 0;
   }
 

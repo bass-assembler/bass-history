@@ -2,7 +2,7 @@ bool Bass::preprocessAnalyze() {
   ip = 0;
   while(ip < program.size()) {
     Instruction& i = program(ip++);
-    if(!preprocessAnalyzeInstruction(i)) return false;
+    if(!preprocessAnalyzeInstruction(i)) error("unrecognized preprocessor directive: ", i.statement);
   }
   return true;
 }
@@ -10,9 +10,21 @@ bool Bass::preprocessAnalyze() {
 bool Bass::preprocessAnalyzeInstruction(Instruction& i) {
   string s = i.statement;
 
-  if(s.match("scope ?* {")
-  || s.match("?*: {")
-  ) {
+  if(s.match("}") && blockStack.empty()) error("} without matching {");
+
+  if(s.match("{")) {
+    blockStack.append({"block", ip - 1});
+    i.statement = "block {";
+    return true;
+  }
+
+  if(s.match("}") && blockStack.last().type == "block") {
+    blockStack.remove();
+    i.statement = "} endblock";
+    return true;
+  }
+
+  if(s.match("scope ?* {")) {
     blockStack.append({"scope", ip - 1});
     return true;
   }
@@ -20,6 +32,28 @@ bool Bass::preprocessAnalyzeInstruction(Instruction& i) {
   if(s.match("}") && blockStack.last().type == "scope") {
     blockStack.remove();
     i.statement = "} endscope";
+    return true;
+  }
+
+  if(s.match("function ?* {")) {
+    blockStack.append({"function", ip - 1});
+    return true;
+  }
+
+  if(s.match("}") && blockStack.last().type == "function") {
+    blockStack.remove();
+    i.statement = "} endfunction";
+    return true;
+  }
+
+  if(s.match("?*: {") || s.match("- {")) {
+    blockStack.append({"label", ip - 1});
+    return true;
+  }
+
+  if(s.match("}") && blockStack.last().type == "label") {
+    blockStack.remove();
+    i.statement = "} endlabel";
     return true;
   }
 
@@ -107,6 +141,9 @@ bool Bass::preprocessExecuteInstruction(Instruction& i) {
     setDefine(p(0), p(1));
     return true;
   }
+
+  if(s.match("block {")) return true;
+  if(s.match("} endblock")) return true;
 
   if(s.match("macro ?*(*) {")) {
     s.trim<1>("macro ", ") {");

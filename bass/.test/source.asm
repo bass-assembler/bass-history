@@ -30,7 +30,7 @@ while {n} < 100000 {
 
 insert "insert.bin"
 
-main: {
+function main {
   ldx #$0008; ldy #<8
   loop:; dex; bne loop
   -; beq +; lsr; dex; bne -; +

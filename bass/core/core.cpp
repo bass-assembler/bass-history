@@ -23,6 +23,7 @@ bool Bass::source(const string& filename) {
     return false;
   }
 
+  unsigned fileNumber = sourceFilenames.size();
   sourceFilenames.append(filename);
 
   string data = file::read(filename);
@@ -39,11 +40,11 @@ bool Bass::source(const string& filename) {
 
       if(statement.match("include \"?*\"")) {
         statement.trim<1>("include \"", "\"");
-        source({dir(sourceFilenames.last()), statement});
+        source({dir(filename), statement});
       } else {
         Instruction instruction;
         instruction.statement = statement;
-        instruction.fileNumber = sourceFilenames.size() - 1;
+        instruction.fileNumber = fileNumber;
         instruction.lineNumber = 1 + lineNumber;
         instruction.blockNumber = 1 + blockNumber;
         program.append(instruction);
@@ -93,6 +94,10 @@ template<typename... Args> void Bass::warning(Args&&... args) {
 
   struct BassWarning {};
   throw BassWarning();
+}
+
+string Bass::filepath(Instruction& i) const {
+  return dir(sourceFilenames[i.fileNumber]);
 }
 
 unsigned Bass::pc() const {

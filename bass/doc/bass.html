@@ -1,0 +1,369 @@
+<html>
+  <head>
+    <title>bass documentation</title>
+    <style type="text/css">
+      body {
+        background: #fff;
+        color: #000;
+        font-family: arial, helvetica;
+        font-size: 0.9em;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        margin: 0em;
+      }
+
+      h2 {
+        background: #eef;
+        font-size: 1.2em;
+        margin-bottom: 0.25em;
+        padding: 0.25em;
+      }
+
+      h3 {
+        border-bottom: 2px solid #eee;
+        font-size: 0.9em;
+        margin-bottom: 0.25em;
+      }
+
+      h4 {
+        border-bottom: 1px dashed #ccc;
+        font-size: 0.9em;
+        font-weight: normal;
+      }
+
+      p {
+        margin: 0em;
+        margin-bottom: 1em;
+      }
+
+      pre {
+        background: #fee;
+        margin-top: 0.5em;
+        padding: 0.5em;
+        white-space: pre-line;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>bass v12</h1>
+    Author: byuu<br>
+    License: GPLv3<br>
+    <br>
+
+    <h2>Terminal Usage</h2>
+    <pre>bass [options] [-o target] source [source ...]</pre>
+
+    <h3>Options</h3>
+    <p><i>-benchmark</i> will display the time required to assemble the source.
+    </p>
+
+    <p><i>-create</i> will overwrite the target file, if it exists. The default
+    mode is to modify (patch) the target file.</p>
+
+    <p><i>-d name</i> will create a define with the given name.</p>
+
+    <p><i>-d name=value</i> will create a define with the given name, and assign
+    to it the given value.</p>
+
+    <h2>Architecture</h2>
+    <p>bass is a table-based assembler, which supports multiple architectures,
+    as well as user-defined architectures with appropriate table files provided.
+    </p>
+
+    <p>Parsing consists of five stages:</p>
+
+    <h3>Loading</h3>
+
+    <p>The <i>merge</i> stage will combine all source files, and insert any
+    nested include statements into a single stream of instructions.</p>
+
+    <h3>Preprocessing</h3>
+
+    <p>The <i>analyze</i> phase will parse blocks, such as macros and functions,
+    and note where they begin and end.</p>
+
+    <p>The <i>execute</i> phase will expand macro invocations, substitute
+    defines and evaluate conditional expressions.
+    </p>
+
+    <h3>Assembling</h3>
+
+    <p>The <i>query</i> phase will compute the addresses of labels.</p>
+
+    <p>The <i>write</i> phase will write to any output files.</p>
+
+    <p>It is important to understand the distinction between the phases. For
+    instance, include statements are evaluated first, so they are always
+    expanded, even if inside of a conditional statement; and conditional
+    expressions cannot rely on variables or constants, which are parsed in the
+    assembly phases.</p>
+
+    <h2>Preprocessing</h2>
+    <p>Preprocessing acts much like a scripting language. Statements are
+    evaluated and a control flow (stack) is maintained.</p>
+
+    <h3>Macros</h3>
+    <p>Macros are supported. They can take zero or more arguments, and name
+    overloading with differing arity is possible. Recursion is supported, but
+    requires conditionals in order to break infinite recursion. Macros must be
+    declared before being used, and can be re-declared later on.</p>
+
+    <p>Parameters are expanded via <i>{parameterName}</i>. This is the same
+    syntax as defines, meaning that macro arguments can shadow define names.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    macro seek(offset) {
+    &nbsp;&nbsp;origin {offset} & 0x3fffff
+    &nbsp;&nbsp;base 0xc00000 | {offset}
+    }
+
+    seek(0xc08000)
+    </pre>
+
+    <h4>Invocation Counter</h4>
+    <p>Because macros are expanded directly into the assembly phase, a macro
+    with a label name cannot be expanded twice in the same scope, or the label
+    name will be declared twice, resulting in an error. The special token
+    <i>{#}</i> can be used in a label name, where it will be substituted with a
+    numeric value that increments every time a macro is invoked.</p>
+
+    <h4>Invocation</h4>
+    <p>Macros can be invoked with the syntax: <i>macroName(parameter, parameter,
+    ...)</i>. If a macro is not matched, there is no error, the literal
+    <i>macroName(...)</i> will be passed along to the assembly phase.</p>
+
+    <h3>Defines</h3>
+    <p>Defines can be used to substitute values in expressions. The
+    <i>define</i> keyword allows specifying an exact expression to substitute,
+    whereas the <i>evaluate</i> keyword will evaluate the expression to an
+    integer value. The latter is useful for conditional expressions. Like
+    macros, defines must be declared before being used, and can be re-declared
+    later on.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    define x(1 + 2)
+    print "{x}\n"  //prints "1 + 2\n"
+    evaluate x({x} + 3)  //x = 1 + 2 + 3
+    print "{x}\n"  //prints "6\n"
+    </pre>
+
+    <h4>Invocation</h4>
+    <p>Defines can be invoked with: <i>{defineName}</i>. If a define is not
+    matched, there is no error, the literal <i>{defineName}</i> will be passed
+    along to the assembly phase.</p>
+
+    <h3>Conditional Expressions</h3>
+    <p>bass supports traditional conditional expressions. It is important to use
+    define values for conditions, rather than assembly-phase variables.</p>
+
+    <p>Instructions inside unmatched conditional expressions will not be passed
+    on to the assembly phase.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    define x(16)
+    while {x} > 0 {
+    &nbsp;print "{x}\n"
+    &nbsp;evaluate x({x} - 1)
+    }
+    if {x} > 16 {
+    &nbsp;&nbsp;...
+    } else if {x} > 8 {
+    &nbsp;&nbsp;...
+    } else {
+    &nbsp;&nbsp;...
+    }
+    </pre>
+
+    <h2>Assembly</h2>
+    <p>The assembly phase parses all instructions output by the preprocessing
+    phase in a linear order. This phase acts as a patching-assembler, rather
+    than an object-assembler. What this means is that if the same instruction
+    can have a short or long form (eg lda #0 can be lda #$00 or lda #$0000), you
+    must manually specify which to use, or it will default to the longest form.
+    </p>
+
+    <h3>Scoping</h3>
+    <p>Variables and constants can be scoped. This allows reuse of common names
+    like <i>loop</i> and <i>finish</i> inside of parent scopes, without causing
+    declaration collisions. Note that labels are stored as constants, meaning
+    that scoping also applies to labels.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    variable offset(16)
+
+    scope information {
+    &nbsp;&nbsp;variable length(32)
+
+    &nbsp;&nbsp;lda #offset  //16
+    &nbsp;&nbsp;lda #length  //32
+    }
+
+    lda #offset  //16
+    lda #information.length  //32
+    </pre>
+
+    <h3>Labels</h3>
+    <p>Labels can be created with the syntax: <i>labelName:</i></p>
+
+    <h4>Example:</h4>
+    <pre>
+    loop:
+    &nbsp;&nbsp;dex; bne loop
+    </pre>
+
+    <h3>Anonymous Labels</h3>
+    <p>Labels without names can be created using <i>-</i> and <i>+</i>.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    -; beq +; lsr; dex; bne -; +
+    </pre>
+
+    <h4>Invocation:</h4>
+    <p>The previous - label can be referenced with -, and the next + label can
+    be referenced with +. The second to last - label can be referenced with --,
+    and the second to next + label can be referenced with ++. Deeper scoping is
+    not supported: you will have to switch to named labels at this point.</p>
+
+    <h4>Scoped Labels:</h4>
+    <p>It is possible to declare a scope and label at the same time.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    function labelName {
+    }
+    </pre>
+
+    <h3>Unscoped Blocks:</h3>
+    <p>It is also possible to create blocks which do not create scopes. These
+    are used strictly for code clarity, and have no functional effect.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    labelName: {
+    }
+
+    - {
+    }
+
+    {
+    }
+    </pre>
+
+    <h3>Variables and Constants</h3>
+    <p>Variables and constants hold integer values. Variables must be declared
+    before being used, but can be redefined. Constants can be used before their
+    declaration, but subsequently cannot be redefined. Labels are stored as
+    constants.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    variable x(16)
+    lda #x  //16
+
+    variable x(32)
+    lda #x  //32
+
+    lda #y  //64
+    constant y(64)
+    </pre>
+
+    <h3>include "filename"</h3>
+    <p>Note that this command is parsed in the very first phase, and is only
+    noted here for completeness. It includes another source file in place of
+    this command.</p>
+
+    <h3>output "filename" [, create]</h3>
+    <p>This command can be used in place of the <i>-o filename [-create]</i>
+    command-line argument, or in addition to it, and can open multiple files
+    sequentially for output (only one output file can be open at a time.) The
+    create parameter, if specified, states to overwrite the target file if it
+    already exists. Otherwise, the file is opened in modification mode.</p>
+
+    <h3>endian (lsb|msb)</h3>
+    <p>This command controls whether multi-byte values (eg from dw and dd) are
+    output in little-endian (lsb) or big-endian (msb) format.</p>
+
+    <h3>origin offset</h3>
+    <p>This command seeks the output file write cursor to the specified
+    location.</p>
+
+    <h3>base offset</h3>
+    <p>This command creates a signed displacement against the origin value,
+    which is used when computing the pc (program counter) value for labels. This
+    command allows mapping file address space into a virtual memory address
+    space.</p>
+
+    <h3>seek offset</h3>
+    <p>This advanced the output file write cursor (origin) by a signed value,
+    meaning it can seek forward or backward. Only use this when the output file
+    is opened in modification mode.</p>
+
+    <h3>(push|pull) variable [, ...]</h3>
+    <p>This can be used to save and restore internal state. Currently supported
+    values are: <i>origin, base, pc</i>.</p>
+
+    <h3>insert [name, ] filename [, offset] [, length]</h3>
+    <p>This command inserts a binary file into the target file. You can
+    optionally specify a name, offset and length. If you specify a name, it will
+    create a label by the given name, which contains the address where the data
+    begins, and it will also create name.size, which contains the size of the
+    included data. If you specify an offset, it will seek that far into the
+    referenced filename before copying the data. If you want to specify a
+    length, you must specify an offset first, and the length will determine the
+    maximum number of bytes to copy from the referenced filename.</p>
+
+    <h3>align to [, with]</h3>
+    <p>Aligns the program counter to be evenly divisible by the given <i>to</i>
+    value. The default padding byte is 0x00, but can be specified via
+    <i>with</i>.</p>
+
+    <h3>fill length [, with]</h3>
+    <p>Inserts <i>length</i> number of bytes into the target file. The default
+    fill byte is 0x00, but can be specified via <i>with</i>.</p>
+
+    <h3>table.reset</h3>
+    <p>Resets the table mapping used for strings passed to db, dw, etc to ASCII.
+    </p>
+
+    <h3>table.assign 'char' [, value] [, length]</h3>
+    <p>Modifies the mappings for strings passed to db, dw, etc. This can be used
+    to map strings to custom tilemaps that do not follow traditional ASCII
+    values.</p>
+
+    <p><i>char</i> is the first value to modify, <i>value</i> is the value to
+    map said char to, and <i>length</i> can be used for contiguous entries. For
+    instance, if A-Z appear sequentially, give a value of 26 for the length, to
+    avoid having to declare 26 separate assignments. Each step of length
+    increments both the char and value by exactly one, so the characters must be
+    contiguous with both ASCII and your custom map for this to work.</p>
+
+    <h3>d[bwldq] ("string"|variable|constant) [, ...]</h3>
+    <p>Inserts binary data directly into the target file. db stores 8-bit
+    values, dw stores 16-bit values, dl stored 24-bit values, dd stored 32-bit
+    values and dq stores 64-bit values.</p>
+
+    <p>Escape sequences for strings are <i>\n</i> for new-line, <i>\q</i> for
+    the quote character, and <i>\\</i> for backslashes.</p>
+
+    <h3>print ("string"|variable) [, ...]</h3>
+    <p>Prints information to the terminal. Useful for debugging.</p>
+
+    <h3>warning "string"</h3>
+    <p>Prints a warning to the terminal, but continues assembly.</p>
+
+    <h3>error "string"</h3>
+    <p>Prints an error to the terminal, and aborts assembly.</p>
+
+    <h2>The End</h2>
+    <p>Hopefully this has been informative. The best way to learn is through
+    practice, so please do experiment and see what you can come up with!</p>
+
+    <p>Thank you for using bass!</p>
+  </body>
+</html>
