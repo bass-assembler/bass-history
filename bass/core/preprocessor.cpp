@@ -35,25 +35,14 @@ bool Bass::preprocessAnalyzeInstruction(Instruction& i) {
     return true;
   }
 
-  if(s.match("function ?* {")) {
-    blockStack.append({"function", ip - 1});
+  if(s.match("?*: {") || s.match("- {") || s.match("+ {")) {
+    blockStack.append({"constant", ip - 1});
     return true;
   }
 
-  if(s.match("}") && blockStack.last().type == "function") {
+  if(s.match("}") && blockStack.last().type == "constant") {
     blockStack.remove();
-    i.statement = "} endfunction";
-    return true;
-  }
-
-  if(s.match("?*: {") || s.match("- {")) {
-    blockStack.append({"label", ip - 1});
-    return true;
-  }
-
-  if(s.match("}") && blockStack.last().type == "label") {
-    blockStack.remove();
-    i.statement = "} endlabel";
+    i.statement = "} endconstant";
     return true;
   }
 
@@ -118,11 +107,16 @@ bool Bass::preprocessAnalyzeInstruction(Instruction& i) {
 }
 
 bool Bass::preprocessExecute() {
+  set<Define> stack;
+  defines.append(stack);
+
   ip = 0;
   while(ip < program.size()) {
     Instruction& i = program(ip++);
     if(!preprocessExecuteInstruction(i)) return false;
   }
+
+  defines.remove();
   return true;
 }
 
@@ -151,12 +145,6 @@ bool Bass::preprocessExecuteInstruction(Instruction& i) {
     lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
     setMacro(p(0), a, ip);
     ip = i.ip;
-    return true;
-  }
-
-  if(s.match("} endmacro")) {
-    ip = callStack.take();
-    contexts.remove();
     return true;
   }
 
@@ -215,60 +203,39 @@ bool Bass::preprocessExecuteInstruction(Instruction& i) {
     lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
     string name = {p(0), ":", a.size()};
     if(auto macro = macros.find({name})) {
-      hashset<Define>& context = contexts(contexts.size());
+      set<Define> stack;
+      defines.append(stack);
+      setDefine("#", macroInvocationCounter++);
       for(unsigned n = 0; n < a.size(); n++) {
-        Define define;
-        define.name = macro().parameters(n);
-        define.value = a(n);
-        context.insert(define);
+        setDefine(macro().parameters(n), a(n));
       }
 
       callStack.append(ip);
       ip = macro().ip;
-      macroInvocationCounter++;
       return true;
     }
-  //error("macro not found: ", name);
+  }
+
+  if(s.match("} endmacro")) {
+    ip = callStack.take();
+    defines.remove();
+    return true;
   }
 
   instructions.append(i);
   instructions.last().statement = s;
-
   return true;
 }
 
 void Bass::preprocessDefines(string& s) {
-  unsigned depth = 0, maxDepth = 0;
-  for(unsigned x = 0; x < s.size(); x++) {
-    if(s[x] == '{') depth++;
-    if(s[x] == '}') depth--;
-    if(depth >= maxDepth) maxDepth = depth;
-  }
-
-  for(unsigned x = 0, depth = 0; x < s.size(); x++) {
-    if(s[x] == '{') depth++;
-    if(s[x] == '}') depth--;
-    if(s[x] == '{' && depth == maxDepth) {
-      signed counter = 0;
-      for(unsigned y = x; y < s.size(); y++) {
-        if(s[y] == '{') counter++;
-        if(s[y] == '}') counter--;
-        if(s[y] == '}' && counter == 0) {
-          string name = s.slice(x + 1, y - x - 1);
-          if(name == "#") {
-            s = {s.slice(0, x), macroInvocationCounter, s.slice(y + 1)};
-            return preprocessDefines(s);
-          }
-          if(contexts.size()) {
-            if(auto define = contexts.last().find({name})) {
-              s = {s.slice(0, x), define().value, s.slice(y + 1)};
-              return preprocessDefines(s);
-            }
-          }
-          if(auto define = defines.find({name})) {
-            s = {s.slice(0, x), define().value, s.slice(y + 1)};
-            return preprocessDefines(s);
-          }
+  for(signed x = s.size() - 1, y = -1; x >= 0; x--) {
+    if(s[x] == '}') y = x;
+    if(s[x] == '{' && y > x) {
+      string name = s.slice(x + 1, y - x - 1);
+      for(signed n = defines.size() - 1; n >= 0; n--) {
+        if(auto define = defines[n].find({name})) {
+          s = {s.slice(0, x), define().value, s.slice(y + 1)};
+          return preprocessDefines(s);
         }
       }
     }
@@ -286,9 +253,11 @@ void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip) 
 }
 
 void Bass::setDefine(const string& name, const string& value) {
-  if(auto define = defines.find({name})) {
-    define().value = value;
-  } else {
-    defines.insert({name, value});
+  for(signed n = defines.size() - 1; n >= 0; n--) {
+    if(auto define = defines[n].find({name})) {
+      define().value = value;
+      return;
+    }
   }
+  defines.last().insert({name, value});
 }

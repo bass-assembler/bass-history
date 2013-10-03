@@ -32,6 +32,7 @@ protected:
 
     unsigned hash() const { return name.hash(); }
     bool operator==(const Macro& source) const { return name == source.name; }
+    bool operator< (const Macro& source) const { return name <  source.name; }
     Macro() {}
     Macro(const string& name) : name(name) {}
     Macro(const string& name, const lstring& parameters, unsigned ip) : name(name), parameters(parameters), ip(ip) {}
@@ -43,6 +44,7 @@ protected:
 
     unsigned hash() const { return name.hash(); }
     bool operator==(const Define& source) const { return name == source.name; }
+    bool operator< (const Define& source) const { return name <  source.name; }
     Define() {}
     Define(const string& name) : name(name) {}
     Define(const string& name, const string& value) : name(name), value(value) {}
@@ -52,9 +54,11 @@ protected:
     string name;
     int64_t value;
     bool constant;
+    bool valid = true;
 
     unsigned hash() const { return name.hash(); }
     bool operator==(const Variable& source) const { return name == source.name; }
+    bool operator< (const Variable& source) const { return name <  source.name; }
     Variable() {}
     Variable(const string& name) : name(name) {}
     Variable(const string& name, int64_t value, bool constant) : name(name), value(value), constant(constant) {}
@@ -66,10 +70,9 @@ protected:
   vector<Instruction> program;
   vector<Instruction> instructions;
   vector<BlockStack> blockStack;
-  hashset<Macro> macros;
-  vector<hashset<Define>> contexts;
-  hashset<Define> defines;
-  hashset<Variable> variables;
+  set<Macro> macros;
+  vector<set<Define>> defines;
+  set<Variable> variables;
   vector<unsigned> callStack;
   vector<bool> ifStack;
   lstring stack;

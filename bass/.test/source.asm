@@ -1,5 +1,3 @@
-arch snes.cpu
-
 macro seek(offset) {
   origin (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
   base {offset}
@@ -7,13 +5,15 @@ macro seek(offset) {
 
 seek(0x8000)
 
+//functional recursion
+
 macro factorial(number, result) {
   if {number} <= 1 {
     print "{result}\n"
   } else {
-    evaluate newResult({number} * {result})
-    evaluate newNumber({number} - 1)
-    factorial({newNumber}, {newResult})
+    evaluate result({number} * {result})
+    evaluate number({number} - 1)
+    factorial({number}, {result})
   }
 }
 
@@ -23,6 +23,21 @@ macro factorial(number) {
 
 factorial(10)
 
+//iterative repetition
+
+macro factorial(number) {
+  evaluate result(1)
+  while {number} > 1 {
+    evaluate result({result} * {number})
+    evaluate number({number} - 1)
+  }
+  print "{result}\n"
+}
+
+factorial(10)
+
+//benchmarking (processing speed)
+
 define n(0)
 while {n} < 100000 {
   evaluate n({n} + 1)
@@ -30,13 +45,14 @@ while {n} < 100000 {
 
 insert "insert.bin"
 
-function main {
+scope main: {
   ldx #$0008; ldy #<8
   loop:; dex; bne loop
   -; beq +; lsr; dex; bne -; +
   rts
 }
 
+jmp main
 jmp main.loop
 
 table.assign 'A', 0x01, 26

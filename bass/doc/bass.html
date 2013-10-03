@@ -46,7 +46,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v12</h1>
+    <h1>bass v12.01</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -73,7 +73,7 @@
 
     <p>Parsing consists of five stages:</p>
 
-    <h3>Loading</h3>
+    <h3>Tokenizing</h3>
 
     <p>The <i>merge</i> stage will combine all source files, and insert any
     nested include statements into a single stream of instructions.</p>
@@ -99,6 +99,19 @@
     expressions cannot rely on variables or constants, which are parsed in the
     assembly phases.</p>
 
+    <h2>Tokenizing</h2>
+    <p>Initially, each source file specified on the terminal is loaded in. For
+    each source file, all tabs (\t) and carriage returns (\r) are converted to
+    spaces, and each line is split by line feeds (\n). Next, each line is
+    clipped at the first appearance of a comment marker (//). Then, each line is
+    split by any semicolons (;) <i>not</i> appearing inside of quoted strings.
+    That is to say, semicolons can be used inside of quoted strings. Using
+    semicolons outside of strings splits the line into multiple statements. The
+    semicolon acts as a statement separator, and not as a statement terminator,
+    meaning that a semicolon is not required at the end of each line. Finally,
+    if the statement is an <i>include</i> directive, the source file parser will
+    be invoked recursively to load in nested source files.</p>
+
     <h2>Preprocessing</h2>
     <p>Preprocessing acts much like a scripting language. Statements are
     evaluated and a control flow (stack) is maintained.</p>
@@ -110,7 +123,7 @@
     declared before being used, and can be re-declared later on.</p>
 
     <p>Parameters are expanded via <i>{parameterName}</i>. This is the same
-    syntax as defines, meaning that macro arguments can shadow define names.</p>
+    syntax as defines, meaning that macro arguments shadow define names.</p>
 
     <h4>Example:</h4>
     <pre>
@@ -134,6 +147,17 @@
     ...)</i>. If a macro is not matched, there is no error, the literal
     <i>macroName(...)</i> will be passed along to the assembly phase.</p>
 
+    <h4>Stack</h4>
+    <p>Every time a macro is invoked, a new define stack is created, which will
+    shadow all previous stacks. All macro arguments, as well as any defines
+    declared inside of said macro, are appended to the new stack. When the macro
+    completes execution, said stack is destroyed, and said defines are lost.</p>
+
+    <p>Most notably, this means that you cannot create new globally-scoped
+    defines inside of macros. However, so long as you do not declare an
+    identically named define, you can reassign existing globally-scoped defines
+    inside of macros.</p>
+
     <h3>Defines</h3>
     <p>Defines can be used to substitute values in expressions. The
     <i>define</i> keyword allows specifying an exact expression to substitute,
@@ -154,6 +178,11 @@
     <p>Defines can be invoked with: <i>{defineName}</i>. If a define is not
     matched, there is no error, the literal <i>{defineName}</i> will be passed
     along to the assembly phase.</p>
+
+    <h4>Parsing</h4>
+    <p>Defines are evaluated from right-to-left order, meaning that expressions
+    such as <i>{x{y}}</i> will first expand <i>{y}</i>, and then the result of
+    that expression, <i>{x...}</i>.</p>
 
     <h3>Conditional Expressions</h3>
     <p>bass supports traditional conditional expressions. It is important to use
@@ -178,13 +207,59 @@
     }
     </pre>
 
-    <h2>Assembly</h2>
+    <h2>Assembling</h2>
     <p>The assembly phase parses all instructions output by the preprocessing
     phase in a linear order. This phase acts as a patching-assembler, rather
     than an object-assembler. What this means is that if the same instruction
     can have a short or long form (eg lda #0 can be lda #$00 or lda #$0000), you
     must manually specify which to use, or it will default to the longest form.
     </p>
+
+    <h3>Variables and Constants</h3>
+    <p>Variables and constants hold integer values. Variables must be declared
+    before being used, but can be redefined. Constants can be used before their
+    declaration, but subsequently cannot be redefined. Labels are stored as
+    constants.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    variable x(16)
+    lda #x  //16
+
+    variable x(32)
+    lda #x  //32
+
+    lda #y  //64
+    constant y(64)
+    </pre>
+
+    <h3>Labels</h3>
+    <p>Labels can be created with the syntax: <i>labelName:</i></p>
+
+    <h4>Example:</h4>
+    <pre>
+    loop:
+    &nbsp;&nbsp;dex; bne loop
+    </pre>
+
+    <h3>Anonymous Labels</h3>
+    <p>Labels without names can be created using <i>-</i> and <i>+</i>.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    -; beq +; lsr; dex; bne -; +
+
+    -; bra ++  //A: go to D
+    -; bra +&nbsp;  //B: go to C
+    +; bra -&nbsp;  //C: go to B
+    +; bra --  //D: go to A
+    </pre>
+
+    <h4>Invocation:</h4>
+    <p>The previous - label can be referenced with -, and the next + label can
+    be referenced with +. The second to last - label can be referenced with --,
+    and the second to next + label can be referenced with ++. Deeper scoping is
+    not supported: you will have to switch to named labels at this point.</p>
 
     <h3>Scoping</h3>
     <p>Variables and constants can be scoped. This allows reuse of common names
@@ -207,39 +282,17 @@
     lda #information.length  //32
     </pre>
 
-    <h3>Labels</h3>
-    <p>Labels can be created with the syntax: <i>labelName:</i></p>
+    <h3>Scoped Labels</h3>
+    <p>It is possible to declare a scope and label at the same time, which is a
+    useful way to mark functions and their boundaries.</p>
 
     <h4>Example:</h4>
     <pre>
-    loop:
-    &nbsp;&nbsp;dex; bne loop
-    </pre>
-
-    <h3>Anonymous Labels</h3>
-    <p>Labels without names can be created using <i>-</i> and <i>+</i>.</p>
-
-    <h4>Example:</h4>
-    <pre>
-    -; beq +; lsr; dex; bne -; +
-    </pre>
-
-    <h4>Invocation:</h4>
-    <p>The previous - label can be referenced with -, and the next + label can
-    be referenced with +. The second to last - label can be referenced with --,
-    and the second to next + label can be referenced with ++. Deeper scoping is
-    not supported: you will have to switch to named labels at this point.</p>
-
-    <h4>Scoped Labels:</h4>
-    <p>It is possible to declare a scope and label at the same time.</p>
-
-    <h4>Example:</h4>
-    <pre>
-    function labelName {
+    scope labelName: {
     }
     </pre>
 
-    <h3>Unscoped Blocks:</h3>
+    <h3>Unscoped Blocks</h3>
     <p>It is also possible to create blocks which do not create scopes. These
     are used strictly for code clarity, and have no functional effect.</p>
 
@@ -251,26 +304,11 @@
     - {
     }
 
+    + {
+    }
+
     {
     }
-    </pre>
-
-    <h3>Variables and Constants</h3>
-    <p>Variables and constants hold integer values. Variables must be declared
-    before being used, but can be redefined. Constants can be used before their
-    declaration, but subsequently cannot be redefined. Labels are stored as
-    constants.</p>
-
-    <h4>Example:</h4>
-    <pre>
-    variable x(16)
-    lda #x  //16
-
-    variable x(32)
-    lda #x  //32
-
-    lda #y  //64
-    constant y(64)
     </pre>
 
     <h3>include "filename"</h3>

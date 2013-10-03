@@ -43,7 +43,7 @@ int64_t Bass::evaluate(Eval::Node* node) {
   }
 
   #undef p
-  error("malformed expression");
+  error("malformed expression: ", (unsigned)node->type);
 }
 
 int64_t Bass::evaluateMember(Eval::Node* node) {
@@ -73,6 +73,7 @@ int64_t Bass::evaluateLiteral(Eval::Node* node) {
   if(s[0] == '0' && s[1] == 'x') return hex(s);
   if(s[0] >= '0' && s[0] <= '9') return integer(s);
   if(s[0] == '$') return hex((const char*)s + 1);
+  if(s.match("'?'")) return s[1];
 
   if(queryPhase() || writePhase()) {
     if(auto variable = findVariable(s)) return variable();

@@ -11,6 +11,9 @@ void Bass::assembleInitialize() {
 
 bool Bass::assemblePhase() {
   ip = 0;
+  for(auto& variable : variables) {
+    if(!variable.constant) variable.valid = false;
+  }
   while(ip < instructions.size()) {
     Instruction& i = instructions(ip++);
     if(!assembleInstruction(i)) error("unrecognized directive: ", i.statement);
@@ -24,6 +27,7 @@ bool Bass::assembleInstruction(Instruction& i) {
   //scope name {
   if(s.match("scope ?* {")) {
     s.trim<1>("scope ", " {").strip();
+    if(s.endswith(":")) setVariable(s.rtrim<1>(":"), pc(), true);
     scope.append(s);
     return true;
   }
@@ -34,36 +38,28 @@ bool Bass::assembleInstruction(Instruction& i) {
     return true;
   }
 
-  //function name {
-  if(s.match("function ?* {")) {
-    s.trim<1>("function ", " {").strip();
-    setVariable(s, pc(), true);
-    scope.append(s);
-    return true;
-  }
-
-  //}
-  if(s.match("} endfunction")) {
-    scope.remove();
-    return true;
-  }
-
-  //label: {
-  if(s.match("?*: {")) {
-    s.rtrim<1>(": {");
-    setVariable(s, pc(), true);
-    return true;
-  }
-
-  //}
-  if(s.match("} endlabel")) {
-    return true;
-  }
-
-  //label:
-  if(s.match("?*:")) {
+  //label: or label: {
+  if(s.match("?*:") || s.match("?*: {")) {
+    s.rtrim<1>(" {");
     s.rtrim<1>(":");
     setVariable(s, pc(), true);
+    return true;
+  }
+
+  //- or - {
+  if(s.match("-") || s.match("- {")) {
+    setVariable({"lastLabel#", lastLabelCounter++}, pc(), true);
+    return true;
+  }
+
+  //+ or + {
+  if(s.match("+") || s.match("+ {")) {
+    setVariable({"nextLabel#", nextLabelCounter++}, pc(), true);
+    return true;
+  }
+
+  //}
+  if(s.match("} endconstant")) {
     return true;
   }
 
@@ -78,18 +74,6 @@ bool Bass::assembleInstruction(Instruction& i) {
   if(s.match("constant ?*(*)")) {
     lstring p = s.trim<1>("constant ", ")").split<1>("(");
     setVariable(p(0), evaluate(p(1)), true);
-    return true;
-  }
-
-  //-
-  if(s.match("-") || s.match("- {")) {
-    setVariable({"lastLabel#", lastLabelCounter++}, pc(), true);
-    return true;
-  }
-
-  //+
-  if(s.match("+")) {
-    setVariable({"nextLabel#", nextLabelCounter++}, pc(), true);
     return true;
   }
 
@@ -218,9 +202,9 @@ bool Bass::assembleInstruction(Instruction& i) {
   }
 
   //table.assign 'char' [, value] [, length]
-  if(s.match("table.assign '?'*")) {
+  if(s.match("table.assign ?*")) {
     lstring p = s.ltrim<1>("table.assign ").qsplit(",").strip();
-    uint8_t index = p(0)[1];
+    uint8_t index = evaluate(p(0));
     int64_t value = evaluate(p(1, "0"));
     int64_t length = evaluate(p(2, "1"));
     for(signed n = 0; n < length; n++) {
@@ -297,15 +281,13 @@ string Bass::text(string s) {
 
 optional<int64_t> Bass::findVariable(const string& name) {
   lstring s = scope;
-  while(s.size()) {
-    string scopedName = {s.merge("."), ".", name};
+  while(true) {
+    string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto variable = variables.find({scopedName})) {
-      return {true, variable().value};
+      if(variable().valid) return {true, variable().value};
     }
-    s.remove(0);
-  }
-  if(auto variable = variables.find({name})) {
-    return {true, variable().value};
+    if(s.empty()) break;
+    s.remove();
   }
   return false;
 }
@@ -323,6 +305,7 @@ void Bass::setVariable(const string& name, int64_t value, bool constant) {
   if(auto variable = variables.find({scopedName})) {
     if(!writePhase() && variable().constant) error("constant cannot be modified: ", scopedName);
     variable().value = value;
+    variable().valid = true;
   } else {
     variables.insert({scopedName, value, constant});
   }
