@@ -21,6 +21,8 @@ int64_t Bass::evaluate(Eval::Node* node) {
   switch(node->type) {
   case Eval::Node::Type::Member: return evaluateMember(node);
   case Eval::Node::Type::Literal: return evaluateLiteral(node);
+  case Eval::Node::Type::Positive: return +p(0);
+  case Eval::Node::Type::Negative: return -p(0);
   case Eval::Node::Type::Multiply: return p(0) * p(1);
   case Eval::Node::Type::Divide: return p(0) / p(1);
   case Eval::Node::Type::Modulo: return p(0) % p(1);
@@ -43,7 +45,7 @@ int64_t Bass::evaluate(Eval::Node* node) {
   }
 
   #undef p
-  error("malformed expression: ", (unsigned)node->type);
+  error("malformed expression");
 }
 
 int64_t Bass::evaluateMember(Eval::Node* node) {
@@ -72,7 +74,8 @@ int64_t Bass::evaluateLiteral(Eval::Node* node) {
   if(s[0] == '0' && s[1] == 'o') return octal(s);
   if(s[0] == '0' && s[1] == 'x') return hex(s);
   if(s[0] >= '0' && s[0] <= '9') return integer(s);
-  if(s[0] == '$') return hex((const char*)s + 1);
+  if(s[0] == '%') return binary(s);
+  if(s[0] == '$') return hex(s);
   if(s.match("'?'")) return s[1];
 
   if(queryPhase() || writePhase()) {

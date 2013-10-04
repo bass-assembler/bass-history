@@ -57,7 +57,9 @@
 using namespace nall;
 
 int main() {
-  if(auto value = Eval::integer("0x1234")) {
+  if(auto value = Eval::integer("-$10")) {
     print(value(), "\n");
+  } else {
+    print("error\n");
   }
 }

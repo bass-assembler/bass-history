@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12.01\n");
+    print("bass v12.02\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");

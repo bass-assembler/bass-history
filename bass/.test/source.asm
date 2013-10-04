@@ -59,4 +59,7 @@ table.assign 'A', 0x01, 26
 table.assign 'a', 0x21, 26
 table.assign '0', 0x41, 10
 
-db "ABCabc012"
+db "ABCabc012", +$10, -$10
+
+lda #$55
+lda #%01010101
