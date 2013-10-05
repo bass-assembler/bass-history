@@ -46,7 +46,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v12.02</h1>
+    <h1>bass v12.03</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -71,33 +71,33 @@
     as well as user-defined architectures with appropriate table files provided.
     </p>
 
-    <p>Parsing consists of five stages:</p>
+    <p>Parsing consists of the following phases:</p>
 
-    <h3>Tokenizing</h3>
+    <h3>Tokenize</h3>
 
-    <p>The <i>merge</i> stage will combine all source files, and insert any
+    <p>The <i>tokenize</i> phase will combine all source files, and insert any
     nested include statements into a single stream of instructions.</p>
 
-    <h3>Preprocessing</h3>
+    <h3>Analyze</h3>
 
     <p>The <i>analyze</i> phase will parse blocks, such as macros and functions,
     and note where they begin and end.</p>
 
-    <p>The <i>execute</i> phase will expand macro invocations, substitute
-    defines and evaluate conditional expressions.
-    </p>
+    <h3>Execute</h3>
 
-    <h3>Assembling</h3>
+    <p>The <i>execute</i> phase will recurse macro invocations, substitute
+    defines and evaluate conditional expressions.</p>
 
-    <p>The <i>query</i> phase will compute the addresses of labels.</p>
+    <h3>Query</h3>
 
-    <p>The <i>write</i> phase will write to any output files.</p>
+    <p>The <i>query</i> phase invokes the <i>execute</i> phase, and computes the
+    values of constants and labels.</p>
 
-    <p>It is important to understand the distinction between the phases. For
-    instance, include statements are evaluated first, so they are always
-    expanded, even if inside of a conditional statement; and conditional
-    expressions cannot rely on variables or constants, which are parsed in the
-    assembly phases.</p>
+    <h3>Write</h3>
+
+    <p>The <i>write</i> phase invokes the <i>execute</i> phase, uses the
+    previously computed values for constants and labels, and writes to any
+    opened output file.</p>
 
     <h2>Tokenizing</h2>
     <p>Initially, each source file specified on the terminal is loaded in. For
@@ -132,9 +132,9 @@
 
     <p>Numbers may be prefixed with - or + if desired.</p>
 
-    <h2>Preprocessing</h2>
-    <p>Preprocessing acts much like a scripting language. Statements are
-    evaluated and a control flow (stack) is maintained.</p>
+    <h2>Execution</h2>
+    <p>Execution acts much like a scripting language. Statements are evaluated
+    and a control flow (stack) is maintained.</p>
 
     <h3>Macros</h3>
     <p>Macros are supported. They can take zero or more arguments, and name
@@ -156,7 +156,7 @@
     </pre>
 
     <h4>Invocation Counter</h4>
-    <p>Because macros are expanded directly into the assembly phase, a macro
+    <p>Because expanded macros are passed directly to the assembler, a macro
     with a label name cannot be expanded twice in the same scope, or the label
     name will be declared twice, resulting in an error. The special token
     <i>{#}</i> can be used in a label name, where it will be substituted with a
@@ -165,13 +165,16 @@
     <h4>Invocation</h4>
     <p>Macros can be invoked with the syntax: <i>macroName(parameter, parameter,
     ...)</i>. If a macro is not matched, there is no error, the literal
-    <i>macroName(...)</i> will be passed along to the assembly phase.</p>
+    <i>macroName(...)</i> will be passed along to the assembly phase. Note that
+    macros cannot appear inside expressions: the macro invocation must be the
+    entire statement.</p>
 
     <h4>Stack</h4>
     <p>Every time a macro is invoked, a new define stack is created, which will
     shadow all previous stacks. All macro arguments, as well as any defines
     declared inside of said macro, are appended to the new stack. When the macro
-    completes execution, said stack is destroyed, and said defines are lost.</p>
+    completes execution, said stack is destroyed, and said defines are lost. In
+    other words, macros use dynamic scoping for defines.</p>
 
     <p>Most notably, this means that you cannot create new globally-scoped
     defines inside of macros. However, so long as you do not declare an
@@ -197,7 +200,7 @@
     <h4>Invocation</h4>
     <p>Defines can be invoked with: <i>{defineName}</i>. If a define is not
     matched, there is no error, the literal <i>{defineName}</i> will be passed
-    along to the assembly phase.</p>
+    along to the assembler verbatim.</p>
 
     <h4>Parsing</h4>
     <p>Defines are evaluated from right-to-left order, meaning that expressions
@@ -205,11 +208,7 @@
     that expression, <i>{x...}</i>.</p>
 
     <h3>Conditional Expressions</h3>
-    <p>bass supports traditional conditional expressions. It is important to use
-    define values for conditions, rather than assembly-phase variables.</p>
-
-    <p>Instructions inside unmatched conditional expressions will not be passed
-    on to the assembly phase.</p>
+    <p>bass supports traditional conditional expressions.</p>
 
     <h4>Example:</h4>
     <pre>
@@ -227,13 +226,18 @@
     }
     </pre>
 
-    <h2>Assembling</h2>
-    <p>The assembly phase parses all instructions output by the preprocessing
-    phase in a linear order. This phase acts as a patching-assembler, rather
-    than an object-assembler. What this means is that if the same instruction
-    can have a short or long form (eg lda #0 can be lda #$00 or lda #$0000), you
-    must manually specify which to use, or it will default to the longest form.
-    </p>
+    <p>Variables and constants can be used in conditional expressions, but it's
+    very important to never rely on a constant before it has been declared. When
+    bass encounters an unknown constant in the query phase, it substitutes the
+    value with pc(), so that bass can reference constants and labels before they
+    are declared. The correct value is populated during the write phase. So if
+    you attempt to use an undeclared constant in a conditional statement, the
+    origin may become misaligned between the query and write phases, and
+    computed addresses may be incorrect.</p>
+
+    <h2>Assembly</h2>
+    <p>Any statements that fall through the execute phase are passed into the
+    assembly phase.</p>
 
     <h3>Variables and Constants</h3>
     <p>Variables and constants hold integer values. Variables must be declared
@@ -336,6 +340,10 @@
     noted here for completeness. It includes another source file in place of
     this command.</p>
 
+    <p>Do not attempt conditional recursion on the same source file, as this
+    will result in an infinite loop which will eventually exhaust all memory.
+    </p>
+
     <h3>output "filename" [, create]</h3>
     <p>This command can be used in place of the <i>-o filename [-create]</i>
     command-line argument, or in addition to it, and can open multiple files
@@ -412,11 +420,40 @@
     <h3>print ("string"|variable) [, ...]</h3>
     <p>Prints information to the terminal. Useful for debugging.</p>
 
+    <h3>notice "string"</h3>
+    <p>Prints a notice to the terminal, but continues assembly.</p>
+
     <h3>warning "string"</h3>
     <p>Prints a warning to the terminal, but continues assembly.</p>
 
     <h3>error "string"</h3>
     <p>Prints an error to the terminal, and aborts assembly.</p>
+
+    <h2>Functions</h2>
+    <p>bass supports built-in functions. The syntax is equivalent to macros,
+    however they are used in expressions rather than as statements, and they
+    always return a numeric value.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    seek(0x8000)  //this is a macro statement
+    ...
+    if pc() > 0x8fff {  //this is a function used inside an assembler statement
+    &nbsp;&nbsp;...
+    }
+    </pre>
+
+    <h3>defined(name)</h3>
+    <p>Returns 1 if a define exists by the specified name, and 0 if not.</p>
+
+    <h3>origin()</h3>
+    <p>Returns the current origin.</p>
+
+    <h3>base()</h3>
+    <p>Returns the current base.</p>
+
+    <h3>pc()</h3>
+    <p>Returns the current program counter (origin + base.)</p>
 
     <h2>The End</h2>
     <p>Hopefully this has been informative. The best way to learn is through

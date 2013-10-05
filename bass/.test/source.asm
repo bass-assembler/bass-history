@@ -26,7 +26,7 @@ factorial(10)
 //iterative repetition
 
 macro factorial(number) {
-  evaluate result(1)
+  define result(1)
   while {number} > 1 {
     evaluate result({result} * {number})
     evaluate number({number} - 1)
@@ -38,9 +38,9 @@ factorial(10)
 
 //benchmarking (processing speed)
 
-define n(0)
-while {n} < 100000 {
-  evaluate n({n} + 1)
+variable n(0)
+while n < 100000 {
+  variable n(n + 1)
 }
 
 insert "insert.bin"
@@ -63,3 +63,14 @@ db "ABCabc012", +$10, -$10
 
 lda #$55
 lda #%01010101
+
+if pc() >= 0x9000 {
+  error "output exceeds 4KB"
+} else if pc() >= 0x8020 {
+  warning "output exceeds 32B"
+}
+
+//assemble with -d message=... to print a message
+if defined(message) {
+  print "{message}\n"
+}

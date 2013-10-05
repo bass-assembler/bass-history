@@ -1,6 +1,8 @@
 struct BassTable : Bass {
-  virtual void assembleInitialize() override;
-  virtual bool assembleInstruction(Instruction& instruction) override;
+  using Bass::assemble;
+
+  virtual void initialize() override;
+  virtual bool assemble(const string& statement) override;
 
 protected:
   struct Prefix {

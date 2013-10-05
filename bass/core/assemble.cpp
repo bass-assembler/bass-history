@@ -1,4 +1,4 @@
-void Bass::assembleInitialize() {
+void Bass::initialize() {
   stack.reset();
   scope.reset();
   for(unsigned n = 0; n < 256; n++) stringTable[n] = n;
@@ -9,20 +9,8 @@ void Bass::assembleInitialize() {
   nextLabelCounter = 1;
 }
 
-bool Bass::assemblePhase() {
-  ip = 0;
-  for(auto& variable : variables) {
-    if(!variable.constant) variable.valid = false;
-  }
-  while(ip < instructions.size()) {
-    Instruction& i = instructions(ip++);
-    if(!assembleInstruction(i)) error("unrecognized directive: ", i.statement);
-  }
-  return true;
-}
-
-bool Bass::assembleInstruction(Instruction& i) {
-  string s = i.statement;
+bool Bass::assemble(const string& statement) {
+  string s = statement;
 
   //scope name {
   if(s.match("scope ?* {")) {
@@ -80,7 +68,7 @@ bool Bass::assembleInstruction(Instruction& i) {
   //output "filename" [, create]
   if(s.match("output ?*")) {
     lstring p = s.ltrim<1>("output ").qsplit(",").strip();
-    string filename = {filepath(i), p.take(0).trim<1>("\"")};
+    string filename = {filepath(), p.take(0).trim<1>("\"")};
     bool create = (p.size() && p(0) == "create");
     target(filename, create);
     return true;
@@ -160,7 +148,8 @@ bool Bass::assembleInstruction(Instruction& i) {
     lstring p = s.ltrim<1>("insert ").qsplit(",").strip();
     string name;
     if(!p(0).match("\"*\"")) name = p.take(0);
-    string filename = {filepath(i), p.take(0).trim<1>("\"")};
+    if(!p(0).match("\"*\"")) error("missing filename");
+    string filename = {filepath(), p.take(0).trim<1>("\"")};
     file fp;
     if(!fp.open(filename, file::mode::read)) error("file not found: ", filename);
     unsigned offset = p.size() ? evaluate(p.take(0)) : 0;
@@ -251,6 +240,15 @@ bool Bass::assembleInstruction(Instruction& i) {
     return true;
   }
 
+  //notice "string"
+  if(s.match("notice \"*\"")) {
+    if(writePhase()) {
+      string message = s.trim<1>("notice \"", "\"");
+      notice(text(message));
+    }
+    return true;
+  }
+
   //warning "string"
   if(s.match("warning \"*\"")) {
     if(writePhase()) {
@@ -270,43 +268,4 @@ bool Bass::assembleInstruction(Instruction& i) {
   }
 
   return false;
-}
-
-string Bass::text(string s) {
-  s.replace("\\n", "\n");
-  s.replace("\\q", "\"");
-  s.replace("\\\\", "\\");
-  return s;
-}
-
-optional<int64_t> Bass::findVariable(const string& name) {
-  lstring s = scope;
-  while(true) {
-    string scopedName = {s.merge("."), s.size() ? "." : "", name};
-    if(auto variable = variables.find({scopedName})) {
-      if(variable().valid) return {true, variable().value};
-    }
-    if(s.empty()) break;
-    s.remove();
-  }
-  return false;
-}
-
-int64_t Bass::getVariable(const string& name) {
-  if(auto variable = findVariable(name)) return variable();
-  if(queryPhase()) return pc();
-  error("variable not found: ", name);
-}
-
-void Bass::setVariable(const string& name, int64_t value, bool constant) {
-  string scopedName = name;
-  if(scope.size()) scopedName = {scope.merge("."), ".", name};
-
-  if(auto variable = variables.find({scopedName})) {
-    if(!writePhase() && variable().constant) error("constant cannot be modified: ", scopedName);
-    variable().value = value;
-    variable().valid = true;
-  } else {
-    variables.insert({scopedName, value, constant});
-  }
 }

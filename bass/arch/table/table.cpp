@@ -3,18 +3,18 @@
 #include "snes-smp.arch"
 #undef arch
 
-void BassTable::assembleInitialize() {
-  Bass::assembleInitialize();
+void BassTable::initialize() {
+  Bass::initialize();
 
   bitval = 0;
   bitpos = 0;
   table.reset();
 }
 
-bool BassTable::assembleInstruction(Instruction& i) {
-  if(Bass::assembleInstruction(i) == true) return true;
+bool BassTable::assemble(const string& statement) {
+  if(Bass::assemble(statement) == true) return true;
 
-  string s = i.statement;
+  string s = statement;
 
   if(s.match("arch ?*")) {
     s.ltrim<1>("arch ");

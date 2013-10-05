@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12.02\n");
+    print("bass v12.03\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
@@ -71,10 +71,12 @@ int main(int argc, char** argv) {
   }
   for(auto& define : defines) {
     lstring p = define.split<1>("=");
-    bass.setDefine(p(0), p(1));
+    bass.define(p(0), p(1));
   }
-  if(bass.preprocess() == false) return -1;
-  if(bass.assemble() == false) return -1;
+  if(bass.assemble() == false) {
+    print("bass: assembly failed\n");
+    return -1;
+  }
   clock_t clockFinish = clock();
   if(benchmark) {
     print("bass: assembled in ", (double)(clockFinish - clockStart) / CLOCKS_PER_SEC, " seconds\n");

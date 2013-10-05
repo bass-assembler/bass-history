@@ -19,6 +19,7 @@ int64_t Bass::evaluate(Eval::Node* node) {
   #define p(n) evaluate(node->link[n])
 
   switch(node->type) {
+  case Eval::Node::Type::Function: return evaluateFunction(node);
   case Eval::Node::Type::Member: return evaluateMember(node);
   case Eval::Node::Type::Literal: return evaluateLiteral(node);
   case Eval::Node::Type::Positive: return +p(0);
@@ -48,6 +49,27 @@ int64_t Bass::evaluate(Eval::Node* node) {
   error("malformed expression");
 }
 
+lstring Bass::evaluateParameters(Eval::Node* node) {
+  lstring result;
+  if(node->type == Eval::Node::Type::Null) return result;
+  if(node->type != Eval::Node::Type::Separator) { result.append(node->literal); return result; }
+  for(auto& link : node->link) result.append(link->literal);
+  return result;
+}
+
+int64_t Bass::evaluateFunction(Eval::Node* node) {
+  if(node->link[0]->type != Eval::Node::Type::Literal) error("malformed function");
+  lstring p = evaluateParameters(node->link[1]);
+  string s = {node->link[0]->literal, ":", p.size()};
+
+  if(s == "defined:1") return findDefine(p[0]);
+  if(s == "origin:0") return origin;
+  if(s == "base:0") return base;
+  if(s == "pc:0") return pc();
+
+  error("unrecognized function: ", s);
+}
+
 int64_t Bass::evaluateMember(Eval::Node* node) {
   lstring p;
   p.prepend(node->link[1]->literal);
@@ -59,10 +81,8 @@ int64_t Bass::evaluateMember(Eval::Node* node) {
   p.prepend(node->literal);
   string s = p.merge(".");
 
-  if(queryPhase() || writePhase()) {
-    if(auto variable = findVariable(s)) return variable();
-    if(queryPhase()) return pc();
-  }
+  if(auto variable = findVariable(s)) return variable();
+  if(queryPhase()) return pc();
 
   error("unrecognized variable: ", s);
 }
@@ -78,10 +98,8 @@ int64_t Bass::evaluateLiteral(Eval::Node* node) {
   if(s[0] == '$') return hex(s);
   if(s.match("'?'")) return s[1];
 
-  if(queryPhase() || writePhase()) {
-    if(auto variable = findVariable(s)) return variable();
-    if(queryPhase()) return pc();
-  }
+  if(auto variable = findVariable(s)) return variable();
+  if(queryPhase()) return pc();
 
   error("unrecognized variable: ", s);
 }
