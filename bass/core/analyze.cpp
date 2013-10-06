@@ -4,7 +4,7 @@ bool Bass::analyze() {
 
   while(ip < program.size()) {
     Instruction& i = program(ip++);
-    if(!analyzeInstruction(i)) error("unrecognized preprocessor directive: ", i.statement);
+    if(!analyzeInstruction(i)) error("unrecognized directive: ", i.statement);
   }
 
   return true;
@@ -16,7 +16,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   if(s.match("}") && blockStack.empty()) error("} without matching {");
 
   if(s.match("{")) {
-    blockStack.append({"block", ip - 1});
+    blockStack.append({ip - 1, "block"});
     i.statement = "block {";
     return true;
   }
@@ -27,8 +27,8 @@ bool Bass::analyzeInstruction(Instruction& i) {
     return true;
   }
 
-  if(s.match("scope ?* {")) {
-    blockStack.append({"scope", ip - 1});
+  if(s.match("scope ?* {") || s.match("scope {")) {
+    blockStack.append({ip - 1, "scope"});
     return true;
   }
 
@@ -38,19 +38,8 @@ bool Bass::analyzeInstruction(Instruction& i) {
     return true;
   }
 
-  if(s.match("?*: {") || s.match("- {") || s.match("+ {")) {
-    blockStack.append({"constant", ip - 1});
-    return true;
-  }
-
-  if(s.match("}") && blockStack.last().type == "constant") {
-    blockStack.remove();
-    i.statement = "} endconstant";
-    return true;
-  }
-
-  if(s.match("macro ?*(*) {")) {
-    blockStack.append({"macro", ip - 1});
+  if(s.match("macro ?*(*) {") || s.match("macro ?*(*): {")) {
+    blockStack.append({ip - 1, "macro"});
     return true;
   }
 
@@ -62,9 +51,20 @@ bool Bass::analyzeInstruction(Instruction& i) {
     return true;
   }
 
+  if(s.match("?*: {") || s.match("- {") || s.match("+ {")) {
+    blockStack.append({ip - 1, "constant"});
+    return true;
+  }
+
+  if(s.match("}") && blockStack.last().type == "constant") {
+    blockStack.remove();
+    i.statement = "} endconstant";
+    return true;
+  }
+
   if(s.match("if ?* {")) {
     s.trim<1>("if ", " {");
-    blockStack.append({"if", ip - 1});
+    blockStack.append({ip - 1, "if"});
     return true;
   }
 
@@ -93,7 +93,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
 
   if(s.match("while ?* {")) {
     s.trim<1>("while ", " {");
-    blockStack.append({"while", ip - 1});
+    blockStack.append({ip - 1, "while"});
     return true;
   }
 

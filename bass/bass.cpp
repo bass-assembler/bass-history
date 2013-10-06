@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12.03\n");
+    print("bass v12.04\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
@@ -17,12 +17,14 @@ int main(int argc, char** argv) {
     print("  -create          overwrite target file if it already exists\n");
     print("  -d name          create define\n");
     print("  -d name=value    create define with value\n");
+    print("  -strict          upgrade warnings to errors\n");
     return 0;
   }
 
   string targetFilename;
   lstring defines;
   bool create = false;
+  bool strict = false;
   bool benchmark = false;
   lstring sourceFilenames;
 
@@ -43,6 +45,12 @@ int main(int argc, char** argv) {
 
     if(s == "-create") {
       create = true;
+      n += 1;
+      continue;
+    }
+
+    if(s == "-strict") {
+      strict = true;
       n += 1;
       continue;
     }
@@ -73,7 +81,7 @@ int main(int argc, char** argv) {
     lstring p = define.split<1>("=");
     bass.define(p(0), p(1));
   }
-  if(bass.assemble() == false) {
+  if(bass.assemble(strict) == false) {
     print("bass: assembly failed\n");
     return -1;
   }

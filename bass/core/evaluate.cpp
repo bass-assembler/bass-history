@@ -1,9 +1,17 @@
-int64_t Bass::evaluate(const string& expression) {
+int64_t Bass::evaluate(const string& expression, Evaluation mode) {
   if(queryPhase() || writePhase()) {
-    if(expression == "--") return getVariable({"lastLabel#", lastLabelCounter - 2});
-    if(expression == "-" ) return getVariable({"lastLabel#", lastLabelCounter - 1});
-    if(expression == "+" ) return getVariable({"nextLabel#", nextLabelCounter + 0});
-    if(expression == "++") return getVariable({"nextLabel#", nextLabelCounter + 1});
+    optional<string> name;
+    if(expression == "--") name = {true, {"lastLabel#", lastLabelCounter - 2}};
+    if(expression == "-" ) name = {true, {"lastLabel#", lastLabelCounter - 1}};
+    if(expression == "+" ) name = {true, {"nextLabel#", nextLabelCounter + 0}};
+    if(expression == "++") name = {true, {"nextLabel#", nextLabelCounter + 1}};
+    if(name) {
+      if(auto variable = findVariable({name()})) {
+        return variable().value;
+      }
+      if(queryPhase()) return pc();
+      error("relative label not declared");
+    }
   }
 
   Eval::Node* node = nullptr;
@@ -12,16 +20,16 @@ int64_t Bass::evaluate(const string& expression) {
   } catch(...) {
     error("malformed expression: ", expression);
   }
-  return evaluate(node);
+  return evaluate(node, mode);
 }
 
-int64_t Bass::evaluate(Eval::Node* node) {
-  #define p(n) evaluate(node->link[n])
+int64_t Bass::evaluate(Eval::Node* node, Evaluation mode) {
+  #define p(n) evaluate(node->link[n], mode)
 
   switch(node->type) {
-  case Eval::Node::Type::Function: return evaluateFunction(node);
-  case Eval::Node::Type::Member: return evaluateMember(node);
-  case Eval::Node::Type::Literal: return evaluateLiteral(node);
+  case Eval::Node::Type::Function: return evaluateFunction(node, mode);
+  case Eval::Node::Type::Member: return evaluateMember(node, mode);
+  case Eval::Node::Type::Literal: return evaluateLiteral(node, mode);
   case Eval::Node::Type::Positive: return +p(0);
   case Eval::Node::Type::Negative: return -p(0);
   case Eval::Node::Type::Multiply: return p(0) * p(1);
@@ -49,7 +57,7 @@ int64_t Bass::evaluate(Eval::Node* node) {
   error("malformed expression");
 }
 
-lstring Bass::evaluateParameters(Eval::Node* node) {
+lstring Bass::evaluateParameters(Eval::Node* node, Evaluation mode) {
   lstring result;
   if(node->type == Eval::Node::Type::Null) return result;
   if(node->type != Eval::Node::Type::Separator) { result.append(node->literal); return result; }
@@ -57,9 +65,9 @@ lstring Bass::evaluateParameters(Eval::Node* node) {
   return result;
 }
 
-int64_t Bass::evaluateFunction(Eval::Node* node) {
+int64_t Bass::evaluateFunction(Eval::Node* node, Evaluation mode) {
   if(node->link[0]->type != Eval::Node::Type::Literal) error("malformed function");
-  lstring p = evaluateParameters(node->link[1]);
+  lstring p = evaluateParameters(node->link[1], mode);
   string s = {node->link[0]->literal, ":", p.size()};
 
   if(s == "defined:1") return findDefine(p[0]);
@@ -70,7 +78,7 @@ int64_t Bass::evaluateFunction(Eval::Node* node) {
   error("unrecognized function: ", s);
 }
 
-int64_t Bass::evaluateMember(Eval::Node* node) {
+int64_t Bass::evaluateMember(Eval::Node* node, Evaluation mode) {
   lstring p;
   p.prepend(node->link[1]->literal);
   node = node->link[0];
@@ -81,13 +89,13 @@ int64_t Bass::evaluateMember(Eval::Node* node) {
   p.prepend(node->literal);
   string s = p.merge(".");
 
-  if(auto variable = findVariable(s)) return variable();
-  if(queryPhase()) return pc();
+  if(auto variable = findVariable(s)) return variable().value;
+  if(mode != Evaluation::Strict && queryPhase()) return pc();
 
   error("unrecognized variable: ", s);
 }
 
-int64_t Bass::evaluateLiteral(Eval::Node* node) {
+int64_t Bass::evaluateLiteral(Eval::Node* node, Evaluation mode) {
   string& s = node->literal;
 
   if(s[0] == '0' && s[1] == 'b') return binary(s);
@@ -98,8 +106,8 @@ int64_t Bass::evaluateLiteral(Eval::Node* node) {
   if(s[0] == '$') return hex(s);
   if(s.match("'?'")) return s[1];
 
-  if(auto variable = findVariable(s)) return variable();
-  if(queryPhase()) return pc();
+  if(auto variable = findVariable(s)) return variable().value;
+  if(mode != Evaluation::Strict && queryPhase()) return pc();
 
   error("unrecognized variable: ", s);
 }

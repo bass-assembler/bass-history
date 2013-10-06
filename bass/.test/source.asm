@@ -9,7 +9,7 @@ seek(0x8000)
 
 macro factorial(number, result) {
   if {number} <= 1 {
-    print "{result}\n"
+    variable result({result})
   } else {
     evaluate result({number} * {result})
     evaluate number({number} - 1)
@@ -17,24 +17,27 @@ macro factorial(number, result) {
   }
 }
 
-macro factorial(number) {
+macro factorial(number): {
   factorial({number}, 1)
 }
 
 factorial(10)
+print factorial.result, "\n"
 
 //iterative repetition
 
-macro factorial(number) {
-  define result(1)
+macro factorial(number): {
+  variable result(1)
+  define :result(1)
   while {number} > 1 {
-    evaluate result({result} * {number})
+    variable result(result * {number})
+    evaluate :result({:result} * {number})
     evaluate number({number} - 1)
   }
-  print "{result}\n"
 }
 
 factorial(10)
+print "{factorial.result}, ", factorial.result, "\n"
 
 //benchmarking (processing speed)
 
@@ -55,9 +58,9 @@ scope main: {
 jmp main
 jmp main.loop
 
-table.assign 'A', 0x01, 26
-table.assign 'a', 0x21, 26
-table.assign '0', 0x41, 10
+map 'A', 0x01, 26
+map 'a', 0x21, 26
+map '0', 0x41, 10
 
 db "ABCabc012", +$10, -$10
 

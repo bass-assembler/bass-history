@@ -60,7 +60,9 @@ void Bass::define(const string& name, const string& value) {
   coreDefines.insert({name, value});
 }
 
-bool Bass::assemble() {
+bool Bass::assemble(bool strict) {
+  this->strict = strict;
+
   try {
     phase = Phase::Analyze;
     analyze();
@@ -70,11 +72,11 @@ bool Bass::assemble() {
 
     phase = Phase::Write;
     execute();
-
-    return true;
   } catch(...) {
     return false;
   }
+
+  return true;
 }
 
 void Bass::printInstruction() {
@@ -92,13 +94,15 @@ template<typename... Args> void Bass::warning(Args&&... args) {
   string s = string(std::forward<Args>(args)...);
   print("warning: ", s, "\n");
   printInstruction();
+
+  if(strict == false) return;
+  struct BassWarning {};
+  throw BassWarning();
 }
 
 template<typename... Args> void Bass::error(Args&&... args) {
   string s = string(std::forward<Args>(args)...);
   print("error: ", s, "\n");
-  auto& i = *activeInstruction;
-  print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
   printInstruction();
 
   struct BassError {};
@@ -134,67 +138,44 @@ string Bass::filepath() const {
   return dir(sourceFilenames[activeInstruction->fileNumber]);
 }
 
-void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip) {
-  string overloadName = {name, ":", parameters.size()};
-  if(auto macro = macros.find({overloadName})) {
-    macro().parameters = parameters;
-    macro().ip = ip;
-  } else {
-    macros.insert({overloadName, parameters, ip});
-  }
-}
-
-void Bass::setDefine(const string& name, const string& value) {
-  for(signed n = defines.size() - 1; n >= 0; n--) {
-    if(auto define = defines[n].find({name})) {
-      define().value = value;
-      return;
-    }
-  }
-  defines.last().insert({name, value});
-}
-
-optional<string> Bass::findDefine(const string& name) {
-  for(signed n = defines.size() - 1; n >= 0; n--) {
-    if(auto define = defines[n].find({name})) {
-      return define().value;
-    }
-  }
-  return false;
-}
-
 void Bass::evaluateDefines(string& s) {
   for(signed x = s.size() - 1, y = -1; x >= 0; x--) {
     if(s[x] == '}') y = x;
     if(s[x] == '{' && y > x) {
       string name = s.slice(x + 1, y - x - 1);
       if(auto define = findDefine(name)) {
-        s = {s.slice(0, x), define(), s.slice(y + 1)};
+        s = {s.slice(0, x), define().value, s.slice(y + 1)};
         return evaluateDefines(s);
       }
     }
   }
 }
 
-void Bass::setVariable(const string& name, int64_t value, bool constant) {
-  string scopedName = name;
-  if(scope.size()) scopedName = {scope.merge("."), ".", name};
+void Bass::setDefine(const string& name, const string& value) {
+  string frameName = name;
+  unsigned n = frameName.beginswith(":") ? 0 : defines.size() - 1;
+  frameName.ltrim<1>(":");
 
-  if(auto variable = variables.find({scopedName})) {
-    if(!writePhase() && variable().constant) error("constant cannot be modified: ", scopedName);
-    variable().value = value;
-    variable().valid = true;
+  string scopedName = frameName;
+  if(scope.size()) scopedName = {scope.merge("."), ".", scopedName};
+
+  if(auto define = defines[n].find({scopedName})) {
+    define().value = value;
   } else {
-    variables.insert({scopedName, value, constant});
+    defines[n].insert({scopedName, value});
   }
 }
 
-optional<int64_t> Bass::findVariable(const string& name) {
+optional<Bass::Define&> Bass::findDefine(const string& name) {
+  string frameName = name;
+  unsigned n = frameName.beginswith(":") ? 0 : defines.size() - 1;
+  frameName.ltrim<1>(":");
+
   lstring s = scope;
   while(true) {
-    string scopedName = {s.merge("."), s.size() ? "." : "", name};
-    if(auto variable = variables.find({scopedName})) {
-      if(variable().valid) return {true, variable().value};
+    string scopedName = {s.merge("."), s.size() ? "." : "", frameName};
+    if(auto define = defines[n].find({scopedName})) {
+      return {true, define()};
     }
     if(s.empty()) break;
     s.remove();
@@ -202,8 +183,54 @@ optional<int64_t> Bass::findVariable(const string& name) {
   return false;
 }
 
-int64_t Bass::getVariable(const string& name) {
-  if(auto variable = findVariable(name)) return variable();
-  if(queryPhase()) return pc();
-  error("variable not found: ", name);
+void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped) {
+  string scopedName = {name, ":", parameters.size()};
+  if(scope.size()) scopedName = {scope.merge("."), ".", scopedName};
+
+  if(auto macro = macros.find({scopedName})) {
+    macro().parameters = parameters;
+    macro().ip = ip;
+    macro().scoped = scoped;
+  } else {
+    macros.insert({scopedName, parameters, ip, scoped});
+  }
+}
+
+optional<Bass::Macro&> Bass::findMacro(const string& name) {
+  lstring s = scope;
+  while(true) {
+    string scopedName = {s.merge("."), s.size() ? "." : "", name};
+    if(auto macro = macros.find({scopedName})) {
+      return {true, macro()};
+    }
+    if(s.empty()) break;
+    s.remove();
+  }
+  return false;
+}
+
+void Bass::setVariable(const string& name, int64_t value, bool constant) {
+  string scopedName = name;
+  if(scope.size()) scopedName = {scope.merge("."), ".", name};
+
+  if(auto variable = variables.find({scopedName})) {
+    if(queryPhase() && variable().constant) error("constant cannot be modified: ", scopedName);
+    variable().value = value;
+    variable().valid = constant || writePhase();
+  } else {
+    variables.insert({scopedName, value, constant, constant || writePhase()});
+  }
+}
+
+optional<Bass::Variable&> Bass::findVariable(const string& name) {
+  lstring s = scope;
+  while(true) {
+    string scopedName = {s.merge("."), s.size() ? "." : "", name};
+    if(auto variable = variables.find({scopedName})) {
+      if(queryPhase() || variable().valid) return {true, variable()};
+    }
+    if(s.empty()) break;
+    s.remove();
+  }
+  return false;
 }

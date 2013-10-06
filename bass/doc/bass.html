@@ -46,7 +46,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v12.03</h1>
+    <h1>bass v12.04</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -65,6 +65,8 @@
 
     <p><i>-d name=value</i> will create a define with the given name, and assign
     to it the given value.</p>
+
+    <p><i>-strict</i> will abort the assembly process on warnings.</p>
 
     <h2>Architecture</h2>
     <p>bass is a table-based assembler, which supports multiple architectures,
@@ -136,6 +138,31 @@
     <p>Execution acts much like a scripting language. Statements are evaluated
     and a control flow (stack) is maintained.</p>
 
+    <h3>Defines</h3>
+    <p>Defines can be used to substitute values in expressions. The
+    <i>define</i> keyword allows specifying an exact expression to substitute,
+    whereas the <i>evaluate</i> keyword will evaluate the expression to an
+    integer value. The latter is useful for conditional expressions. Defines
+    must be declared before being used, and can be re-declared later on.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    define x(1 + 2)
+    print "{x}\n"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; //prints "1 + 2\n"
+    evaluate x({x} + 3)&nbsp; //x = evaluate(1 + 2 + 3)
+    print "{x}\n"&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; //prints "6\n"
+    </pre>
+
+    <h4>Invocation</h4>
+    <p>Defines can be invoked with: <i>{defineName}</i>. If a define is not
+    matched, there is no error, the literal <i>{defineName}</i> will be passed
+    along to the assembler verbatim.</p>
+
+    <h4>Parsing</h4>
+    <p>Defines are evaluated from right-to-left order, meaning that expressions
+    such as <i>{x{y}}</i> will first expand <i>{y}</i>, and then the result of
+    that expression, <i>{x...}</i>.</p>
+
     <h3>Macros</h3>
     <p>Macros are supported. They can take zero or more arguments, and name
     overloading with differing arity is possible. Recursion is supported, but
@@ -171,41 +198,23 @@
 
     <h4>Stack</h4>
     <p>Every time a macro is invoked, a new define stack is created, which will
-    shadow all previous stacks. All macro arguments, as well as any defines
+    supercede all previous stacks. All macro arguments, as well as any defines
     declared inside of said macro, are appended to the new stack. When the macro
-    completes execution, said stack is destroyed, and said defines are lost. In
-    other words, macros use dynamic scoping for defines.</p>
+    completes execution, said stack is destroyed, and said defines are lost.
+    Note that this only applies to defines, and not to macros, variables or
+    constants. Defines are special as they are used for macro arguments.</p>
 
-    <p>Most notably, this means that you cannot create new globally-scoped
-    defines inside of macros. However, so long as you do not declare an
-    identically named define, you can reassign existing globally-scoped defines
-    inside of macros.</p>
+    <p>It is however possible to access the global define scope by prefixing
+    define names with a colon (:), for example:</p>
 
-    <h3>Defines</h3>
-    <p>Defines can be used to substitute values in expressions. The
-    <i>define</i> keyword allows specifying an exact expression to substitute,
-    whereas the <i>evaluate</i> keyword will evaluate the expression to an
-    integer value. The latter is useful for conditional expressions. Like
-    macros, defines must be declared before being used, and can be re-declared
-    later on.</p>
-
-    <h4>Example:</h4>
     <pre>
-    define x(1 + 2)
-    print "{x}\n"  //prints "1 + 2\n"
-    evaluate x({x} + 3)  //x = 1 + 2 + 3
-    print "{x}\n"  //prints "6\n"
+    macro square(value) {
+    &nbsp;&nbsp;evaluate :result({value} * {value})
+    }
+
+    square(16)
+    print "{result}\n"&nbsp; //prints 256
     </pre>
-
-    <h4>Invocation</h4>
-    <p>Defines can be invoked with: <i>{defineName}</i>. If a define is not
-    matched, there is no error, the literal <i>{defineName}</i> will be passed
-    along to the assembler verbatim.</p>
-
-    <h4>Parsing</h4>
-    <p>Defines are evaluated from right-to-left order, meaning that expressions
-    such as <i>{x{y}}</i> will first expand <i>{y}</i>, and then the result of
-    that expression, <i>{x...}</i>.</p>
 
     <h3>Conditional Expressions</h3>
     <p>bass supports traditional conditional expressions.</p>
@@ -226,14 +235,9 @@
     }
     </pre>
 
-    <p>Variables and constants can be used in conditional expressions, but it's
-    very important to never rely on a constant before it has been declared. When
-    bass encounters an unknown constant in the query phase, it substitutes the
-    value with pc(), so that bass can reference constants and labels before they
-    are declared. The correct value is populated during the write phase. So if
-    you attempt to use an undeclared constant in a conditional statement, the
-    origin may become misaligned between the query and write phases, and
-    computed addresses may be incorrect.</p>
+    <p>Variables and constants can be used in conditional expressions. Just note
+    that variables must be declared before they can be used in expressions. Only
+    constants support forward-declaration.</p>
 
     <h2>Assembly</h2>
     <p>Any statements that fall through the execute phase are passed into the
@@ -248,12 +252,12 @@
     <h4>Example:</h4>
     <pre>
     variable x(16)
-    lda #x  //16
+    lda #x&nbsp; //16
 
     variable x(32)
-    lda #x  //32
+    lda #x&nbsp; //32
 
-    lda #y  //64
+    lda #y&nbsp; //64
     constant y(64)
     </pre>
 
@@ -286,10 +290,14 @@
     not supported: you will have to switch to named labels at this point.</p>
 
     <h3>Scoping</h3>
-    <p>Variables and constants can be scoped. This allows reuse of common names
-    like <i>loop</i> and <i>finish</i> inside of parent scopes, without causing
-    declaration collisions. Note that labels are stored as constants, meaning
-    that scoping also applies to labels.</p>
+    <p>Macros, defines, variables and constants can be scoped. This allows reuse
+    of common names like <i>loop</i> and <i>finish</i> inside of parent scopes,
+    without causing declaration collisions. Note that labels are stored as
+    constants, meaning that scoping also applies to labels.</p>
+
+    <p>It's also important to understand that for macro scoping, the macro
+    name's scope is determined where the macro is declared, and the actual scope
+    used while executing a macro is determined where the macro is invoked.</p>
 
     <h4>Example:</h4>
     <pre>
@@ -304,6 +312,27 @@
 
     lda #offset  //16
     lda #information.length  //32
+    </pre>
+
+    <h3>Scoped Macros</h3>
+    <p>It is possible to create a new scope that matches the name of the macro
+    when a macro is invoked, which is destroyed when the macro terminates. This
+    is effectively a short-hand syntax for specifying a macro and then a scope
+    inside of the macro.</p>
+
+    <h4>Example:</h4>
+    <pre>
+    macro unscoped() {
+    &nbsp;&nbsp;variable x(16)
+    }
+
+    unscoped(); print x, "\n"
+
+    macro scoped(): {&nbsp; //by adding : to the end, it signifies the macro should be scoped
+    &nbsp;&nbsp;variable x(16)
+    }
+
+    scoped(); print scoped.x, "\n"
     </pre>
 
     <h3>Scoped Labels</h3>
@@ -365,11 +394,6 @@
     command allows mapping file address space into a virtual memory address
     space.</p>
 
-    <h3>seek offset</h3>
-    <p>This advanced the output file write cursor (origin) by a signed value,
-    meaning it can seek forward or backward. Only use this when the output file
-    is opened in modification mode.</p>
-
     <h3>(push|pull) variable [, ...]</h3>
     <p>This can be used to save and restore internal state. Currently supported
     values are: <i>origin, base, pc</i>.</p>
@@ -384,20 +408,11 @@
     length, you must specify an offset first, and the length will determine the
     maximum number of bytes to copy from the referenced filename.</p>
 
-    <h3>align to [, with]</h3>
-    <p>Aligns the program counter to be evenly divisible by the given <i>to</i>
-    value. The default padding byte is 0x00, but can be specified via
-    <i>with</i>.</p>
-
     <h3>fill length [, with]</h3>
     <p>Inserts <i>length</i> number of bytes into the target file. The default
     fill byte is 0x00, but can be specified via <i>with</i>.</p>
 
-    <h3>table.reset</h3>
-    <p>Resets the table mapping used for strings passed to db, dw, etc to ASCII.
-    </p>
-
-    <h3>table.assign 'char' [, value] [, length]</h3>
+    <h3>map 'char' [, value] [, length]</h3>
     <p>Modifies the mappings for strings passed to db, dw, etc. This can be used
     to map strings to custom tilemaps that do not follow traditional ASCII
     values.</p>
@@ -408,6 +423,11 @@
     avoid having to declare 26 separate assignments. Each step of length
     increments both the char and value by exactly one, so the characters must be
     contiguous with both ASCII and your custom map for this to work.</p>
+
+    <p>If you wish to restore the table to its default ASCII values, use the
+    following command:</p>
+
+    <pre>map 0, 0, 256</pre>
 
     <h3>d[bwldq] ("string"|variable|constant) [, ...]</h3>
     <p>Inserts binary data directly into the target file. db stores 8-bit

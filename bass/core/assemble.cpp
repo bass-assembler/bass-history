@@ -13,8 +13,8 @@ bool Bass::assemble(const string& statement) {
   string s = statement;
 
   //scope name {
-  if(s.match("scope ?* {")) {
-    s.trim<1>("scope ", " {").strip();
+  if(s.match("scope ?* {") || s.match("scope {")) {
+    s.trim<1>("scope ", "{").strip();
     if(s.endswith(":")) setVariable(s.rtrim<1>(":"), pc(), true);
     scope.append(s);
     return true;
@@ -93,15 +93,7 @@ bool Bass::assemble(const string& statement) {
   //base offset
   if(s.match("base ?*")) {
     s.ltrim<1>("base ");
-    base = evaluate(s);
-    return true;
-  }
-
-  //seek displacement
-  if(s.match("seek ?*")) {
-    signed offset = evaluate(s.ltrim<1>("seek "));
-    origin += offset;
-    seek(origin);
+    base = evaluate(s) - origin;
     return true;
   }
 
@@ -165,16 +157,6 @@ bool Bass::assemble(const string& statement) {
     return true;
   }
 
-  //align to [, with]
-  if(s.match("align ?*")) {
-    lstring p = s.ltrim<1>("align ").qsplit(",").strip();
-    unsigned align = evaluate(p(0));
-    unsigned byte = evaluate(p(1, "0"));
-    if(align == 0) return true;
-    while(pc() % align) write(byte);
-    return true;
-  }
-
   //fill length [, with]
   if(s.match("fill ?*")) {
     lstring p = s.ltrim<1>("fill ").qsplit(",").strip();
@@ -184,15 +166,9 @@ bool Bass::assemble(const string& statement) {
     return true;
   }
 
-  //table.reset
-  if(s.match("table.reset")) {
-    for(unsigned n = 0; n < 256; n++) stringTable[n] = n;
-    return true;
-  }
-
-  //table.assign 'char' [, value] [, length]
-  if(s.match("table.assign ?*")) {
-    lstring p = s.ltrim<1>("table.assign ").qsplit(",").strip();
+  //map 'char' [, value] [, length]
+  if(s.match("map ?*")) {
+    lstring p = s.ltrim<1>("map ").qsplit(",").strip();
     uint8_t index = evaluate(p(0));
     int64_t value = evaluate(p(1, "0"));
     int64_t length = evaluate(p(2, "1"));
