@@ -2,6 +2,7 @@ struct Bass {
   bool target(const string& filename, bool create);
   bool source(const string& filename);
   void define(const string& name, const string& value);
+  void constant(const string& name, const string& value);
   bool assemble(bool strict = false);
 
 protected:
@@ -15,18 +16,6 @@ protected:
     unsigned fileNumber;
     unsigned lineNumber;
     unsigned blockNumber;
-  };
-
-  struct Define {
-    string name;
-    string value;
-
-    unsigned hash() const { return name.hash(); }
-    bool operator==(const Define& source) const { return name == source.name; }
-    bool operator< (const Define& source) const { return name <  source.name; }
-    Define() {}
-    Define(const string& name) : name(name) {}
-    Define(const string& name, const string& value) : name(name), value(value) {}
   };
 
   struct Macro {
@@ -43,18 +32,39 @@ protected:
     Macro(const string& name, const lstring& parameters, unsigned ip, bool scoped) : name(name), parameters(parameters), ip(ip), scoped(scoped) {}
   };
 
+  struct Define {
+    string name;
+    string value;
+
+    unsigned hash() const { return name.hash(); }
+    bool operator==(const Define& source) const { return name == source.name; }
+    bool operator< (const Define& source) const { return name <  source.name; }
+    Define() {}
+    Define(const string& name) : name(name) {}
+    Define(const string& name, const string& value) : name(name), value(value) {}
+  };
+
   struct Variable {
     string name;
     int64_t value;
-    bool constant;
-    bool valid = false;
 
     unsigned hash() const { return name.hash(); }
     bool operator==(const Variable& source) const { return name == source.name; }
     bool operator< (const Variable& source) const { return name <  source.name; }
     Variable() {}
     Variable(const string& name) : name(name) {}
-    Variable(const string& name, int64_t value, bool constant, bool valid) : name(name), value(value), constant(constant), valid(valid) {}
+    Variable(const string& name, int64_t value) : name(name), value(value) {}
+  };
+
+  typedef Variable Constant;  //Variable and Constant structures are identical
+
+  struct StackFrame {
+    unsigned ip;
+    bool scoped;
+
+    hashset<Macro> macros;
+    hashset<Define> defines;
+    hashset<Variable> variables;
   };
 
   struct BlockStack {
@@ -62,28 +72,21 @@ protected:
     string type;
   };
 
-  struct CallStack {
-    unsigned ip;
-    bool scoped;
-  };
-
   file targetFile;
   lstring sourceFilenames;
 
-  Instruction* activeInstruction = nullptr;
-  vector<Instruction> program;
+  Instruction* activeInstruction = nullptr;  //used by notice, warning, error
+  vector<Instruction> program;      //parsed source code statements
   vector<BlockStack> blockStack;    //track the start and end of blocks
-  hashset<Define> coreDefines;      //defines specified on the terminal
-  vector<hashset<Define>> defines;  //stack frame to hold variables for macro recursion
-  hashset<Macro> macros;
-  hashset<Variable> variables;
-  vector<CallStack> callStack;      //track macro recursion
+  set<Define> defines;              //defines specified on the terminal
+  hashset<Constant> constants;      //constants support forward-declaration
+  vector<StackFrame> stackFrame;    //macros, defines and variables do not
   vector<bool> ifStack;             //track conditional matching
-  lstring stack;                    //track push, pull directives
+  lstring pushStack;                //track push, pull directives
   lstring scope;                    //track scope recursion
   int64_t stringTable[256];         //overrides for d[bwldq] text strings
-  Phase phase;
-  Endian endian = Endian::LSB;
+  Phase phase;                      //phase of assembly
+  Endian endian = Endian::LSB;      //used for multi-byte writes (d[bwldq], etc)
   unsigned macroInvocationCounter;  //used for {#} support
   unsigned ip = 0;                  //instruction pointer into program
   unsigned origin = 0;              //file offset
@@ -97,36 +100,23 @@ protected:
   bool writePhase() const { return phase == Phase::Write; }
 
   //core
+  unsigned pc() const;
+  void seek(unsigned offset);
+  void write(uint64_t data, unsigned length = 1);
+
   void printInstruction();
   template<typename... Args> void notice(Args&&... args);
   template<typename... Args> void warning(Args&&... args);
   template<typename... Args> void error(Args&&... args);
 
-  unsigned pc() const;
-  void seek(unsigned offset);
-  void write(uint64_t data, unsigned length = 1);
-
-  string text(string s);
-  string filepath() const;
-
-  void evaluateDefines(string& statement);
-  void setDefine(const string& name, const string& value);
-  optional<Define&> findDefine(const string& name);
-
-  void setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped);
-  optional<Macro&> findMacro(const string& name);
-
-  void setVariable(const string& name, int64_t value, bool constant = false);
-  optional<Variable&> findVariable(const string& name);
-
   //evaluate
   enum class Evaluation : unsigned { Default = 0, Strict = 1 };  //strict mode disallows forward-declaration of constants
   int64_t evaluate(const string& expression, Evaluation mode = Evaluation::Default);
   int64_t evaluate(Eval::Node* node, Evaluation mode);
-  lstring evaluateParameters(Eval::Node* node, Evaluation mode);
+  vector<int64_t> evaluateParameters(Eval::Node* node, Evaluation mode);
   int64_t evaluateFunction(Eval::Node* node, Evaluation mode);
-  int64_t evaluateMember(Eval::Node* node, Evaluation mode);
   int64_t evaluateLiteral(Eval::Node* node, Evaluation mode);
+  int64_t evaluateAssign(Eval::Node* node, Evaluation mode);
 
   //analyze
   bool analyze();
@@ -139,4 +129,26 @@ protected:
   //assemble
   virtual void initialize();
   virtual bool assemble(const string& statement);
+
+  //utility
+  void setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped, bool local);
+  optional<Macro&> findMacro(const string& name, bool local);
+  optional<Macro&> findMacro(const string& name);
+
+  void setDefine(const string& name, const string& value, bool local);
+  optional<Define&> findDefine(const string& name, bool local);
+  optional<Define&> findDefine(const string& name);
+
+  void setVariable(const string& name, int64_t value, bool local);
+  optional<Variable&> findVariable(const string& name, bool local);
+  optional<Variable&> findVariable(const string& name);
+
+  void setConstant(const string& name, int64_t value);
+  optional<Constant&> findConstant(const string& name);
+
+  void evaluateDefines(string& statement);
+
+  string filepath() const;
+  string text(string s) const;
+  int64_t character(string s);
 };

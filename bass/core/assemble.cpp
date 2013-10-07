@@ -1,5 +1,5 @@
 void Bass::initialize() {
-  stack.reset();
+  pushStack.reset();
   scope.reset();
   for(unsigned n = 0; n < 256; n++) stringTable[n] = n;
   endian = Endian::LSB;
@@ -12,17 +12,27 @@ void Bass::initialize() {
 bool Bass::assemble(const string& statement) {
   string s = statement;
 
+  if(s.match("block {")) return true;
+  if(s.match("} endblock")) return true;
+
+  //constant name(value)
+  if(s.match("constant ?*(*)")) {
+    lstring p = s.trim<1>("constant ", ")").split<1>("(");
+    setConstant(p(0), evaluate(p(1)));
+    return true;
+  }
+
   //scope name {
   if(s.match("scope ?* {") || s.match("scope {")) {
     s.trim<1>("scope ", "{").strip();
-    if(s.endswith(":")) setVariable(s.rtrim<1>(":"), pc(), true);
+    if(s.endswith(":")) setConstant(s.rtrim<1>(":"), pc());
     scope.append(s);
     return true;
   }
 
   //}
   if(s.match("} endscope")) {
-    scope.remove();
+    scope.removelast();
     return true;
   }
 
@@ -30,38 +40,24 @@ bool Bass::assemble(const string& statement) {
   if(s.match("?*:") || s.match("?*: {")) {
     s.rtrim<1>(" {");
     s.rtrim<1>(":");
-    setVariable(s, pc(), true);
+    setConstant(s, pc());
     return true;
   }
 
   //- or - {
   if(s.match("-") || s.match("- {")) {
-    setVariable({"lastLabel#", lastLabelCounter++}, pc(), true);
+    setConstant({"lastLabel#", lastLabelCounter++}, pc());
     return true;
   }
 
   //+ or + {
   if(s.match("+") || s.match("+ {")) {
-    setVariable({"nextLabel#", nextLabelCounter++}, pc(), true);
+    setConstant({"nextLabel#", nextLabelCounter++}, pc());
     return true;
   }
 
   //}
   if(s.match("} endconstant")) {
-    return true;
-  }
-
-  //variable name(value)
-  if(s.match("variable ?*(*)")) {
-    lstring p = s.trim<1>("variable ", ")").split<1>("(");
-    setVariable(p(0), evaluate(p(1)));
-    return true;
-  }
-
-  //constant name(value)
-  if(s.match("constant ?*(*)")) {
-    lstring p = s.trim<1>("constant ", ")").split<1>("(");
-    setVariable(p(0), evaluate(p(1)), true);
     return true;
   }
 
@@ -102,12 +98,12 @@ bool Bass::assemble(const string& statement) {
     lstring p = s.ltrim<1>("push ").qsplit(",").strip();
     for(auto& t : p) {
       if(t == "origin") {
-        stack.append(origin);
+        pushStack.append(origin);
       } else if(t == "base") {
-        stack.append(base);
+        pushStack.append(base);
       } else if(t == "pc") {
-        stack.append(origin);
-        stack.append(base);
+        pushStack.append(origin);
+        pushStack.append(base);
       } else {
         error("unrecognized push variable: ", t);
       }
@@ -120,13 +116,13 @@ bool Bass::assemble(const string& statement) {
     lstring p = s.ltrim<1>("pull ").qsplit(",").strip();
     for(auto& t : p) {
       if(t == "origin") {
-        origin = decimal(stack.take());
+        origin = decimal(pushStack.takelast());
         seek(origin);
       } else if(t == "base") {
-        base = integer(stack.take());
+        base = integer(pushStack.takelast());
       } else if(t == "pc") {
-        base = integer(stack.take());
-        origin = decimal(stack.take());
+        base = integer(pushStack.takelast());
+        origin = decimal(pushStack.takelast());
         seek(origin);
       } else {
         error("unrecognized pull variable: ", t);

@@ -22,7 +22,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   }
 
   if(s.match("}") && blockStack.last().type == "block") {
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endblock";
     return true;
   }
@@ -33,12 +33,12 @@ bool Bass::analyzeInstruction(Instruction& i) {
   }
 
   if(s.match("}") && blockStack.last().type == "scope") {
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endscope";
     return true;
   }
 
-  if(s.match("macro ?*(*) {") || s.match("macro ?*(*): {")) {
+  if(s.match("macro ?*(*) {")) {
     blockStack.append({ip - 1, "macro"});
     return true;
   }
@@ -46,7 +46,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   if(s.match("}") && blockStack.last().type == "macro") {
     unsigned rp = blockStack.last().ip;
     program[rp].ip = ip;
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endmacro";
     return true;
   }
@@ -57,7 +57,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   }
 
   if(s.match("}") && blockStack.last().type == "constant") {
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endconstant";
     return true;
   }
@@ -86,7 +86,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   if(s.match("}") && blockStack.last().type == "if") {
     unsigned rp = blockStack.last().ip;
     program[rp].ip = ip - 1;
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endif";
     return true;
   }
@@ -100,7 +100,7 @@ bool Bass::analyzeInstruction(Instruction& i) {
   if(s.match("}") && blockStack.last().type == "while") {
     unsigned rp = blockStack.last().ip;
     program[rp].ip = ip;
-    blockStack.remove();
+    blockStack.removelast();
     i.statement = "} endwhile";
     i.ip = rp;
     return true;

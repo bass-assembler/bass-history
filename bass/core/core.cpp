@@ -2,6 +2,7 @@
 #include "analyze.cpp"
 #include "execute.cpp"
 #include "assemble.cpp"
+#include "utility.cpp"
 
 bool Bass::target(const string& filename, bool create) {
   if(targetFile.open()) targetFile.close();
@@ -57,7 +58,14 @@ bool Bass::source(const string& filename) {
 }
 
 void Bass::define(const string& name, const string& value) {
-  coreDefines.insert({name, value});
+  defines.insert({name, value});
+}
+
+void Bass::constant(const string& name, const string& value) {
+  try {
+    constants.insert({name, evaluate(value, Evaluation::Strict)});
+  } catch(...) {
+  }
 }
 
 bool Bass::assemble(bool strict) {
@@ -79,9 +87,31 @@ bool Bass::assemble(bool strict) {
   return true;
 }
 
+//internal
+
+unsigned Bass::pc() const {
+  return origin + base;
+}
+
+void Bass::seek(unsigned offset) {
+  if(!targetFile.open()) return;
+  if(writePhase()) targetFile.seek(offset);
+}
+
+void Bass::write(uint64_t data, unsigned length) {
+  if(!targetFile.open()) return;
+  if(writePhase()) {
+    if(endian == Endian::LSB) targetFile.writel(data, length);
+    if(endian == Endian::MSB) targetFile.writem(data, length);
+  }
+  origin += length;
+}
+
 void Bass::printInstruction() {
-  auto& i = *activeInstruction;
-  print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
+  if(activeInstruction) {
+    auto& i = *activeInstruction;
+    print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
+  }
 }
 
 template<typename... Args> void Bass::notice(Args&&... args) {
@@ -107,130 +137,4 @@ template<typename... Args> void Bass::error(Args&&... args) {
 
   struct BassError {};
   throw BassError();
-}
-
-unsigned Bass::pc() const {
-  return origin + base;
-}
-
-void Bass::seek(unsigned offset) {
-  if(!targetFile.open()) return;
-  if(writePhase()) targetFile.seek(offset);
-}
-
-void Bass::write(uint64_t data, unsigned length) {
-  if(!targetFile.open()) return;
-  if(writePhase()) {
-    if(endian == Endian::LSB) targetFile.writel(data, length);
-    if(endian == Endian::MSB) targetFile.writem(data, length);
-  }
-  origin += length;
-}
-
-string Bass::text(string s) {
-  s.replace("\\n", "\n");
-  s.replace("\\q", "\"");
-  s.replace("\\\\", "\\");
-  return s;
-}
-
-string Bass::filepath() const {
-  return dir(sourceFilenames[activeInstruction->fileNumber]);
-}
-
-void Bass::evaluateDefines(string& s) {
-  for(signed x = s.size() - 1, y = -1; x >= 0; x--) {
-    if(s[x] == '}') y = x;
-    if(s[x] == '{' && y > x) {
-      string name = s.slice(x + 1, y - x - 1);
-      if(auto define = findDefine(name)) {
-        s = {s.slice(0, x), define().value, s.slice(y + 1)};
-        return evaluateDefines(s);
-      }
-    }
-  }
-}
-
-void Bass::setDefine(const string& name, const string& value) {
-  string frameName = name;
-  unsigned n = frameName.beginswith(":") ? 0 : defines.size() - 1;
-  frameName.ltrim<1>(":");
-
-  string scopedName = frameName;
-  if(scope.size()) scopedName = {scope.merge("."), ".", scopedName};
-
-  if(auto define = defines[n].find({scopedName})) {
-    define().value = value;
-  } else {
-    defines[n].insert({scopedName, value});
-  }
-}
-
-optional<Bass::Define&> Bass::findDefine(const string& name) {
-  string frameName = name;
-  unsigned n = frameName.beginswith(":") ? 0 : defines.size() - 1;
-  frameName.ltrim<1>(":");
-
-  lstring s = scope;
-  while(true) {
-    string scopedName = {s.merge("."), s.size() ? "." : "", frameName};
-    if(auto define = defines[n].find({scopedName})) {
-      return {true, define()};
-    }
-    if(s.empty()) break;
-    s.remove();
-  }
-  return false;
-}
-
-void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped) {
-  string scopedName = {name, ":", parameters.size()};
-  if(scope.size()) scopedName = {scope.merge("."), ".", scopedName};
-
-  if(auto macro = macros.find({scopedName})) {
-    macro().parameters = parameters;
-    macro().ip = ip;
-    macro().scoped = scoped;
-  } else {
-    macros.insert({scopedName, parameters, ip, scoped});
-  }
-}
-
-optional<Bass::Macro&> Bass::findMacro(const string& name) {
-  lstring s = scope;
-  while(true) {
-    string scopedName = {s.merge("."), s.size() ? "." : "", name};
-    if(auto macro = macros.find({scopedName})) {
-      return {true, macro()};
-    }
-    if(s.empty()) break;
-    s.remove();
-  }
-  return false;
-}
-
-void Bass::setVariable(const string& name, int64_t value, bool constant) {
-  string scopedName = name;
-  if(scope.size()) scopedName = {scope.merge("."), ".", name};
-
-  if(auto variable = variables.find({scopedName})) {
-    if(queryPhase() && variable().constant) error("constant cannot be modified: ", scopedName);
-    variable().value = value;
-    variable().valid = constant || writePhase();
-  } else {
-    variables.insert({scopedName, value, constant, constant || writePhase()});
-  }
-}
-
-optional<Bass::Variable&> Bass::findVariable(const string& name) {
-  lstring s = scope;
-  while(true) {
-    string scopedName = {s.merge("."), s.size() ? "." : "", name};
-    if(auto variable = variables.find({scopedName})) {
-      if(queryPhase() || variable().valid) return {true, variable()};
-    }
-    if(s.empty()) break;
-    s.remove();
-  }
-  return false;
 }

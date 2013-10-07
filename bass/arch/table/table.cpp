@@ -20,6 +20,7 @@ bool BassTable::assemble(const string& statement) {
     s.ltrim<1>("arch ");
     string data;
     if(0);
+    else if(s == "reset") data = "";
     else if(s == "snes.cpu") data = Arch_snes_cpu;
     else if(s == "snes.smp") data = Arch_snes_smp;
     else if(s.match("\"?*\"")) {
@@ -35,13 +36,8 @@ bool BassTable::assemble(const string& statement) {
     return true;
   }
 
-  if(s.match("arch.reset")) {
-    table.reset();
-    return true;
-  }
-
-  if(s.match("arch.append \"*\"")) {
-    s.trim<1>("arch.append \"", "\"");
+  if(s.match("instrument \"*\"")) {
+    s.trim<1>("instrument \"", "\"");
     parseTable(s);
     return true;
   }

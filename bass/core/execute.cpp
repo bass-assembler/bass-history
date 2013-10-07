@@ -1,21 +1,23 @@
 bool Bass::execute() {
-  defines.reset();
-  macros.reset();
-  callStack.reset();
+  stackFrame.reset();
   ifStack.reset();
   ip = 0;
   macroInvocationCounter = 0;
 
   initialize();
 
-  defines.append(coreDefines);
+  StackFrame frame;
+  stackFrame.append(frame);
+  for(auto& define : defines) {
+    setDefine(define.name, define.value, true);
+  }
 
   while(ip < program.size()) {
     Instruction& i = program(ip++);
     if(!executeInstruction(i)) error("unrecognized directive: ", i.statement);
   }
 
-  defines.remove();
+  stackFrame.remove();
   return true;
 }
 
@@ -24,28 +26,40 @@ bool Bass::executeInstruction(Instruction& i) {
   string s = i.statement;
   evaluateDefines(s);
 
-  if(s.match("define ?*(*)")) {
-    lstring p = s.trim<1>("define ", ")").split<1>("(");
-    setDefine(p(0), p(1));
-    return true;
-  }
-
-  if(s.match("evaluate ?*(*)")) {
-    lstring p = s.trim<1>("evaluate ", ")").split<1>("(");
-    setDefine(p(0), evaluate(p(1)));
-    return true;
-  }
-
-  if(s.match("block {")) return true;
-  if(s.match("} endblock")) return true;
-
-  if(s.match("macro ?*(*) {") || s.match("macro ?*(*): {")) {
-    bool scoped = s.endswith("): {");
-    s.trim<1>("macro ", scoped ? "): {" : ") {");
+  if(s.match("macro ?*(*) {") || s.match("global macro ?*(*) {")) {
+    bool local = s.beginswith("global ") == false;
+    s.ltrim<1>("global ");
+    s.trim<1>("macro ", ") {");
     lstring p = s.split<1>("(");
+    bool scoped = p(0).beginswith("scope ");
+    p(0).ltrim<1>("scope ");
     lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
-    setMacro(p(0), a, ip, scoped);
+    setMacro(p(0), a, ip, scoped, local);
     ip = i.ip;
+    return true;
+  }
+
+  if(s.match("define ?*(*)") || s.match("global define ?*(*)")) {
+    bool local = s.beginswith("global ") == false;
+    s.ltrim<1>("global ");
+    lstring p = s.trim<1>("define ", ")").split<1>("(");
+    setDefine(p(0), p(1), local);
+    return true;
+  }
+
+  if(s.match("evaluate ?*(*)") || s.match("global evaluate ?*(*)")) {
+    bool local = s.beginswith("global ") == false;
+    s.ltrim<1>("global ");
+    lstring p = s.trim<1>("evaluate ", ")").split<1>("(");
+    setDefine(p(0), evaluate(p(1)), local);
+    return true;
+  }
+
+  if(s.match("variable ?*(*)") || s.match("global variable ?*(*)")) {
+    bool local = s.beginswith("global ") == false;
+    s.ltrim<1>("global ");
+    lstring p = s.trim<1>("variable ", ")").split<1>("(");
+    setVariable(p(0), evaluate(p(1)), local);
     return true;
   }
 
@@ -83,7 +97,7 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("} endif")) {
-    ifStack.remove();
+    ifStack.removelast();
     return true;
   }
 
@@ -102,29 +116,54 @@ bool Bass::executeInstruction(Instruction& i) {
   if(s.match("?*(*)")) {
     lstring p = string{s}.rtrim<1>(")").split<1>("(");
     lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
-    string name = {p(0), ":", a.size()};
+    string name = {p(0), ":", a.size()};  //arity overloading
     if(auto macro = findMacro({name})) {
-      hashset<Define> stack;
-      defines.append(stack);
-      setDefine("#", macroInvocationCounter++);
+      struct Parameter {
+        enum class Type : unsigned { Define, Variable } type;
+        string name;
+        string value;
+      };
+
+      vector<Parameter> parameters;
       for(unsigned n = 0; n < a.size(); n++) {
-        setDefine(macro().parameters(n), a(n));
+        lstring p = macro().parameters(n).split<1>(" ").strip();
+        if(p.size() == 1) p.prepend("define");
+
+        if(p(0) == "define") parameters.append({Parameter::Type::Define, p(1), a(n)});
+        else if(p(0) == "evaluate") parameters.append({Parameter::Type::Define, p(1), evaluate(a(n))});
+        else if(p(0) == "variable") parameters.append({Parameter::Type::Variable, p(1), evaluate(a(n))});
+        else error("unsupported parameter type: ", p(0));
       }
 
-      callStack.append({ip, macro().scoped});
-      ip = macro().ip;
+      StackFrame frame;
+      stackFrame.append(frame);
+      stackFrame.last().ip = ip;
+      stackFrame.last().scoped = macro().scoped;
+
       if(macro().scoped) scope.append(p(0));
+
+      setDefine("#", {"_", macroInvocationCounter++}, true);
+      for(auto& parameter : parameters) {
+        if(parameter.type == Parameter::Type::Define) setDefine(parameter.name, parameter.value, true);
+        if(parameter.type == Parameter::Type::Variable) setVariable(parameter.name, integer(parameter.value), true);
+      }
+
+      ip = macro().ip;
       return true;
     }
   }
 
   if(s.match("} endmacro")) {
-    ip = callStack.last().ip;
-    if(callStack.last().scoped) scope.remove();
-    callStack.remove();
-    defines.remove();
+    ip = stackFrame.last().ip;
+    if(stackFrame.last().scoped) scope.removelast();
+    stackFrame.removelast();
     return true;
   }
 
-  return assemble(s);
+  if(assemble(s)) {
+    return true;
+  }
+
+  evaluate(s);
+  return true;
 }

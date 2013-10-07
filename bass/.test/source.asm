@@ -1,79 +1,45 @@
-macro seek(offset) {
-  origin (({offset} & 0x7f0000) >> 1) | ({offset} & 0x7fff)
-  base {offset}
+macro seek(variable offset) {
+  origin ((offset & $7f0000) >> 1) | (offset & $7fff)
+  base offset
 }
 
 seek(0x8000)
 
-//functional recursion
-
-macro factorial(number, result) {
-  if {number} <= 1 {
-    variable result({result})
-  } else {
-    evaluate result({number} * {result})
-    evaluate number({number} - 1)
-    factorial({number}, {result})
+scope main: {
+  loop: {
+    -; beq +; dex; lsr; bra -; +
+    rts
   }
 }
 
-macro factorial(number): {
-  factorial({number}, 1)
+jmp main.loop
+
+macro scope factorial(variable n) {
+  variable r(1)
+  while n >= 1 {
+    r = r * n
+    n = n - 1
+  }
+  global variable result(r)
 }
 
 factorial(10)
 print factorial.result, "\n"
 
-//iterative repetition
+macro text(value) {
+  print {value}
+}
 
-macro factorial(number): {
-  variable result(1)
-  define :result(1)
-  while {number} > 1 {
-    variable result(result * {number})
-    evaluate :result({:result} * {number})
-    evaluate number({number} - 1)
+macro hex(variable value) {
+  if value > 15 {
+    hex(value >> 4)
   }
+  value = value & 15
+  putchar(value < 10 ? '0' + value : 'a' + value - 10)
 }
 
-factorial(10)
-print "{factorial.result}, ", factorial.result, "\n"
+text("Program counter is at: 0x"); hex(pc()); text("\n")
 
-//benchmarking (processing speed)
-
-variable n(0)
-while n < 100000 {
-  variable n(n + 1)
-}
-
-insert "insert.bin"
-
-scope main: {
-  ldx #$0008; ldy #<8
-  loop:; dex; bne loop
-  -; beq +; lsr; dex; bne -; +
-  rts
-}
-
-jmp main
-jmp main.loop
-
-map 'A', 0x01, 26
-map 'a', 0x21, 26
-map '0', 0x41, 10
-
-db "ABCabc012", +$10, -$10
-
-lda #$55
-lda #%01010101
-
-if pc() >= 0x9000 {
-  error "output exceeds 4KB"
-} else if pc() >= 0x8020 {
-  warning "output exceeds 32B"
-}
-
-//assemble with -d message=... to print a message
-if defined(message) {
+if {defined message} {
   print "{message}\n"
 }

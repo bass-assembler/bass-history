@@ -46,7 +46,7 @@
     </style>
   </head>
   <body>
-    <h1>bass v12.04</h1>
+    <h1>bass v12.05</h1>
     Author: byuu<br>
     License: GPLv3<br>
     <br>
@@ -55,18 +55,26 @@
     <pre>bass [options] [-o target] source [source ...]</pre>
 
     <h3>Options</h3>
-    <p><i>-benchmark</i> will display the time required to assemble the source.
-    </p>
 
-    <p><i>-create</i> will overwrite the target file, if it exists. The default
-    mode is to modify (patch) the target file.</p>
-
-    <p><i>-d name</i> will create a define with the given name.</p>
+    <p><i>-d name</i> will create a define with the given name, and assign an
+    to it an empty value.</p>
 
     <p><i>-d name=value</i> will create a define with the given name, and assign
     to it the given value.</p>
 
+    <p><i>-c name</i> will create a constant with the given name, and assign to
+    it a value of 1.</p>
+
+    <p><i>-c name=value</i> will create a constant with the given name, and
+    assign to it the given value.</p>
+
     <p><i>-strict</i> will abort the assembly process on warnings.</p>
+
+    <p><i>-create</i> will overwrite the target file, if it exists. The default
+    mode is to modify (patch) the target file.</p>
+
+    <p><i>-benchmark</i> will display the time required to assemble the source.
+    </p>
 
     <h2>Architecture</h2>
     <p>bass is a table-based assembler, which supports multiple architectures,
@@ -463,7 +471,7 @@
     }
     </pre>
 
-    <h3>defined(name)</h3>
+    <h3>{defined name}</h3>
     <p>Returns 1 if a define exists by the specified name, and 0 if not.</p>
 
     <h3>origin()</h3>

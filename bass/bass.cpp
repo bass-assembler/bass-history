@@ -9,19 +9,22 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12.04\n");
+    print("bass v12.05\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
-    print("  -benchmark       benchmark performance\n");
-    print("  -create          overwrite target file if it already exists\n");
     print("  -d name          create define\n");
     print("  -d name=value    create define with value\n");
+    print("  -c name          create constant\n");
+    print("  -c name=value    create constant with value\n");
     print("  -strict          upgrade warnings to errors\n");
+    print("  -create          overwrite target file if it already exists\n");
+    print("  -benchmark       benchmark performance\n");
     return 0;
   }
 
   string targetFilename;
+  lstring constants;
   lstring defines;
   bool create = false;
   bool strict = false;
@@ -33,6 +36,12 @@ int main(int argc, char** argv) {
 
     if(s == "-o") {
       targetFilename = argv[n + 1];
+      n += 2;
+      continue;
+    }
+
+    if(s == "-c") {
+      constants.append(argv[n + 1]);
       n += 2;
       continue;
     }
@@ -76,6 +85,10 @@ int main(int argc, char** argv) {
   bass.target(targetFilename, create);
   for(auto& sourceFilename : sourceFilenames) {
     bass.source(sourceFilename);
+  }
+  for(auto& constant : constants) {
+    lstring p = constant.split<1>("=");
+    bass.constant(p(0), p(1, "1"));
   }
   for(auto& define : defines) {
     lstring p = define.split<1>("=");
