@@ -145,8 +145,8 @@ bool Bass::assemble(const string& statement) {
     unsigned length = p.size() ? evaluate(p.take(0)) : 0;
     if(length == 0) length = fp.size() - offset;
     if(name) {
-      setVariable({name}, pc(), true);
-      setVariable({name, ".size"}, length, true);
+      setConstant({name}, pc());
+      setConstant({name, ".size"}, length);
     }
     fp.seek(offset);
     while(!fp.end() && length--) write(fp.read());

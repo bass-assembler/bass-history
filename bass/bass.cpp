@@ -9,14 +9,12 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v12.05\n");
+    print("bass v12.06\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
-    print("  -d name          create define\n");
-    print("  -d name=value    create define with value\n");
-    print("  -c name          create constant\n");
-    print("  -c name=value    create constant with value\n");
+    print("  -d name[=value]  create define with optional value\n");
+    print("  -c name[=value]  create constant with optional value\n");
     print("  -strict          upgrade warnings to errors\n");
     print("  -create          overwrite target file if it already exists\n");
     print("  -benchmark       benchmark performance\n");
@@ -24,10 +22,10 @@ int main(int argc, char** argv) {
   }
 
   string targetFilename;
-  lstring constants;
   lstring defines;
-  bool create = false;
+  lstring constants;
   bool strict = false;
+  bool create = false;
   bool benchmark = false;
   lstring sourceFilenames;
 
@@ -40,26 +38,26 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    if(s == "-c") {
-      constants.append(argv[n + 1]);
-      n += 2;
-      continue;
-    }
-
     if(s == "-d") {
       defines.append(argv[n + 1]);
       n += 2;
       continue;
     }
 
-    if(s == "-create") {
-      create = true;
-      n += 1;
+    if(s == "-c") {
+      constants.append(argv[n + 1]);
+      n += 2;
       continue;
     }
 
     if(s == "-strict") {
       strict = true;
+      n += 1;
+      continue;
+    }
+
+    if(s == "-create") {
+      create = true;
       n += 1;
       continue;
     }
@@ -86,13 +84,13 @@ int main(int argc, char** argv) {
   for(auto& sourceFilename : sourceFilenames) {
     bass.source(sourceFilename);
   }
-  for(auto& constant : constants) {
-    lstring p = constant.split<1>("=");
-    bass.constant(p(0), p(1, "1"));
-  }
   for(auto& define : defines) {
     lstring p = define.split<1>("=");
     bass.define(p(0), p(1));
+  }
+  for(auto& constant : constants) {
+    lstring p = constant.split<1>("=");
+    bass.constant(p(0), p(1, "1"));
   }
   if(bass.assemble(strict) == false) {
     print("bass: assembly failed\n");
