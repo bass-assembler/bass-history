@@ -148,7 +148,7 @@ protected:
 
   void evaluateDefines(string& statement);
 
-  string filepath() const;
-  string text(string s) const;
+  string filepath();
+  string text(string s);
   int64_t character(string s);
 };

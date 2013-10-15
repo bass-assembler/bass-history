@@ -157,11 +157,13 @@ void Bass::evaluateDefines(string& s) {
   }
 }
 
-string Bass::filepath() const {
+string Bass::filepath() {
   return dir(sourceFilenames[activeInstruction->fileNumber]);
 }
 
-string Bass::text(string s) const {
+string Bass::text(string s) {
+  if(!s.match("\"*\"")) warning("string value is unqouted: ", s);
+  s.trim<1>("\"");
   s.replace("\\n", "\n");
   s.replace("\\q", "\"");
   s.replace("\\\\", "\\");

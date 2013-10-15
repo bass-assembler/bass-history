@@ -186,7 +186,7 @@ bool Bass::assemble(const string& statement) {
     lstring p = s.qsplit(",").strip();
     for(auto& t : p) {
       if(t.match("\"*\"")) {
-        t = text(t.trim<1>("\""));
+        t = text(t);
         for(auto& b : t) write(stringTable[b], dataLength);
       } else {
         write(evaluate(t), dataLength);
@@ -197,13 +197,12 @@ bool Bass::assemble(const string& statement) {
 
   //print ("string"|variable) [, ...]
   if(s.match("print ?*")) {
-    s.ltrim<1>("print ");
+    s.ltrim<1>("print ").strip();
     if(writePhase()) {
       lstring p = s.qsplit(",").strip();
       for(auto& t : p) {
         if(t.match("\"*\"")) {
-          t = text(t.trim<1>("\""));
-          print(t);
+          print(text(t));
         } else {
           print(evaluate(t));
         }
@@ -215,8 +214,8 @@ bool Bass::assemble(const string& statement) {
   //notice "string"
   if(s.match("notice \"*\"")) {
     if(writePhase()) {
-      string message = s.trim<1>("notice \"", "\"");
-      notice(text(message));
+      s.ltrim<1>("notice ").strip();
+      notice(text(s));
     }
     return true;
   }
@@ -224,8 +223,8 @@ bool Bass::assemble(const string& statement) {
   //warning "string"
   if(s.match("warning \"*\"")) {
     if(writePhase()) {
-      string message = s.trim<1>("warning \"", "\"");
-      warning(text(message));
+      s.ltrim<1>("warning ").strip();
+      warning(text(s));
     }
     return true;
   }
@@ -233,8 +232,8 @@ bool Bass::assemble(const string& statement) {
   //error "string"
   if(s.match("error \"*\"")) {
     if(writePhase()) {
-      string message = s.trim<1>("error \"", "\"");
-      error(text(message));
+      s.ltrim<1>("error ").strip();
+      error(text(s));
     }
     return true;
   }

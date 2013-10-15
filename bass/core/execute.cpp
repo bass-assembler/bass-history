@@ -130,6 +130,7 @@ bool Bass::executeInstruction(Instruction& i) {
         if(p.size() == 1) p.prepend("define");
 
         if(p(0) == "define") parameters.append({Parameter::Type::Define, p(1), a(n)});
+        else if(p(0) == "string") parameters.append({Parameter::Type::Define, p(1), text(a(n))});
         else if(p(0) == "evaluate") parameters.append({Parameter::Type::Define, p(1), evaluate(a(n))});
         else if(p(0) == "variable") parameters.append({Parameter::Type::Variable, p(1), evaluate(a(n))});
         else error("unsupported parameter type: ", p(0));
