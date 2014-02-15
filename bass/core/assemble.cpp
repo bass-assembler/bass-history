@@ -25,14 +25,14 @@ bool Bass::assemble(const string& statement) {
   //scope name {
   if(s.match("scope ?* {") || s.match("scope {")) {
     s.trim<1>("scope ", "{").strip();
-    if(s.endswith(":")) setConstant(s.rtrim<1>(":"), pc());
+    if(s.endsWith(":")) setConstant(s.rtrim<1>(":"), pc());
     scope.append(s);
     return true;
   }
 
   //}
   if(s.match("} endscope")) {
-    scope.removelast();
+    scope.removeLast();
     return true;
   }
 
@@ -116,13 +116,13 @@ bool Bass::assemble(const string& statement) {
     lstring p = s.ltrim<1>("pull ").qsplit(",").strip();
     for(auto& t : p) {
       if(t == "origin") {
-        origin = decimal(pushStack.takelast());
+        origin = decimal(pushStack.takeLast());
         seek(origin);
       } else if(t == "base") {
-        base = integer(pushStack.takelast());
+        base = integer(pushStack.takeLast());
       } else if(t == "pc") {
-        base = integer(pushStack.takelast());
-        origin = decimal(pushStack.takelast());
+        base = integer(pushStack.takeLast());
+        origin = decimal(pushStack.takeLast());
         seek(origin);
       } else {
         error("unrecognized pull variable: ", t);
@@ -176,11 +176,11 @@ bool Bass::assemble(const string& statement) {
 
   //d[bwldq] ("string"|variable) [, ...]
   unsigned dataLength = 0;
-  if(s.beginswith("db ")) dataLength = 1;
-  if(s.beginswith("dw ")) dataLength = 2;
-  if(s.beginswith("dl ")) dataLength = 3;
-  if(s.beginswith("dd ")) dataLength = 4;
-  if(s.beginswith("dq ")) dataLength = 8;
+  if(s.beginsWith("db ")) dataLength = 1;
+  if(s.beginsWith("dw ")) dataLength = 2;
+  if(s.beginsWith("dl ")) dataLength = 3;
+  if(s.beginsWith("dd ")) dataLength = 4;
+  if(s.beginsWith("dq ")) dataLength = 8;
   if(dataLength) {
     s = s.slice(3);  //remove prefix
     lstring p = s.qsplit(",").strip();

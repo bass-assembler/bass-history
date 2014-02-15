@@ -1,9 +1,9 @@
 int64_t Bass::evaluate(const string& expression, Evaluation mode) {
-  optional<string> name;
-  if(expression == "--") name = {true, {"lastLabel#", lastLabelCounter - 2}};
-  if(expression == "-" ) name = {true, {"lastLabel#", lastLabelCounter - 1}};
-  if(expression == "+" ) name = {true, {"nextLabel#", nextLabelCounter + 0}};
-  if(expression == "++") name = {true, {"nextLabel#", nextLabelCounter + 1}};
+  maybe<string> name;
+  if(expression == "--") name = {"lastLabel#", lastLabelCounter - 2};
+  if(expression == "-" ) name = {"lastLabel#", lastLabelCounter - 1};
+  if(expression == "+" ) name = {"nextLabel#", nextLabelCounter + 0};
+  if(expression == "++") name = {"nextLabel#", nextLabelCounter + 1};
   if(name) {
     if(auto constant = findConstant({name()})) return constant().value;
     if(queryPhase()) return pc();

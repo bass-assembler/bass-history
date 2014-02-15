@@ -28,22 +28,22 @@ bool string::iequals(rstring source) const {
   return icompare(source) == 0;
 }
 
-bool string::beginswith(rstring source) const {
+bool string::beginsWith(rstring source) const {
   if(source.size() > size()) return false;
   return memcmp(data(), source.data(), source.size()) == 0;
 }
 
-bool string::ibeginswith(rstring source) const {
+bool string::ibeginsWith(rstring source) const {
   if(source.size() > size()) return false;
   return imemcmp(data(), source.data(), source.size()) == 0;
 }
 
-bool string::endswith(rstring source) const {
+bool string::endsWith(rstring source) const {
   if(source.size() > size()) return false;
   return memcmp(data() + size() - source.size(), source.data(), source.size()) == 0;
 }
 
-bool string::iendswith(rstring source) const {
+bool string::iendsWith(rstring source) const {
   if(source.size() > size()) return false;
   return imemcmp(data() + size() - source.size(), source.data(), source.size()) == 0;
 }
@@ -114,10 +114,10 @@ string& string::strip() {
   return *this;
 }
 
-optional<unsigned> string::find(rstring key) const { return strpos(data(), key); }
-optional<unsigned> string::ifind(rstring key) const { return istrpos(data(), key); }
-optional<unsigned> string::qfind(rstring key) const { return qstrpos(data(), key); }
-optional<unsigned> string::iqfind(rstring key) const { return iqstrpos(data(), key); }
+maybe<unsigned> string::find(rstring key) const { return strpos(data(), key); }
+maybe<unsigned> string::ifind(rstring key) const { return istrpos(data(), key); }
+maybe<unsigned> string::qfind(rstring key) const { return qstrpos(data(), key); }
+maybe<unsigned> string::iqfind(rstring key) const { return iqstrpos(data(), key); }
 
 }
 

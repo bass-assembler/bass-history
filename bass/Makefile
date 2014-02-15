@@ -14,10 +14,18 @@ obj/bass.o: bass.cpp bass.hpp $(call rwildcard,core/*) $(call rwildcard,arch/*)
 	$(compiler) $(cppflags) $(flags) -o obj/bass.o -c bass.cpp
 
 install:
-	sudo cp $(application) /usr/local/bin/$(application)
+ifneq ($(shell id -un),root)
+	$(error "make install must be run as root")
+else
+	cp $(application) /usr/local/bin/$(application)
+endif
 
 uninstall:
-	sudo rm /usr/local/bin/$(application)
+ifneq ($(shell id -un),root)
+	$(error "make uninstall must be run as root")
+else
+	rm /usr/local/bin/$(application)
+endif
 
 clean:
 	-@$(call delete,obj/*.o)

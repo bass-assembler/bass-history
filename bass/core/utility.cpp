@@ -14,27 +14,27 @@ void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip, 
   }
 }
 
-optional<Bass::Macro&> Bass::findMacro(const string& name, bool local) {
-  if(stackFrame.size() == 0) return false;
+maybe<Bass::Macro&> Bass::findMacro(const string& name, bool local) {
+  if(stackFrame.size() == 0) return nothing;
   auto& macros = stackFrame[local ? stackFrame.size() - 1 : 0].macros;
 
   lstring s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto macro = macros.find({scopedName})) {
-      return {true, macro()};
+      return macro();
     }
     if(s.empty()) break;
-    s.removelast();
+    s.removeLast();
   }
 
-  return false;
+  return nothing;
 }
 
-optional<Bass::Macro&> Bass::findMacro(const string& name) {
+maybe<Bass::Macro&> Bass::findMacro(const string& name) {
   if(auto macro = findMacro(name, true)) return macro();
   if(auto macro = findMacro(name, false)) return macro();
-  return false;
+  return nothing;
 }
 
 void Bass::setDefine(const string& name, const string& value, bool local) {
@@ -51,27 +51,27 @@ void Bass::setDefine(const string& name, const string& value, bool local) {
   }
 }
 
-optional<Bass::Define&> Bass::findDefine(const string& name, bool local) {
-  if(stackFrame.size() == 0) return false;
+maybe<Bass::Define&> Bass::findDefine(const string& name, bool local) {
+  if(stackFrame.size() == 0) return nothing;
   auto& defines = stackFrame[local ? stackFrame.size() - 1 : 0].defines;
 
   lstring s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto define = defines.find({scopedName})) {
-      return {true, define()};
+      return define();
     }
     if(s.empty()) break;
-    s.removelast();
+    s.removeLast();
   }
 
-  return false;
+  return nothing;
 }
 
-optional<Bass::Define&> Bass::findDefine(const string& name) {
+maybe<Bass::Define&> Bass::findDefine(const string& name) {
   if(auto define = findDefine(name, true)) return define();
   if(auto define = findDefine(name, false)) return define();
-  return false;
+  return nothing;
 }
 
 void Bass::setVariable(const string& name, int64_t value, bool local) {
@@ -88,27 +88,27 @@ void Bass::setVariable(const string& name, int64_t value, bool local) {
   }
 }
 
-optional<Bass::Variable&> Bass::findVariable(const string& name, bool local) {
-  if(stackFrame.size() == 0) return false;
+maybe<Bass::Variable&> Bass::findVariable(const string& name, bool local) {
+  if(stackFrame.size() == 0) return nothing;
   auto& variables = stackFrame[local ? stackFrame.size() - 1 : 0].variables;
 
   lstring s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto variable = variables.find({scopedName})) {
-      return {true, variable()};
+      return variable();
     }
     if(s.empty()) break;
-    s.removelast();
+    s.removeLast();
   }
 
-  return false;
+  return nothing;
 }
 
-optional<Bass::Variable&> Bass::findVariable(const string& name) {
+maybe<Bass::Variable&> Bass::findVariable(const string& name) {
   if(auto variable = findVariable(name, true)) return variable();
   if(auto variable = findVariable(name, false)) return variable();
-  return false;
+  return nothing;
 }
 
 void Bass::setConstant(const string& name, int64_t value) {
@@ -123,18 +123,18 @@ void Bass::setConstant(const string& name, int64_t value) {
   }
 }
 
-optional<Bass::Constant&> Bass::findConstant(const string& name) {
+maybe<Bass::Constant&> Bass::findConstant(const string& name) {
   lstring s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto constant = constants.find({scopedName})) {
-      return {true, constant()};
+      return constant();
     }
     if(s.empty()) break;
-    s.removelast();
+    s.removeLast();
   }
 
-  return false;
+  return nothing;
 }
 
 void Bass::evaluateDefines(string& s) {
@@ -164,8 +164,10 @@ string Bass::filepath() {
 string Bass::text(string s) {
   if(!s.match("\"*\"")) warning("string value is unqouted: ", s);
   s.trim<1>("\"");
+  s.replace("\\s", "\'");
+  s.replace("\\d", "\"");
+  s.replace("\\b", ";");
   s.replace("\\n", "\n");
-  s.replace("\\q", "\"");
   s.replace("\\\\", "\\");
   return s;
 }
@@ -175,8 +177,10 @@ int64_t Bass::character(string s) {
   if(s[2] == '\'') return s[1];
   if(s[3] != '\'') goto unknown;
   if(s[1] != '\\') goto unknown;
+  if(s[2] == 's') return '\'';
+  if(s[2] == 'd') return '\"';
+  if(s[2] == 'b') return ';';
   if(s[2] == 'n') return '\n';
-  if(s[2] == 'q') return '\"';
   if(s[2] == '\\') return '\\';
 
 unknown:

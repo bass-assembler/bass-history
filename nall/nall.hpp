@@ -11,6 +11,7 @@
 #include <nall/atoi.hpp>
 #include <nall/base64.hpp>
 #include <nall/bit.hpp>
+#include <nall/bitvector.hpp>
 #include <nall/bmp.hpp>
 #include <nall/config.hpp>
 #include <nall/crc16.hpp>
@@ -24,6 +25,7 @@
 #include <nall/group.hpp>
 #include <nall/gzip.hpp>
 #include <nall/hashset.hpp>
+#include <nall/hid.hpp>
 #include <nall/http.hpp>
 #include <nall/image.hpp>
 #include <nall/inflate.hpp>
@@ -32,6 +34,7 @@
 #include <nall/invoke.hpp>
 #include <nall/map.hpp>
 #include <nall/matrix.hpp>
+#include <nall/maybe.hpp>
 #include <nall/png.hpp>
 #include <nall/property.hpp>
 #include <nall/random.hpp>

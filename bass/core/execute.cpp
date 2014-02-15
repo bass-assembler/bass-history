@@ -27,11 +27,11 @@ bool Bass::executeInstruction(Instruction& i) {
   evaluateDefines(s);
 
   if(s.match("macro ?*(*) {") || s.match("global macro ?*(*) {")) {
-    bool local = s.beginswith("global ") == false;
+    bool local = s.beginsWith("global ") == false;
     s.ltrim<1>("global ");
     s.trim<1>("macro ", ") {");
     lstring p = s.split<1>("(");
-    bool scoped = p(0).beginswith("scope ");
+    bool scoped = p(0).beginsWith("scope ");
     p(0).ltrim<1>("scope ");
     lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
     setMacro(p(0), a, ip, scoped, local);
@@ -40,7 +40,7 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("define ?*(*)") || s.match("global define ?*(*)")) {
-    bool local = s.beginswith("global ") == false;
+    bool local = s.beginsWith("global ") == false;
     s.ltrim<1>("global ");
     lstring p = s.trim<1>("define ", ")").split<1>("(");
     setDefine(p(0), p(1), local);
@@ -48,7 +48,7 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("evaluate ?*(*)") || s.match("global evaluate ?*(*)")) {
-    bool local = s.beginswith("global ") == false;
+    bool local = s.beginsWith("global ") == false;
     s.ltrim<1>("global ");
     lstring p = s.trim<1>("evaluate ", ")").split<1>("(");
     setDefine(p(0), evaluate(p(1)), local);
@@ -56,7 +56,7 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("variable ?*(*)") || s.match("global variable ?*(*)")) {
-    bool local = s.beginswith("global ") == false;
+    bool local = s.beginsWith("global ") == false;
     s.ltrim<1>("global ");
     lstring p = s.trim<1>("variable ", ")").split<1>("(");
     setVariable(p(0), evaluate(p(1)), local);
@@ -97,7 +97,7 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("} endif")) {
-    ifStack.removelast();
+    ifStack.removeLast();
     return true;
   }
 
@@ -156,8 +156,8 @@ bool Bass::executeInstruction(Instruction& i) {
 
   if(s.match("} endmacro")) {
     ip = stackFrame.last().ip;
-    if(stackFrame.last().scoped) scope.removelast();
-    stackFrame.removelast();
+    if(stackFrame.last().scoped) scope.removeLast();
+    stackFrame.removeLast();
     return true;
   }
 

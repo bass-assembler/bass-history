@@ -132,19 +132,19 @@ protected:
 
   //utility
   void setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped, bool local);
-  optional<Macro&> findMacro(const string& name, bool local);
-  optional<Macro&> findMacro(const string& name);
+  maybe<Macro&> findMacro(const string& name, bool local);
+  maybe<Macro&> findMacro(const string& name);
 
   void setDefine(const string& name, const string& value, bool local);
-  optional<Define&> findDefine(const string& name, bool local);
-  optional<Define&> findDefine(const string& name);
+  maybe<Define&> findDefine(const string& name, bool local);
+  maybe<Define&> findDefine(const string& name);
 
   void setVariable(const string& name, int64_t value, bool local);
-  optional<Variable&> findVariable(const string& name, bool local);
-  optional<Variable&> findVariable(const string& name);
+  maybe<Variable&> findVariable(const string& name, bool local);
+  maybe<Variable&> findVariable(const string& name);
 
   void setConstant(const string& name, int64_t value);
-  optional<Constant&> findConstant(const string& name);
+  maybe<Constant&> findConstant(const string& name);
 
   void evaluateDefines(string& statement);
 

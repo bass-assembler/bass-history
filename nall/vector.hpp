@@ -7,6 +7,7 @@
 #include <utility>
 #include <nall/algorithm.hpp>
 #include <nall/bit.hpp>
+#include <nall/maybe.hpp>
 #include <nall/sort.hpp>
 #include <nall/utility.hpp>
 
@@ -102,7 +103,7 @@ public:
     return last();
   }
 
-  bool appendonce(const T& data) {
+  bool appendOnce(const T& data) {
     if(find(data)) return false;
     return append(data), true;
   }
@@ -136,8 +137,8 @@ public:
     objectsize -= length;
   }
 
-  void removefirst() { return remove(0); }
-  void removelast() { return remove(~0u); }
+  void removeFirst() { return remove(0); }
+  void removeLast() { return remove(~0u); }
 
   T take(unsigned position = ~0u) {
     if(position == ~0u) position = objectsize - 1;
@@ -146,8 +147,8 @@ public:
     return object;
   }
 
-  T takefirst() { return take(0); }
-  T takelast() { return take(~0u); }
+  T takeFirst() { return take(0); }
+  T takeLast() { return take(~0u); }
 
   void reverse() {
     unsigned pivot = size() / 2;
@@ -164,9 +165,9 @@ public:
     nall::sort(pool + poolbase, objectsize, lessthan);
   }
 
-  optional<unsigned> find(const T& data) {
-    for(unsigned n = 0; n < objectsize; n++) if(pool[poolbase + n] == data) return {true, n};
-    return false;
+  maybe<unsigned> find(const T& data) {
+    for(unsigned n = 0; n < objectsize; n++) if(pool[poolbase + n] == data) return n;
+    return nothing;
   }
 
   T& first() {
@@ -226,19 +227,19 @@ public:
   iterator begin() { return iterator(*this, 0); }
   iterator end() { return iterator(*this, size()); }
 
-  struct const_iterator {
+  struct constIterator {
     const T& operator*() const { return source.operator[](position); }
-    bool operator!=(const const_iterator& source) const { return position != source.position; }
-    const_iterator& operator++() { position++; return *this; }
-    const_iterator(const vector& source, unsigned position) : source(source), position(position) {}
+    bool operator!=(const constIterator& source) const { return position != source.position; }
+    constIterator& operator++() { position++; return *this; }
+    constIterator(const vector& source, unsigned position) : source(source), position(position) {}
 
   private:
     const vector& source;
     unsigned position;
   };
 
-  const const_iterator begin() const { return const_iterator(*this, 0); }
-  const const_iterator end() const { return const_iterator(*this, size()); }
+  const constIterator begin() const { return constIterator(*this, 0); }
+  const constIterator end() const { return constIterator(*this, size()); }
 
   //copy
   inline vector& operator=(const vector& source) {

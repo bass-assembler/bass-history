@@ -2,11 +2,11 @@
 
 namespace nall {
 
-optional<unsigned> lstring::find(rstring key) const {
+maybe<unsigned> lstring::find(rstring key) const {
   for(unsigned i = 0; i < size(); i++) {
-    if(operator[](i) == key) return {true, i};
+    if(operator[](i) == key) return i;
   }
-  return false;
+  return nothing;
 }
 
 string lstring::merge(const string& separator) const {
@@ -16,11 +16,6 @@ string lstring::merge(const string& separator) const {
     if(i < size() - 1) output.append(separator);
   }
   return output;
-}
-
-//deprecated: alias to merge()
-string lstring::concatenate(const string& separator) const {
-  return merge(separator);
 }
 
 lstring& lstring::isort() {

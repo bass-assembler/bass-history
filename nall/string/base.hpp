@@ -81,10 +81,10 @@ public:
   inline bool match(rstring) const;
   inline bool imatch(rstring) const;
 
-  inline bool beginswith(rstring) const;
-  inline bool ibeginswith(rstring) const;
-  inline bool endswith(rstring) const;
-  inline bool iendswith(rstring) const;
+  inline bool beginsWith(rstring) const;
+  inline bool ibeginsWith(rstring) const;
+  inline bool endsWith(rstring) const;
+  inline bool iendsWith(rstring) const;
 
   inline string slice(unsigned offset, unsigned length = ~0u) const;
 
@@ -107,10 +107,10 @@ public:
 
   inline string& strip();
 
-  inline optional<unsigned> find(rstring key) const;
-  inline optional<unsigned> ifind(rstring key) const;
-  inline optional<unsigned> qfind(rstring key) const;
-  inline optional<unsigned> iqfind(rstring key) const;
+  inline maybe<unsigned> find(rstring key) const;
+  inline maybe<unsigned> ifind(rstring key) const;
+  inline maybe<unsigned> qfind(rstring key) const;
+  inline maybe<unsigned> iqfind(rstring key) const;
 
   //core.hpp
   inline explicit operator bool() const;
@@ -144,6 +144,9 @@ public:
   template<unsigned Limit, bool Insensitive, bool Quoted> inline string& ureplace(rstring, rstring);
   inline string& _append(const char*);
 
+private:
+  inline void construct();
+
 #if defined(QSTRING_H)
 public:
   inline operator QString() const;
@@ -152,9 +155,8 @@ public:
 
 //list.hpp
 struct lstring : vector<string> {
-  inline optional<unsigned> find(rstring) const;
+  inline maybe<unsigned> find(rstring) const;
   inline string merge(const string&) const;
-  inline string concatenate(const string&) const;  //deprecated
   inline lstring& isort();
   inline lstring& strip();
   inline void append() {}
@@ -188,6 +190,7 @@ inline string notdir(string name);
 inline string parentdir(string name);
 inline string basename(string name);
 inline string extension(string name);
+inline string tempname();
 
 //format.hpp
 template<signed precision = 0, char padchar = ' '> inline string format(const string& value);
@@ -198,6 +201,7 @@ template<signed precision = 0, char padchar = '0'> inline string binary(uintmax_
 //platform.hpp
 inline string activepath();
 inline string realpath(const string& name);
+inline string programpath();
 inline string userpath();
 inline string configpath();
 inline string sharedpath();

@@ -39,11 +39,11 @@ inline string evaluateExpression(Node* node) {
 
 inline int64_t evaluateInteger(Node* node) {
   if(node->type == Node::Type::Literal) {
-    if(node->literal.beginswith("0b")) return nall::binary(node->literal);
-    if(node->literal.beginswith("0o")) return nall::octal(node->literal);
-    if(node->literal.beginswith("0x")) return nall::hex(node->literal);
-    if(node->literal.beginswith("%")) return nall::binary(node->literal);
-    if(node->literal.beginswith("$")) return nall::hex(node->literal);
+    if(node->literal.beginsWith("0b")) return nall::binary(node->literal);
+    if(node->literal.beginsWith("0o")) return nall::octal(node->literal);
+    if(node->literal.beginsWith("0x")) return nall::hex(node->literal);
+    if(node->literal.beginsWith("%")) return nall::binary(node->literal);
+    if(node->literal.beginsWith("$")) return nall::hex(node->literal);
     return nall::integer(node->literal);
   }
 
@@ -93,16 +93,16 @@ inline int64_t evaluateInteger(Node* node) {
   throw "invalid operator";
 }
 
-inline optional<int64_t> integer(const string& expression) {
+inline maybe<int64_t> integer(const string& expression) {
   try {
     auto tree = new Node;
     const char* p = expression;
     parse(tree, p, 0);
     auto result = evaluateInteger(tree);
     delete tree;
-    return {true, result};
+    return result;
   } catch(const char*) {
-    return false;
+    return nothing;
   }
 }
 
@@ -138,16 +138,16 @@ inline long double evaluateReal(Node* node) {
   throw "invalid operator";
 }
 
-inline optional<long double> real(const string& expression) {
+inline maybe<long double> real(const string& expression) {
   try {
     auto tree = new Node;
     const char* p = expression;
     parse(tree, p, 0);
     auto result = evaluateReal(tree);
     delete tree;
-    return {true, result};
+    return result;
   } catch(const char*) {
-    return false;
+    return nothing;
   }
 }
 

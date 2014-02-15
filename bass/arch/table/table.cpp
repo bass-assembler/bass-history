@@ -120,6 +120,7 @@ unsigned BassTable::bitLength(string& text) const {
     while(*p) {
       if(*p >= '0' && *p <= '9') { p++; length += 4; continue; }
       if(*p >= 'a' && *p <= 'f') { p++; length += 4; continue; }
+      if(*p >= 'A' && *p <= 'F') { p++; length += 4; continue; }
       return 0;
     }
     return length;

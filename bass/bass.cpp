@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv) {
   if(argc == 1) {
-    print("bass v13\n");
+    print("bass v14\n");
     print("usage: bass [options] [-o target] source [source ...]\n");
     print("\n");
     print("options:\n");
@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    if(!s.beginswith("-")) {
+    if(!s.beginsWith("-")) {
       sourceFilenames.append(s);
       n += 1;
       continue;
