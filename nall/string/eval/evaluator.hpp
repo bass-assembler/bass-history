@@ -1,9 +1,8 @@
-#ifdef NALL_STRING_INTERNAL_HPP
+#pragma once
 
-namespace nall {
-namespace Eval {
+namespace nall { namespace Eval {
 
-inline string evaluateExpression(Node* node) {
+inline auto evaluateExpression(Node* node) -> string {
   #define p(n) evaluateExpression(node->link[n])
   switch(node->type) {
   case Node::Type::Null: return "Null";
@@ -29,7 +28,7 @@ inline string evaluateExpression(Node* node) {
     for(auto& link : node->link) {
       result.append(evaluateExpression(link), ", ");
     }
-    return result.rtrim<1>(", ").append(")");
+    return result.trimRight(", ", 1L).append(")");
   }
   }
   #undef p
@@ -37,15 +36,8 @@ inline string evaluateExpression(Node* node) {
   throw "invalid operator";
 }
 
-inline int64_t evaluateInteger(Node* node) {
-  if(node->type == Node::Type::Literal) {
-    if(node->literal.beginsWith("0b")) return nall::binary(node->literal);
-    if(node->literal.beginsWith("0o")) return nall::octal(node->literal);
-    if(node->literal.beginsWith("0x")) return nall::hex(node->literal);
-    if(node->literal.beginsWith("%")) return nall::binary(node->literal);
-    if(node->literal.beginsWith("$")) return nall::hex(node->literal);
-    return nall::integer(node->literal);
-  }
+inline auto evaluateInteger(Node* node) -> int64_t {
+  if(node->type == Node::Type::Literal) return toInteger(node->literal);
 
   #define p(n) evaluateInteger(node->link[n])
   switch(node->type) {
@@ -93,7 +85,7 @@ inline int64_t evaluateInteger(Node* node) {
   throw "invalid operator";
 }
 
-inline maybe<int64_t> integer(const string& expression) {
+inline auto integer(const string& expression) -> maybe<int64_t> {
   try {
     auto tree = new Node;
     const char* p = expression;
@@ -106,8 +98,8 @@ inline maybe<int64_t> integer(const string& expression) {
   }
 }
 
-inline long double evaluateReal(Node* node) {
-  if(node->type == Node::Type::Literal) return nall::real(node->literal);
+inline auto evaluateReal(Node* node) -> long double {
+  if(node->type == Node::Type::Literal) return toReal(node->literal);
 
   #define p(n) evaluateReal(node->link[n])
   switch(node->type) {
@@ -138,7 +130,7 @@ inline long double evaluateReal(Node* node) {
   throw "invalid operator";
 }
 
-inline maybe<long double> real(const string& expression) {
+inline auto real(const string& expression) -> maybe<long double> {
   try {
     auto tree = new Node;
     const char* p = expression;
@@ -151,7 +143,4 @@ inline maybe<long double> real(const string& expression) {
   }
 }
 
-}
-}
-
-#endif
+}}

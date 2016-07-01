@@ -1,4 +1,4 @@
-void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip, bool scoped, bool local) {
+auto Bass::setMacro(const string& name, const string_vector& parameters, uint ip, bool scoped, bool local) -> void {
   if(stackFrame.size() == 0) return;
   auto& macros = stackFrame[local ? stackFrame.size() - 1 : 0].macros;
 
@@ -14,30 +14,30 @@ void Bass::setMacro(const string& name, const lstring& parameters, unsigned ip, 
   }
 }
 
-maybe<Bass::Macro&> Bass::findMacro(const string& name, bool local) {
+auto Bass::findMacro(const string& name, bool local) -> maybe<Macro&> {
   if(stackFrame.size() == 0) return nothing;
   auto& macros = stackFrame[local ? stackFrame.size() - 1 : 0].macros;
 
-  lstring s = scope;
+  auto s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto macro = macros.find({scopedName})) {
       return macro();
     }
-    if(s.empty()) break;
-    s.removeLast();
+    if(!s) break;
+    s.removeRight();
   }
 
   return nothing;
 }
 
-maybe<Bass::Macro&> Bass::findMacro(const string& name) {
+auto Bass::findMacro(const string& name) -> maybe<Macro&> {
   if(auto macro = findMacro(name, true)) return macro();
   if(auto macro = findMacro(name, false)) return macro();
   return nothing;
 }
 
-void Bass::setDefine(const string& name, const string& value, bool local) {
+auto Bass::setDefine(const string& name, const string& value, bool local) -> void {
   if(stackFrame.size() == 0) return;
   auto& defines = stackFrame[local ? stackFrame.size() - 1 : 0].defines;
 
@@ -51,30 +51,30 @@ void Bass::setDefine(const string& name, const string& value, bool local) {
   }
 }
 
-maybe<Bass::Define&> Bass::findDefine(const string& name, bool local) {
+auto Bass::findDefine(const string& name, bool local) -> maybe<Define&> {
   if(stackFrame.size() == 0) return nothing;
   auto& defines = stackFrame[local ? stackFrame.size() - 1 : 0].defines;
 
-  lstring s = scope;
+  auto s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto define = defines.find({scopedName})) {
       return define();
     }
-    if(s.empty()) break;
-    s.removeLast();
+    if(!s) break;
+    s.removeRight();
   }
 
   return nothing;
 }
 
-maybe<Bass::Define&> Bass::findDefine(const string& name) {
+auto Bass::findDefine(const string& name) -> maybe<Define&> {
   if(auto define = findDefine(name, true)) return define();
   if(auto define = findDefine(name, false)) return define();
   return nothing;
 }
 
-void Bass::setVariable(const string& name, int64_t value, bool local) {
+auto Bass::setVariable(const string& name, int64_t value, bool local) -> void {
   if(stackFrame.size() == 0) return;
   auto& variables = stackFrame[local ? stackFrame.size() - 1 : 0].variables;
 
@@ -88,30 +88,30 @@ void Bass::setVariable(const string& name, int64_t value, bool local) {
   }
 }
 
-maybe<Bass::Variable&> Bass::findVariable(const string& name, bool local) {
+auto Bass::findVariable(const string& name, bool local) -> maybe<Variable&> {
   if(stackFrame.size() == 0) return nothing;
   auto& variables = stackFrame[local ? stackFrame.size() - 1 : 0].variables;
 
-  lstring s = scope;
+  auto s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto variable = variables.find({scopedName})) {
       return variable();
     }
-    if(s.empty()) break;
-    s.removeLast();
+    if(!s) break;
+    s.removeRight();
   }
 
   return nothing;
 }
 
-maybe<Bass::Variable&> Bass::findVariable(const string& name) {
+auto Bass::findVariable(const string& name) -> maybe<Variable&> {
   if(auto variable = findVariable(name, true)) return variable();
   if(auto variable = findVariable(name, false)) return variable();
   return nothing;
 }
 
-void Bass::setConstant(const string& name, int64_t value) {
+auto Bass::setConstant(const string& name, int64_t value) -> void {
   string scopedName = name;
   if(scope.size()) scopedName = {scope.merge("."), ".", name};
 
@@ -123,47 +123,47 @@ void Bass::setConstant(const string& name, int64_t value) {
   }
 }
 
-maybe<Bass::Constant&> Bass::findConstant(const string& name) {
-  lstring s = scope;
+auto Bass::findConstant(const string& name) -> maybe<Constant&> {
+  auto s = scope;
   while(true) {
     string scopedName = {s.merge("."), s.size() ? "." : "", name};
     if(auto constant = constants.find({scopedName})) {
       return constant();
     }
-    if(s.empty()) break;
-    s.removeLast();
+    if(!s) break;
+    s.removeRight();
   }
 
   return nothing;
 }
 
-void Bass::evaluateDefines(string& s) {
-  for(signed x = s.size() - 1, y = -1; x >= 0; x--) {
+auto Bass::evaluateDefines(string& s) -> void {
+  for(int x = s.size() - 1, y = -1; x >= 0; x--) {
     if(s[x] == '}') y = x;
     if(s[x] == '{' && y > x) {
-      string name = s.slice(x + 1, y - x - 1);
+      string name = slice(s, x + 1, y - x - 1);
 
       if(name.match("defined ?*")) {
-        name.ltrim<1>("defined ").strip();
-        s = {s.slice(0, x), findDefine(name) ? 1 : 0, s.slice(y + 1)};
+        name.trimLeft("defined ", 1L).strip();
+        s = {slice(s, 0, x), findDefine(name) ? 1 : 0, slice(s, y + 1)};
         return evaluateDefines(s);
       }
 
       if(auto define = findDefine(name)) {
-        s = {s.slice(0, x), define().value, s.slice(y + 1)};
+        s = {slice(s, 0, x), define().value, slice(s, y + 1)};
         return evaluateDefines(s);
       }
     }
   }
 }
 
-string Bass::filepath() {
-  return dir(sourceFilenames[activeInstruction->fileNumber]);
+auto Bass::filepath() -> string {
+  return pathname(sourceFilenames[activeInstruction->fileNumber]);
 }
 
-string Bass::text(string s) {
+auto Bass::text(string s) -> string {
   if(!s.match("\"*\"")) warning("string value is unqouted: ", s);
-  s.trim<1>("\"");
+  s.trim("\"", "\"", 1L);
   s.replace("\\s", "\'");
   s.replace("\\d", "\"");
   s.replace("\\b", ";");
@@ -172,7 +172,7 @@ string Bass::text(string s) {
   return s;
 }
 
-int64_t Bass::character(string s) {
+auto Bass::character(string s) -> int64_t {
   if(s[0] != '\'') goto unknown;
   if(s[2] == '\'') return s[1];
   if(s[3] != '\'') goto unknown;

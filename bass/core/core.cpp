@@ -4,45 +4,47 @@
 #include "assemble.cpp"
 #include "utility.cpp"
 
-bool Bass::target(const string& filename, bool create) {
+auto Bass::target(const string& filename, bool create) -> bool {
   if(targetFile.open()) targetFile.close();
-  if(filename.empty()) return true;
+  if(!filename) return true;
 
   //cannot modify a file unless it exists
   if(!file::exists(filename)) create = true;
 
   if(!targetFile.open(filename, create ? file::mode::write : file::mode::modify)) {
-    print("warning: unable to open target file: ", filename, "\n");
+    print(stderr, "warning: unable to open target file: ", filename, "\n");
     return false;
   }
 
   return true;
 }
 
-bool Bass::source(const string& filename) {
+auto Bass::source(const string& filename) -> bool {
   if(!file::exists(filename)) {
-    print("warning: source file not found: ", filename, "\n");
+    print(stderr, "warning: source file not found: ", filename, "\n");
     return false;
   }
 
-  unsigned fileNumber = sourceFilenames.size();
+  uint fileNumber = sourceFilenames.size();
   sourceFilenames.append(filename);
 
   string data = file::read(filename);
   data.transform("\t\r", "  ");
 
-  lstring lines = data.split("\n");
-  for(unsigned lineNumber = 0; lineNumber < lines.size(); lineNumber++) {
-    if(auto position = lines[lineNumber].find("//")) lines[lineNumber].resize(position());  //remove comments
+  auto lines = data.split("\n");
+  for(uint lineNumber : range(lines)) {
+    if(auto position = lines[lineNumber].find("//")) {
+      lines[lineNumber].resize(position());  //remove comments
+    }
 
-    lstring blocks = lines[lineNumber].qsplit(";").strip();
-    for(unsigned blockNumber = 0; blockNumber < blocks.size(); blockNumber++) {
+    auto blocks = lines[lineNumber].qsplit(";").strip();
+    for(uint blockNumber : range(blocks)) {
       string statement = blocks[blockNumber].strip();
-      if(statement.empty()) continue;
+      if(!statement) continue;
 
       if(statement.match("include \"?*\"")) {
-        statement.trim<1>("include \"", "\"");
-        source({dir(filename), statement});
+        statement.trim("include \"", "\"", 1L);
+        source({pathname(filename), statement});
       } else {
         Instruction instruction;
         instruction.statement = statement;
@@ -57,18 +59,18 @@ bool Bass::source(const string& filename) {
   return true;
 }
 
-void Bass::define(const string& name, const string& value) {
+auto Bass::define(const string& name, const string& value) -> void {
   defines.insert({name, value});
 }
 
-void Bass::constant(const string& name, const string& value) {
+auto Bass::constant(const string& name, const string& value) -> void {
   try {
     constants.insert({name, evaluate(value, Evaluation::Strict)});
   } catch(...) {
   }
 }
 
-bool Bass::assemble(bool strict) {
+auto Bass::assemble(bool strict) -> bool {
   this->strict = strict;
 
   try {
@@ -89,50 +91,54 @@ bool Bass::assemble(bool strict) {
 
 //internal
 
-unsigned Bass::pc() const {
+auto Bass::pc() const -> uint {
   return origin + base;
 }
 
-void Bass::seek(unsigned offset) {
+auto Bass::seek(uint offset) -> void {
   if(!targetFile.open()) return;
   if(writePhase()) targetFile.seek(offset);
 }
 
-void Bass::write(uint64_t data, unsigned length) {
-  if(!targetFile.open()) return;
+auto Bass::write(uint64_t data, uint length) -> void {
   if(writePhase()) {
-    if(endian == Endian::LSB) targetFile.writel(data, length);
-    if(endian == Endian::MSB) targetFile.writem(data, length);
+    if(targetFile.open()) {
+      if(endian == Endian::LSB) targetFile.writel(data, length);
+      if(endian == Endian::MSB) targetFile.writem(data, length);
+    } else if(!isatty(fileno(stdout))) {
+      if(endian == Endian::LSB) for(auto n :  range(length)) fputc(data >> n * 8, stdout);
+      if(endian == Endian::MSB) for(auto n : rrange(length)) fputc(data >> n * 8, stdout);
+    }
   }
   origin += length;
 }
 
-void Bass::printInstruction() {
+auto Bass::printInstruction() -> void {
   if(activeInstruction) {
     auto& i = *activeInstruction;
-    print(sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
+    print(stderr, sourceFilenames[i.fileNumber], ":", i.lineNumber, ":", i.blockNumber, ": ", i.statement, "\n");
   }
 }
 
-template<typename... Args> void Bass::notice(Args&&... args) {
-  string s = string(std::forward<Args>(args)...);
-  print("notice: ", s, "\n");
+template<typename... P> auto Bass::notice(P&&... p) -> void {
+  string s{forward<P>(p)...};
+  print(stderr, "notice: ", s, "\n");
   printInstruction();
 }
 
-template<typename... Args> void Bass::warning(Args&&... args) {
-  string s = string(std::forward<Args>(args)...);
-  print("warning: ", s, "\n");
+template<typename... P> auto Bass::warning(P&&... p) -> void {
+  string s{forward<P>(p)...};
+  print(stderr, "warning: ", s, "\n");
   printInstruction();
 
-  if(strict == false) return;
+  if(!strict) return;
   struct BassWarning {};
   throw BassWarning();
 }
 
-template<typename... Args> void Bass::error(Args&&... args) {
-  string s = string(std::forward<Args>(args)...);
-  print("error: ", s, "\n");
+template<typename... P> auto Bass::error(P&&... p) -> void {
+  string s{forward<P>(p)...};
+  print(stderr, "error: ", s, "\n");
   printInstruction();
 
   struct BassError {};

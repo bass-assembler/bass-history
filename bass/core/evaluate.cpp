@@ -1,4 +1,4 @@
-int64_t Bass::evaluate(const string& expression, Evaluation mode) {
+auto Bass::evaluate(const string& expression, Evaluation mode) -> int64_t {
   maybe<string> name;
   if(expression == "--") name = {"lastLabel#", lastLabelCounter - 2};
   if(expression == "-" ) name = {"lastLabel#", lastLabelCounter - 1};
@@ -19,7 +19,7 @@ int64_t Bass::evaluate(const string& expression, Evaluation mode) {
   return evaluate(node, mode);
 }
 
-int64_t Bass::evaluate(Eval::Node* node, Evaluation mode) {
+auto Bass::evaluate(Eval::Node* node, Evaluation mode) -> int64_t {
   #define p(n) evaluate(node->link[n], mode)
 
   switch(node->type) {
@@ -55,7 +55,7 @@ int64_t Bass::evaluate(Eval::Node* node, Evaluation mode) {
   error("unsupported operator");
 }
 
-vector<int64_t> Bass::evaluateParameters(Eval::Node* node, Evaluation mode) {
+auto Bass::evaluateParameters(Eval::Node* node, Evaluation mode) -> vector<int64_t> {
   vector<int64_t> result;
   if(node->type == Eval::Node::Type::Null) return result;
   if(node->type != Eval::Node::Type::Separator) { result.append(evaluate(node, mode)); return result; }
@@ -63,7 +63,7 @@ vector<int64_t> Bass::evaluateParameters(Eval::Node* node, Evaluation mode) {
   return result;
 }
 
-int64_t Bass::evaluateFunction(Eval::Node* node, Evaluation mode) {
+auto Bass::evaluateFunction(Eval::Node* node, Evaluation mode) -> int64_t {
   auto p = evaluateParameters(node->link[1], mode);
   string s = {node->link[0]->literal, ":", p.size()};
 
@@ -71,22 +71,22 @@ int64_t Bass::evaluateFunction(Eval::Node* node, Evaluation mode) {
   if(s == "base:0") return base;
   if(s == "pc:0") return pc();
   if(s == "putchar:1") {
-    if(writePhase()) printf("%c", p[0]);
+    if(writePhase()) print((char)p[0]);
     return p[0];
   }
 
   error("unrecognized function: ", s);
 }
 
-int64_t Bass::evaluateLiteral(Eval::Node* node, Evaluation mode) {
+auto Bass::evaluateLiteral(Eval::Node* node, Evaluation mode) -> int64_t {
   string& s = node->literal;
 
-  if(s[0] == '0' && s[1] == 'b') return binary(s);
-  if(s[0] == '0' && s[1] == 'o') return octal(s);
-  if(s[0] == '0' && s[1] == 'x') return hex(s);
-  if(s[0] >= '0' && s[0] <= '9') return integer(s);
-  if(s[0] == '%') return binary(s);
-  if(s[0] == '$') return hex(s);
+  if(s[0] == '0' && s[1] == 'b') return toBinary(s);
+  if(s[0] == '0' && s[1] == 'o') return toOctal(s);
+  if(s[0] == '0' && s[1] == 'x') return toHex(s);
+  if(s[0] >= '0' && s[0] <= '9') return toInteger(s);
+  if(s[0] == '%') return toBinary(s);
+  if(s[0] == '$') return toHex(s);
   if(s.match("'?*'")) return character(s);
 
   if(auto variable = findVariable(s)) return variable().value;
@@ -96,7 +96,7 @@ int64_t Bass::evaluateLiteral(Eval::Node* node, Evaluation mode) {
   error("unrecognized variable: ", s);
 }
 
-int64_t Bass::evaluateAssign(Eval::Node* node, Evaluation mode) {
+auto Bass::evaluateAssign(Eval::Node* node, Evaluation mode) -> int64_t {
   string& s = node->link[0]->literal;
 
   if(auto variable = findVariable(s)) {

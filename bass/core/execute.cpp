@@ -1,4 +1,4 @@
-bool Bass::execute() {
+auto Bass::execute() -> bool {
   stackFrame.reset();
   ifStack.reset();
   ip = 0;
@@ -17,23 +17,23 @@ bool Bass::execute() {
     if(!executeInstruction(i)) error("unrecognized directive: ", i.statement);
   }
 
-  stackFrame.remove();
+  stackFrame.removeRight();
   return true;
 }
 
-bool Bass::executeInstruction(Instruction& i) {
+auto Bass::executeInstruction(Instruction& i) -> bool {
   activeInstruction = &i;
   string s = i.statement;
   evaluateDefines(s);
 
   if(s.match("macro ?*(*) {") || s.match("global macro ?*(*) {")) {
     bool local = s.beginsWith("global ") == false;
-    s.ltrim<1>("global ");
-    s.trim<1>("macro ", ") {");
-    lstring p = s.split<1>("(");
+    if(!local) s.trimLeft("global ", 1L);
+    s.trim("macro ", ") {", 1L);
+    auto p = s.split("(", 1L);
     bool scoped = p(0).beginsWith("scope ");
-    p(0).ltrim<1>("scope ");
-    lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
+    p(0).trimLeft("scope ", 1L);
+    auto a = !p(1) ? string_vector{} : p(1).qsplit(",").strip();
     setMacro(p(0), a, ip, scoped, local);
     ip = i.ip;
     return true;
@@ -41,30 +41,30 @@ bool Bass::executeInstruction(Instruction& i) {
 
   if(s.match("define ?*(*)") || s.match("global define ?*(*)")) {
     bool local = s.beginsWith("global ") == false;
-    s.ltrim<1>("global ");
-    lstring p = s.trim<1>("define ", ")").split<1>("(");
+    if(!local) s.trimLeft("global ", 1L);
+    auto p = s.trim("define ", ")", 1L).split("(", 1L);
     setDefine(p(0), p(1), local);
     return true;
   }
 
   if(s.match("evaluate ?*(*)") || s.match("global evaluate ?*(*)")) {
     bool local = s.beginsWith("global ") == false;
-    s.ltrim<1>("global ");
-    lstring p = s.trim<1>("evaluate ", ")").split<1>("(");
+    if(!local) s.trimLeft("global ", 1L);
+    auto p = s.trim("evaluate ", ")", 1L).split("(", 1L);
     setDefine(p(0), evaluate(p(1)), local);
     return true;
   }
 
   if(s.match("variable ?*(*)") || s.match("global variable ?*(*)")) {
     bool local = s.beginsWith("global ") == false;
-    s.ltrim<1>("global ");
-    lstring p = s.trim<1>("variable ", ")").split<1>("(");
+    if(!local) s.trimLeft("global ", 1L);
+    auto p = s.trim("variable ", ")", 1L).split("(", 1L);
     setVariable(p(0), evaluate(p(1)), local);
     return true;
   }
 
   if(s.match("if ?* {")) {
-    s.trim<1>("if ", " {").strip();
+    s.trim("if ", " {", 1L).strip();
     bool match = evaluate(s, Evaluation::Strict);
     ifStack.append(match);
     if(match == false) {
@@ -74,12 +74,12 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("} else if ?* {")) {
-    if(ifStack.last()) {
+    if(ifStack.right()) {
       ip = i.ip;
     } else {
-      s.trim<1>("} else if ", " {").strip();
+      s.trim("} else if ", " {", 1L).strip();
       bool match = evaluate(s, Evaluation::Strict);
-      ifStack.last() = match;
+      ifStack.right() = match;
       if(match == false) {
         ip = i.ip;
       }
@@ -88,21 +88,21 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("} else {")) {
-    if(ifStack.last()) {
+    if(ifStack.right()) {
       ip = i.ip;
     } else {
-      ifStack.last() = true;
+      ifStack.right() = true;
     }
     return true;
   }
 
   if(s.match("} endif")) {
-    ifStack.removeLast();
+    ifStack.removeRight();
     return true;
   }
 
   if(s.match("while ?* {")) {
-    s.trim<1>("while ", " {").strip();
+    s.trim("while ", " {", 1L).strip();
     bool match = evaluate(s, Evaluation::Strict);
     if(match == false) ip = i.ip;
     return true;
@@ -114,19 +114,19 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("?*(*)")) {
-    lstring p = string{s}.rtrim<1>(")").split<1>("(");
-    lstring a = p(1).empty() ? lstring{} : p(1).qsplit(",").strip();
+    auto p = string{s}.trimRight(")", 1L).split("(", 1L);
+    auto a = !p(1) ? string_vector{} : p(1).qsplit(",").strip();
     string name = {p(0), ":", a.size()};  //arity overloading
     if(auto macro = findMacro({name})) {
       struct Parameter {
-        enum class Type : unsigned { Define, Variable } type;
+        enum class Type : uint { Define, Variable } type;
         string name;
         string value;
       };
 
       vector<Parameter> parameters;
-      for(unsigned n = 0; n < a.size(); n++) {
-        lstring p = macro().parameters(n).split<1>(" ").strip();
+      for(uint n : range(a)) {
+        auto p = macro().parameters(n).split(" ", 1L).strip();
         if(p.size() == 1) p.prepend("define");
 
         if(p(0) == "define") parameters.append({Parameter::Type::Define, p(1), a(n)});
@@ -138,15 +138,15 @@ bool Bass::executeInstruction(Instruction& i) {
 
       StackFrame frame;
       stackFrame.append(frame);
-      stackFrame.last().ip = ip;
-      stackFrame.last().scoped = macro().scoped;
+      stackFrame.right().ip = ip;
+      stackFrame.right().scoped = macro().scoped;
 
       if(macro().scoped) scope.append(p(0));
 
       setDefine("#", {"_", macroInvocationCounter++}, true);
       for(auto& parameter : parameters) {
         if(parameter.type == Parameter::Type::Define) setDefine(parameter.name, parameter.value, true);
-        if(parameter.type == Parameter::Type::Variable) setVariable(parameter.name, integer(parameter.value), true);
+        if(parameter.type == Parameter::Type::Variable) setVariable(parameter.name, parameter.value.integer(), true);
       }
 
       ip = macro().ip;
@@ -155,9 +155,9 @@ bool Bass::executeInstruction(Instruction& i) {
   }
 
   if(s.match("} endmacro")) {
-    ip = stackFrame.last().ip;
-    if(stackFrame.last().scoped) scope.removeLast();
-    stackFrame.removeLast();
+    ip = stackFrame.right().ip;
+    if(stackFrame.right().scoped) scope.removeRight();
+    stackFrame.removeRight();
     return true;
   }
 

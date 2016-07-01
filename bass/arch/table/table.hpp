@@ -1,26 +1,26 @@
 struct BassTable : Bass {
   using Bass::assemble;
 
-  virtual void initialize() override;
-  virtual bool assemble(const string& statement) override;
+  virtual auto initialize() -> void override;
+  virtual auto assemble(const string& statement) -> bool override;
 
 protected:
   struct Prefix {
     string text;
-    unsigned size;
+    uint size;
   };
 
   struct Number {
-    unsigned bits;
+    uint bits;
   };
 
   struct Format {
-    enum class Type : unsigned { Static, Absolute, Relative, Repeat } type;
-    enum class Match : unsigned { Exact, Strong, Weak } match;
-    unsigned data;
-    unsigned bits;
-    unsigned argument;
-    signed displacement;
+    enum class Type : uint { Static, Absolute, Relative, Repeat } type;
+    enum class Match : uint { Exact, Strong, Weak } match;
+    uint data;
+    uint bits;
+    uint argument;
+    int displacement;
   };
 
   struct Opcode {
@@ -30,12 +30,12 @@ protected:
     string pattern;
   };
 
+  auto bitLength(string& text) const -> uint;
+  auto writeBits(uint64_t data, uint bits) -> void;
+  auto parseTable(const string& text) -> bool;
+  auto assembleTableLHS(Opcode& opcode, const string& text) -> void;
+  auto assembleTableRHS(Opcode& opcode, const string& text) -> void;
+
   vector<Opcode> table;
   uint64_t bitval, bitpos;
-
-  unsigned bitLength(string& text) const;
-  void writeBits(uint64_t data, unsigned bits);
-  bool parseTable(const string& text);
-  void assembleTableLHS(Opcode& opcode, const string& text);
-  void assembleTableRHS(Opcode& opcode, const string& text);
 };

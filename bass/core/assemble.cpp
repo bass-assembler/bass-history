@@ -1,7 +1,7 @@
-void Bass::initialize() {
+auto Bass::initialize() -> void {
   pushStack.reset();
   scope.reset();
-  for(unsigned n = 0; n < 256; n++) stringTable[n] = n;
+  for(uint n : range(256)) stringTable[n] = n;
   endian = Endian::LSB;
   origin = 0;
   base = 0;
@@ -9,7 +9,7 @@ void Bass::initialize() {
   nextLabelCounter = 1;
 }
 
-bool Bass::assemble(const string& statement) {
+auto Bass::assemble(const string& statement) -> bool {
   string s = statement;
 
   if(s.match("block {")) return true;
@@ -17,29 +17,29 @@ bool Bass::assemble(const string& statement) {
 
   //constant name(value)
   if(s.match("constant ?*(*)")) {
-    lstring p = s.trim<1>("constant ", ")").split<1>("(");
+    auto p = s.trim("constant ", ")", 1L).split("(", 1L);
     setConstant(p(0), evaluate(p(1)));
     return true;
   }
 
   //scope name {
   if(s.match("scope ?* {") || s.match("scope {")) {
-    s.trim<1>("scope ", "{").strip();
-    if(s.endsWith(":")) setConstant(s.rtrim<1>(":"), pc());
+    s.trim("scope ", "{", 1L).strip();
+    if(s.endsWith(":")) setConstant(s.trimRight(":", 1L), pc());
     scope.append(s);
     return true;
   }
 
   //}
   if(s.match("} endscope")) {
-    scope.removeLast();
+    scope.removeRight();
     return true;
   }
 
   //label: or label: {
   if(s.match("?*:") || s.match("?*: {")) {
-    s.rtrim<1>(" {");
-    s.rtrim<1>(":");
+    s.trimRight(" {", 1L);
+    s.trimRight(":", 1L);
     setConstant(s, pc());
     return true;
   }
@@ -63,8 +63,8 @@ bool Bass::assemble(const string& statement) {
 
   //output "filename" [, create]
   if(s.match("output ?*")) {
-    lstring p = s.ltrim<1>("output ").qsplit(",").strip();
-    string filename = {filepath(), p.take(0).trim<1>("\"")};
+    auto p = s.trimLeft("output ", 1L).qsplit(",").strip();
+    string filename = {filepath(), p.take(0).trim("\"", "\"", 1L)};
     bool create = (p.size() && p(0) == "create");
     target(filename, create);
     return true;
@@ -72,7 +72,7 @@ bool Bass::assemble(const string& statement) {
 
   //endian (lsb|msb)
   if(s.match("endian ?*")) {
-    s.ltrim<1>("endian ");
+    s.trimLeft("endian ", 1L);
     if(s == "lsb") { endian = Endian::LSB; return true; }
     if(s == "msb") { endian = Endian::MSB; return true; }
     error("invalid endian mode");
@@ -80,7 +80,7 @@ bool Bass::assemble(const string& statement) {
 
   //origin offset
   if(s.match("origin ?*")) {
-    s.ltrim<1>("origin ");
+    s.trimLeft("origin ", 1L);
     origin = evaluate(s);
     seek(origin);
     return true;
@@ -88,14 +88,14 @@ bool Bass::assemble(const string& statement) {
 
   //base offset
   if(s.match("base ?*")) {
-    s.ltrim<1>("base ");
+    s.trimLeft("base ", 1L);
     base = evaluate(s) - origin;
     return true;
   }
 
   //push variable [, ...]
   if(s.match("push ?*")) {
-    lstring p = s.ltrim<1>("push ").qsplit(",").strip();
+    auto p = s.trimLeft("push ", 1L).qsplit(",").strip();
     for(auto& t : p) {
       if(t == "origin") {
         pushStack.append(origin);
@@ -113,16 +113,16 @@ bool Bass::assemble(const string& statement) {
 
   //pull variable [, ...]
   if(s.match("pull ?*")) {
-    lstring p = s.ltrim<1>("pull ").qsplit(",").strip();
+    auto p = s.trimLeft("pull ", 1L).qsplit(",").strip();
     for(auto& t : p) {
       if(t == "origin") {
-        origin = decimal(pushStack.takeLast());
+        origin = pushStack.takeRight().natural();
         seek(origin);
       } else if(t == "base") {
-        base = integer(pushStack.takeLast());
+        base = pushStack.takeRight().integer();
       } else if(t == "pc") {
-        base = integer(pushStack.takeLast());
-        origin = decimal(pushStack.takeLast());
+        base = pushStack.takeRight().integer();
+        origin = pushStack.takeRight().natural();
         seek(origin);
       } else {
         error("unrecognized pull variable: ", t);
@@ -133,16 +133,16 @@ bool Bass::assemble(const string& statement) {
 
   //insert [name, ] filename [, offset] [, length]
   if(s.match("insert ?*")) {
-    lstring p = s.ltrim<1>("insert ").qsplit(",").strip();
+    auto p = s.trimLeft("insert ", 1L).qsplit(",").strip();
     string name;
     if(!p(0).match("\"*\"")) name = p.take(0);
     if(!p(0).match("\"*\"")) error("missing filename");
-    string filename = {filepath(), p.take(0).trim<1>("\"")};
+    string filename = {filepath(), p.take(0).trim("\"", "\"", 1L)};
     file fp;
     if(!fp.open(filename, file::mode::read)) error("file not found: ", filename);
-    unsigned offset = p.size() ? evaluate(p.take(0)) : 0;
+    uint offset = p.size() ? evaluate(p.take(0)) : 0;
     if(offset > fp.size()) offset = fp.size();
-    unsigned length = p.size() ? evaluate(p.take(0)) : 0;
+    uint length = p.size() ? evaluate(p.take(0)) : 0;
     if(length == 0) length = fp.size() - offset;
     if(name) {
       setConstant({name}, pc());
@@ -155,35 +155,35 @@ bool Bass::assemble(const string& statement) {
 
   //fill length [, with]
   if(s.match("fill ?*")) {
-    lstring p = s.ltrim<1>("fill ").qsplit(",").strip();
-    unsigned length = evaluate(p(0));
-    unsigned byte = evaluate(p(1, "0"));
+    auto p = s.trimLeft("fill ", 1L).qsplit(",").strip();
+    uint length = evaluate(p(0));
+    uint byte = evaluate(p(1, "0"));
     while(length--) write(byte);
     return true;
   }
 
   //map 'char' [, value] [, length]
   if(s.match("map ?*")) {
-    lstring p = s.ltrim<1>("map ").qsplit(",").strip();
+    auto p = s.trimLeft("map ", 1L).qsplit(",").strip();
     uint8_t index = evaluate(p(0));
     int64_t value = evaluate(p(1, "0"));
     int64_t length = evaluate(p(2, "1"));
-    for(signed n = 0; n < length; n++) {
+    for(int n : range(length)) {
       stringTable[index + n] = value + n;
     }
     return true;
   }
 
   //d[bwldq] ("string"|variable) [, ...]
-  unsigned dataLength = 0;
+  uint dataLength = 0;
   if(s.beginsWith("db ")) dataLength = 1;
   if(s.beginsWith("dw ")) dataLength = 2;
   if(s.beginsWith("dl ")) dataLength = 3;
   if(s.beginsWith("dd ")) dataLength = 4;
   if(s.beginsWith("dq ")) dataLength = 8;
   if(dataLength) {
-    s = s.slice(3);  //remove prefix
-    lstring p = s.qsplit(",").strip();
+    s = slice(s, 3);  //remove prefix
+    auto p = s.qsplit(",").strip();
     for(auto& t : p) {
       if(t.match("\"*\"")) {
         t = text(t);
@@ -197,14 +197,14 @@ bool Bass::assemble(const string& statement) {
 
   //print ("string"|variable) [, ...]
   if(s.match("print ?*")) {
-    s.ltrim<1>("print ").strip();
+    s.trimLeft("print ", 1L).strip();
     if(writePhase()) {
-      lstring p = s.qsplit(",").strip();
+      auto p = s.qsplit(",").strip();
       for(auto& t : p) {
         if(t.match("\"*\"")) {
-          print(text(t));
+          print(stderr, text(t));
         } else {
-          print(evaluate(t));
+          print(stderr, evaluate(t));
         }
       }
     }
@@ -214,7 +214,7 @@ bool Bass::assemble(const string& statement) {
   //notice "string"
   if(s.match("notice \"*\"")) {
     if(writePhase()) {
-      s.ltrim<1>("notice ").strip();
+      s.trimLeft("notice ", 1L).strip();
       notice(text(s));
     }
     return true;
@@ -223,7 +223,7 @@ bool Bass::assemble(const string& statement) {
   //warning "string"
   if(s.match("warning \"*\"")) {
     if(writePhase()) {
-      s.ltrim<1>("warning ").strip();
+      s.trimLeft("warning ", 1L).strip();
       warning(text(s));
     }
     return true;
@@ -232,7 +232,7 @@ bool Bass::assemble(const string& statement) {
   //error "string"
   if(s.match("error \"*\"")) {
     if(writePhase()) {
-      s.ltrim<1>("error ").strip();
+      s.trimLeft("error ", 1L).strip();
       error(text(s));
     }
     return true;

@@ -7,45 +7,46 @@
 #include "core/core.cpp"
 #include "arch/table/table.cpp"
 
-int main(int argc, char** argv) {
-  if(argc == 1) {
-    print("bass v14\n");
-    print("usage: bass [options] [-o target] source [source ...]\n");
-    print("\n");
-    print("options:\n");
-    print("  -d name[=value]  create define with optional value\n");
-    print("  -c name[=value]  create constant with optional value\n");
-    print("  -strict          upgrade warnings to errors\n");
-    print("  -create          overwrite target file if it already exists\n");
-    print("  -benchmark       benchmark performance\n");
-    return 0;
+#include <nall/main.hpp>
+auto nall::main(string_vector args) -> void {
+  if(args.size() == 1) {
+    print(stderr, "bass v14.05\n");
+    print(stderr, "usage: bass [options] [-o target] source [source ...]\n");
+    print(stderr, "\n");
+    print(stderr, "options:\n");
+    print(stderr, "  -d name[=value]  create define with optional value\n");
+    print(stderr, "  -c name[=value]  create constant with optional value\n");
+    print(stderr, "  -strict          upgrade warnings to errors\n");
+    print(stderr, "  -create          overwrite target file if it already exists\n");
+    print(stderr, "  -benchmark       benchmark performance\n");
+    exit(EXIT_FAILURE);
   }
 
   string targetFilename;
-  lstring defines;
-  lstring constants;
+  string_vector defines;
+  string_vector constants;
   bool strict = false;
   bool create = false;
   bool benchmark = false;
-  lstring sourceFilenames;
+  string_vector sourceFilenames;
 
-  for(unsigned n = 1; n < argc;) {
-    string s = argv[n];
+  for(uint n = 1; n < args.size();) {
+    string s = args[n];
 
     if(s == "-o") {
-      targetFilename = argv[n + 1];
+      targetFilename = args(n + 1, "");
       n += 2;
       continue;
     }
 
     if(s == "-d") {
-      defines.append(argv[n + 1]);
+      defines.append(args(n + 1, ""));
       n += 2;
       continue;
     }
 
     if(s == "-c") {
-      constants.append(argv[n + 1]);
+      constants.append(args(n + 1, ""));
       n += 2;
       continue;
     }
@@ -74,8 +75,8 @@ int main(int argc, char** argv) {
       continue;
     }
 
-    print("error: unrecognized argument: ", s, "\n");
-    return -1;
+    print(stderr, "error: unrecognized argument: ", s, "\n");
+    exit(EXIT_FAILURE);
   }
 
   clock_t clockStart = clock();
@@ -85,20 +86,19 @@ int main(int argc, char** argv) {
     bass.source(sourceFilename);
   }
   for(auto& define : defines) {
-    lstring p = define.split<1>("=");
+    auto p = define.split("=", 1L);
     bass.define(p(0), p(1));
   }
   for(auto& constant : constants) {
-    lstring p = constant.split<1>("=");
+    auto p = constant.split("=", 1L);
     bass.constant(p(0), p(1, "1"));
   }
-  if(bass.assemble(strict) == false) {
-    print("bass: assembly failed\n");
-    return -1;
+  if(!bass.assemble(strict)) {
+    print(stderr, "bass: assembly failed\n");
+    exit(EXIT_FAILURE);
   }
   clock_t clockFinish = clock();
   if(benchmark) {
-    print("bass: assembled in ", (double)(clockFinish - clockStart) / CLOCKS_PER_SEC, " seconds\n");
+    print(stderr, "bass: assembled in ", (double)(clockFinish - clockStart) / CLOCKS_PER_SEC, " seconds\n");
   }
-  return 0;
 }
