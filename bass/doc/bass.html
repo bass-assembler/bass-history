@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <title>bass documentation</title>
@@ -47,9 +48,16 @@
   </head>
   <body>
     <h1>bass v17</h1>
-    Author: byuu<br>
     License: ISC<br>
     <br>
+
+    <h2>Overview</h2>
+    <p>bass is a table-driven cross assembler with an embedded programming
+    language, which is used to provide powerful macro support.</p>
+
+    <p>Tables allow bass to support any desired processor instruction set, and
+    the optional ability to open target files in modification mode allows bass
+    to be used as a patching assembler.</p>
 
     <h2>Terminal Usage</h2>
     <pre>bass [options] source [source ...]</pre>
@@ -73,10 +81,7 @@
     <p><i>-benchmark</i> will display the time required to assemble the source.
     </p>
 
-    <h2>Architecture</h2>
-    <p>bass is a multi-pass assembler which can be driven by tables to support
-    multiple architectures.</p>
-
+    <h2>Parsing</h2>
     <p>Parsing consists of the following phases:</p>
 
     <h3>Tokenize</h3>
@@ -686,7 +691,17 @@
     <h3>pc()</h3>
     <p>Returns the current program counter (origin + base.)</p>
 
-    <h2>The End</h2>
+    <h2>Architecture Tables</h2>
+    <p>Regretfully, this documentation does not cover how to create your own
+    architecture tables. This is an advanced topic to cover, and it is expected
+    that these will be provided for you by any given bass distribution. bass was
+    not really designed with end-users creating these tables in mind.</p>
+
+    <p>If you wish to create a new architecture table for bass, you will need to
+    study the bass source code and the existing architecture files to gain an
+    understanding of how they work.</p>
+
+    <h2>Closing</h2>
     <p>Hopefully this has been informative. The best way to learn is through
     practice, so please do experiment and see what you can come up with!</p>
 
